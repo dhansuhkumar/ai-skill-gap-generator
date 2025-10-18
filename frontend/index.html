@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI Skill-Gap Generator</title>
+    <style>
+        body { font-family: Arial; padding: 20px; max-width: 800px; margin: auto; }
+        input, select, button { margin: 5px 0; padding: 8px; width: 100%; }
+        ul { list-style: none; padding-left: 0; }
+        a { text-decoration: none; color: blue; }
+    </style>
+</head>
+<body>
+    <h1>AI Skill-Gap & Micro-Project Generator</h1>
+
+    <label>Enter your skills (comma separated):</label>
+    <input type="text" id="skills" placeholder="HTML, CSS">
+
+    <label>Select your role:</label>
+    <select id="role">
+        <option>Web Developer</option>
+        <option>Data Scientist</option>
+        <option>Mobile Developer</option>
+    </select>
+
+    <button onclick="getRecommendations()">Get Recommendations</button>
+
+    <h2>Missing Skills:</h2>
+    <ul id="missing"></ul>
+
+    <h2>Suggested Projects:</h2>
+    <ul id="projects"></ul>
+
+    <h2>Starter Projects:</h2>
+    <ul id="starter"></ul>
+
+    <script>
+        async function getRecommendations() {
+            const skills = document.getElementById('skills').value.split(',').map(s => s.trim());
+            const role = document.getElementById('role').value;
+
+            const response = await fetch('http://127.0.0.1:5000/api/recommend', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({skills, role})
+            });
+
+            const data = await response.json();
+
+            // Display missing skills
+            const missingUl = document.getElementById('missing');
+            missingUl.innerHTML = '';
+            data.missing_skills.forEach(skill => {
+                const li = document.createElement('li');
+                li.textContent = skill;
+                missingUl.appendChild(li);
+            });
+
+            // Display suggested projects
+            const projectsUl = document.getElementById('projects');
+            projectsUl.innerHTML = '';
+            data.recommended_projects.forEach(p => {
+                const li = document.createElement('li');
+                li.textContent = `${p.skill}: ${p.project}`;
+                projectsUl.appendChild(li);
+            });
+
+            // Display starter project zips
+            const starterUl = document.getElementById('starter');
+            starterUl.innerHTML = '';
+            data.starter_projects.forEach(zip => {
+                const li = document.createElement('li');
+                const link = document.createElement('a');
+                link.href = `file:///${zip.replace(/\\/g, '/')}`;
+                link.textContent = zip.split('\\').pop();
+                link.download = zip.split('\\').pop();
+                li.appendChild(link);
+                starterUl.appendChild(li);
+            });
+        }
+    </script>
+</body>
+</html>
