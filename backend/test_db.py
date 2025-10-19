@@ -1,4 +1,4 @@
-from backend.recommender import find_missing_skills, generate_micro_projects
+from backend.app.recommender import find_missing_skills, generate_micro_projects
 
 user_skills = ["HTML", "CSS"]
 role = "Web Developer"

@@ -1,0 +1,8 @@
+venv/
+__pycache__/
+*.pyc
+.env
+*.zip
+backend/projects/
+.idea/
+.vscode/
