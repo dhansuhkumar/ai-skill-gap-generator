@@ -1,6 +1,8 @@
 import json
 from pathlib import Path
 
+
+
 # Path to the skill database
 DB_PATH = Path(__file__).parent / "skill_db.json"
 
