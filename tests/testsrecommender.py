@@ -1,4 +1,4 @@
-from backend.app.recommender import find_missing_skills, generate_micro_projects
+from app.recommender import find_missing_skills, generate_micro_projects
 
 def test_find_missing():
     user = ["HTML","CSS"]
