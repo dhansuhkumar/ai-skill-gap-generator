@@ -1,4 +1,11 @@
+import sys
+import os
+
+# Add backend directory to sys.path
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from flask import Blueprint, request, jsonify
+from recommender import find_missing_skills, generate_micro_projects
+from generator import create_zip
 import json
 import os
 
@@ -22,8 +29,16 @@ def recommend():
 
     missing = find_missing_skills(user_skills, skill_db.get(role, []))
     projects = generate_micro_projects(missing)
-
+    starter_projects = [str(create_zip(skill)) for skill in missing]
     return jsonify({
         "missing_skills": missing,
-        "recommended_projects": projects
+        "recommended_projects": projects,
+        "starter_projects": starter_projects 
     })
+    response = jsonify({
+        "missing_skills": missing,
+        "recommended_projects": projects,
+        "starter_projects": starter_projects
+    })
+    response.headers['Content-Type'] = 'application/json; charset=utf-8'
+    return response

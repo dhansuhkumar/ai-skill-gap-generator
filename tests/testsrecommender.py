@@ -1,4 +1,8 @@
-from app.recommender import find_missing_skills, generate_micro_projects
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from backend.app.recommender import find_missing_skills, generate_micro_projects
 
 def test_find_missing():
     user = ["HTML","CSS"]

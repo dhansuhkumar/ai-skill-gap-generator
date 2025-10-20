@@ -1,7 +1,9 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <title>AI Skill-Gap Generator</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" Content-Type="text/html"; charset="UTF-8">
+
     <style>
         body { font-family: Arial; padding: 20px; max-width: 800px; margin: auto; }
         input, select, button { margin: 5px 0; padding: 8px; width: 100%; }
@@ -12,17 +14,17 @@
 <body>
     <h1>AI Skill-Gap & Micro-Project Generator</h1>
 
-    <label>Enter your skills (comma separated):</label>
+    <label for="skills">Enter your skills (comma separated):</label>
     <input type="text" id="skills" placeholder="HTML, CSS">
 
-    <label>Select your role:</label>
-    <select id="role">
-        <option>Web Developer</option>
-        <option>Data Scientist</option>
-        <option>Mobile Developer</option>
-    </select>
-
-    <button onclick="getRecommendations()">Get Recommendations</button>
+      <label for="role">Select your role:</label>
+  <select id="role">
+    <option value="">--Choose a role--</option>
+    <option value="Web Developer">Web Developer</option>
+    <option value="Data Scientist">Data Scientist</option>
+    <option value="Mobile Developer">Mobile Developer</option>
+  </select>
+  <button onclick="getRecommendations()">Get Recommendations</button>
 
     <h2>Missing Skills:</h2>
     <ul id="missing"></ul>
@@ -67,7 +69,7 @@
             // Display starter project zips
             const starterUl = document.getElementById('starter');
             starterUl.innerHTML = '';
-            data.starter_projects.forEach(zip => {
+            (data.starter_projects || []).forEach(zip => {
                 const li = document.createElement('li');
                 const link = document.createElement('a');
                 link.href = `file:///${zip.replace(/\\/g, '/')}`;
