@@ -1,84 +1,117 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>AI Skill-Gap Generator</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" Content-Type="text/html"; charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Skill-Gap Generator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
 
-    <style>
-        body { font-family: Arial; padding: 20px; max-width: 800px; margin: auto; }
-        input, select, button { margin: 5px 0; padding: 8px; width: 100%; }
-        ul { list-style: none; padding-left: 0; }
-        a { text-decoration: none; color: blue; }
-    </style>
 </head>
-<body>
-    <h1>AI Skill-Gap & Micro-Project Generator</h1>
+<body class="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700 text-white flex flex-col items-center justify-center p-6">
 
-    <label for="skills">Enter your skills (comma separated):</label>
-    <input type="text" id="skills" placeholder="HTML, CSS">
+  <!-- Header -->
+  <div class="text-center mb-10">
+    <h1 class="text-4xl font-bold mb-2">🧠 AI Skill-Gap Generator</h1>
+    <p class="text-gray-300">Discover missing skills and project ideas tailored to your role.</p>
+  </div>
 
-      <label for="role">Select your role:</label>
-  <select id="role">
-    <option value="">--Choose a role--</option>
-    <option value="Web Developer">Web Developer</option>
-    <option value="Data Scientist">Data Scientist</option>
-    <option value="Mobile Developer">Mobile Developer</option>
-  </select>
-  <button onclick="getRecommendations()">Get Recommendations</button>
+  <!-- Form Card -->
+  <div class="bg-white/10 backdrop-blur-lg rounded-2xl shadow-xl p-8 w-full max-w-2xl">
+    <form id="recommendForm" class="flex flex-col gap-4">
+      <div>
+        <label for="skills" class="block mb-2 text-gray-200">Enter your skills (comma separated)</label>
+        <input id="skills" type="text" placeholder="e.g. HTML, CSS"
+          class="w-full rounded-lg px-4 py-2 bg-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400">
+      </div>
 
-    <h2>Missing Skills:</h2>
-    <ul id="missing"></ul>
+      <div>
+        <label for="role" class="block mb-2 text-gray-200">Select your role</label>
+        <select id="role"
+          class="w-full rounded-lg px-4 py-2 bg-slate-800 text-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+          <option value="">--Choose a role--</option>
+          <option value="Web Developer">Web Developer</option>
+          <option value="Data Scientist">Data Scientist</option>
+          <option value="Mobile Developer">Mobile Developer</option>
+        </select>
+      </div>
 
-    <h2>Suggested Projects:</h2>
-    <ul id="projects"></ul>
+      <button type="submit"
+        class="mt-4 bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 rounded-lg transition">
+        Get Recommendations
+      </button>
+    </form>
+  </div>
 
-    <h2>Starter Projects:</h2>
-    <ul id="starter"></ul>
+  <!-- Loader -->
+  <div id="loading" class="hidden mt-6">
+    <div class="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-blue-500 mx-auto"></div>
+    <p class="text-gray-300 mt-3">Analyzing your skills...</p>
+  </div>
 
-    <script>
-        async function getRecommendations() {
-            const skills = document.getElementById('skills').value.split(',').map(s => s.trim());
-            const role = document.getElementById('role').value;
+  <!-- Output Section -->
+  <div id="results" class="hidden bg-white/10 backdrop-blur-md rounded-2xl shadow-xl mt-8 p-8 w-full max-w-3xl">
+    <h2 class="text-2xl font-bold mb-4 text-blue-400">Your Recommendations</h2>
 
-            const response = await fetch('http://127.0.0.1:5000/api/recommend', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({skills, role})
-            });
+    <div id="missingSkills" class="mb-4"></div>
+    <div id="recommendedProjects" class="mb-4"></div>
+    <div id="starterProjects" class="mb-4"></div>
+  </div>
 
-            const data = await response.json();
+  <script>
+  const form = document.getElementById('recommendForm');
+  const loading = document.getElementById('loading');
+  const results = document.getElementById('results');
 
-            // Display missing skills
-            const missingUl = document.getElementById('missing');
-            missingUl.innerHTML = '';
-            data.missing_skills.forEach(skill => {
-                const li = document.createElement('li');
-                li.textContent = skill;
-                missingUl.appendChild(li);
-            });
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    results.classList.add('hidden');
+    loading.classList.remove('hidden');
 
-            // Display suggested projects
-            const projectsUl = document.getElementById('projects');
-            projectsUl.innerHTML = '';
-            data.recommended_projects.forEach(p => {
-                const li = document.createElement('li');
-                li.textContent = `${p.skill}: ${p.project}`;
-                projectsUl.appendChild(li);
-            });
+    const skills = document.getElementById('skills').value.split(',').map(s => s.trim());
+    const role = document.getElementById('role').value;
 
-            // Display starter project zips
-            const starterUl = document.getElementById('starter');
-            starterUl.innerHTML = '';
-            (data.starter_projects || []).forEach(zip => {
-                const li = document.createElement('li');
-                const link = document.createElement('a');
-                link.href = `file:///${zip.replace(/\\/g, '/')}`;
-                link.textContent = zip.split('\\').pop();
-                link.download = zip.split('\\').pop();
-                li.appendChild(link);
-                starterUl.appendChild(li);
-            });
-        }
-    </script>
+    try {
+      const response = await fetch('http://127.0.0.1:5000/api/recommend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ skills, role })
+      });
+
+      const data = await response.json();
+
+      // 🔸 Missing Skills Card
+      document.getElementById('missingSkills').innerHTML =
+        `<div class="mb-4 p-4 bg-yellow-100 text-yellow-800 rounded-lg shadow">
+           <h3 class="font-semibold text-lg mb-2">⚠️ Missing Skills</h3>
+           <ul class="list-disc list-inside">${data.missing_skills.map(skill => `<li>${skill}</li>`).join('')}</ul>
+         </div>`;
+
+      // 🔹 Recommended Projects Card
+      document.getElementById('recommendedProjects').innerHTML =
+        `<div class="mb-4 p-4 bg-blue-100 text-blue-800 rounded-lg shadow">
+           <h3 class="font-semibold text-lg mb-2">💡 Suggested Projects</h3>
+           <ul class="list-disc list-inside">${data.recommended_projects.map(p => `<li>${p.skill}: ${p.project}</li>`).join('')}</ul>
+         </div>`;
+
+      // 🟣 Starter Projects Card
+      document.getElementById('starterProjects').innerHTML =
+        `<div class="mb-4 p-4 bg-purple-100 text-purple-800 rounded-lg shadow">
+           <h3 class="font-semibold text-lg mb-2">🚀 Starter Projects</h3>
+           <ul class="list-disc list-inside">${(data.starter_projects || []).map(zip => {
+             const filename = zip.split('\\').pop();
+             return `<li><a href="file:///${zip.replace(/\\/g, '/')}" download="${filename}" class="underline">${filename}</a></li>`;
+           }).join('')}</ul>
+         </div>`;
+
+      // Reveal results
+      loading.classList.add('hidden');
+      results.classList.remove('hidden');
+      results.classList.add('transition-opacity', 'duration-500', 'opacity-100');
+    } catch (error) {
+      loading.classList.add('hidden');
+      alert('Error fetching recommendations.');
+    }
+  });
+</script>
 </body>
 </html>

@@ -30,6 +30,13 @@ def recommend():
     missing = find_missing_skills(user_skills, skill_db.get(role, []))
     projects = generate_micro_projects(missing)
     starter_projects = [str(create_zip(skill)) for skill in missing]
+    if missing is None:
+        return jsonify({
+            "error": "No matching skills found for this role.",
+            "missing_skills": [],
+            "recommended_projects": [],
+            "starter_projects": []
+        }),400
     return jsonify({
         "missing_skills": missing,
         "recommended_projects": projects,

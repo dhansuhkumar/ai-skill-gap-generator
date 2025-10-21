@@ -1,0 +1,38 @@
+{
+  "HTML": {
+    "synonyms": ["HyperText Markup Language"],
+    "related": ["CSS", "JavaScript"]
+  },
+  "CSS": {
+    "synonyms": ["Cascading Style Sheets"],
+    "related": ["HTML", "Responsive Design"]
+  },
+  "JavaScript": {
+    "synonyms": ["JS", "ECMAScript"],
+    "related": ["React", "Node.js", "Frontend"]
+  },
+  "React": {
+    "synonyms": ["ReactJS", "React.js"],
+    "related": ["JavaScript", "Frontend Frameworks"]
+  },
+  "Node.js": {
+    "synonyms": ["Node", "NodeJS"],
+    "related": ["JavaScript", "Backend"]
+  },
+  "Python": {
+    "synonyms": ["Py"],
+    "related": ["Pandas", "NumPy", "Flask", "Django"]
+  },
+  "Machine Learning": {
+    "synonyms": ["ML"],
+    "related": ["AI", "Deep Learning", "TensorFlow"]
+  },
+  "Java": {
+    "synonyms": ["JVM Java"],
+    "related": ["Kotlin", "Android"]
+  },
+  "Kotlin": {
+    "synonyms": [],
+    "related": ["Java", "Android"]
+  }
+}
