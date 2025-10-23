@@ -1,10 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <style>
+    html {
+      text-size-adjust: 100%;
+      -webkit-text-size-adjust: 100%;
+    }
+  </style>
+
+
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AI Skill-Gap Generator</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.tailwindcss.com">
+  </script>
 
 </head>
 <body class="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700 text-white flex flex-col items-center justify-center p-6">
@@ -55,6 +64,7 @@
     <div id="missingSkills" class="mb-4"></div>
     <div id="recommendedProjects" class="mb-4"></div>
     <div id="starterProjects" class="mb-4"></div>
+    <div id="ai_projects" class="mb-4"></div>
   </div>
 
   <script>
@@ -102,6 +112,18 @@
              return `<li><a href="file:///${zip.replace(/\\/g, '/')}" download="${filename}" class="underline">${filename}</a></li>`;
            }).join('')}</ul>
          </div>`;
+      // 🟢 AI Project Ideas Car
+      if (data.ai_projects && data.ai_projects.length > 0) {
+        document.getElementById('ai_projects').innerHTML =
+          `<div class="mb-4 p-4 bg-green-100 text-green-800 rounded-lg shadow">
+             <h3 class="font-semibold text-lg mb-2">🤖 AI Project Ideas</h3>
+             <ul class="list-disc list-inside">${data.ai_projects.map(idea => `<li>${idea}</li>`).join('')}</ul>
+           </div>`;
+      } else {
+        document.getElementById('ai_projects').innerHTML = '';
+      }
+
+    
 
       // Reveal results
       loading.classList.add('hidden');
@@ -112,6 +134,7 @@
       alert('Error fetching recommendations.');
     }
   });
+  
 </script>
 </body>
 </html>

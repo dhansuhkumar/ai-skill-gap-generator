@@ -6,6 +6,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from flask import Blueprint, request, jsonify
 from recommender import find_missing_skills, generate_micro_projects
 from generator import create_zip
+from ai_generator import generate_ai_project_ideas
 import json
 import os
 
@@ -21,6 +22,7 @@ def recommend():
     data = request.get_json()
     role = data.get('role')
     user_skills = data.get('skills', [])
+    ai_projects = generate_ai_project_ideas(role, user_skills)
 
     # Load database safely (use absolute path)
     db_path = os.path.join(os.path.dirname(__file__), 'skill_db.json')
@@ -47,5 +49,13 @@ def recommend():
         "recommended_projects": projects,
         "starter_projects": starter_projects
     })
+    return jsonify({
+    "known_skills": known,
+    "missing_skills": missing,
+    "recommended_projects": projects,
+    "starter_projects": starter_projects,
+    "ai_projects": ai_projects
+})
+
     response.headers['Content-Type'] = 'application/json; charset=utf-8'
     return response
