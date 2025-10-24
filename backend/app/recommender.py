@@ -2,6 +2,7 @@ import os
 import json
 from pathlib import Path
 
+
 # Paths
 DB_PATH = Path(__file__).parent / "skill_db.json"
 DATA_PATH = Path(__file__).parent / "skill_data.json"

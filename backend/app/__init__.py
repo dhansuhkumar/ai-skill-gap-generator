@@ -5,7 +5,7 @@ def create_app():
     app = Flask(__name__)
     CORS(app)  # 👈 Enable CORS for all routes
     from .routes import main
-    app.register_blueprint(main)
+    app.register_blueprint(main, url_prefix='/api')
 
     @app.route("/")
     def index():

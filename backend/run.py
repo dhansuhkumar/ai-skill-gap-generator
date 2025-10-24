@@ -8,11 +8,13 @@ from app.ai_generator import generate_ai_project_ideas
 from app.recommender import find_missing_skills, generate_micro_projects
 from app.generator import create_zip
 from app.__init__ import create_app
+from database import init_db
+
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-
-
+init_db()
 app = create_app()
+from app.routes import main 
 
 
 @app.route('/api/recommend', methods=['POST'])
