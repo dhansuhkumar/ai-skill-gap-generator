@@ -1,5 +1,5 @@
 {
-  "Web Developer": ["HTML", "CSS", "JavaScript", "React", "Node.js", "SQL"],
+  "Web Developer": ["HTML", "CSS", "JavaScript", "React", "Node.js", "SQL","C"],
   "Data Scientist": ["Python", "Pandas", "NumPy", "Machine Learning", "SQL", "Matplotlib"],
   "Mobile Developer": ["Java", "Kotlin", "Android", "APIs", "SQLite"]
 }

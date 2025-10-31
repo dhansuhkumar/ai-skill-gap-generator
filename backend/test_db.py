@@ -1,10 +1,12 @@
-from app.recommender import find_missing_skills, generate_micro_projects
+import sqlite3
 
-user_skills = ["HTML", "CSS"]
-role = "Web Developer"
+conn = sqlite3.connect('users.db')
+c = conn.cursor()
 
-missing = find_missing_skills(user_skills, role)
-projects = generate_micro_projects(missing)
+c.execute('SELECT * FROM users')
+rows = c.fetchall()
 
-print("Missing Skills:", missing)
-print("Suggested Projects:", projects)
+for row in rows:
+    print(row)
+
+conn.close()

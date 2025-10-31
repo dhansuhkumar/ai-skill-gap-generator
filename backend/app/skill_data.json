@@ -1,38 +1,47 @@
 {
   "HTML": {
     "synonyms": ["HyperText Markup Language"],
-    "related": ["CSS", "JavaScript"]
+    "related": ["CSS", "JavaScript"],
+    "dependencies": []
   },
   "CSS": {
     "synonyms": ["Cascading Style Sheets"],
-    "related": ["HTML", "Responsive Design"]
+    "related": ["HTML", "Responsive Design"],
+    "dependencies": ["HTML"]
   },
   "JavaScript": {
     "synonyms": ["JS", "ECMAScript"],
-    "related": ["React", "Node.js", "Frontend"]
+    "related": ["React", "Node.js", "Frontend"],
+    "dependencies": ["HTML", "CSS"]
   },
   "React": {
     "synonyms": ["ReactJS", "React.js"],
-    "related": ["JavaScript", "Frontend Frameworks"]
+    "related": ["JavaScript", "Frontend Frameworks"],
+    "dependencies": ["JavaScript"]
   },
   "Node.js": {
     "synonyms": ["Node", "NodeJS"],
-    "related": ["JavaScript", "Backend"]
+    "related": ["JavaScript", "Backend"],
+    "dependencies": ["JavaScript"]
   },
   "Python": {
     "synonyms": ["Py"],
-    "related": ["Pandas", "NumPy", "Flask", "Django"]
+    "related": ["Pandas", "NumPy", "Flask", "Django"],
+    "dependencies": []
   },
   "Machine Learning": {
     "synonyms": ["ML"],
-    "related": ["AI", "Deep Learning", "TensorFlow"]
+    "related": ["AI", "Deep Learning", "TensorFlow"],
+    "dependencies": ["Python"]
   },
   "Java": {
     "synonyms": ["JVM Java"],
-    "related": ["Kotlin", "Android"]
+    "related": ["Kotlin", "Android"],
+    "dependencies": []
   },
   "Kotlin": {
     "synonyms": [],
-    "related": ["Java", "Android"]
+    "related": ["Java", "Android"],
+    "dependencies": ["Java"]
   }
 }

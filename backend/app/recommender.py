@@ -1,6 +1,9 @@
 import os
+import sys
 import json
 from pathlib import Path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from app.semantic_matcher import match_input_to_skill
 
 
 # Paths
@@ -28,6 +31,13 @@ def load_skill_data():
         return {}  # return empty dict instead of crashing
     with open(DATA_PATH) as f:
         return json.load(f)
+def normalize_skill(s, skill_data):
+    s = s.strip().lower()
+    for skill, info in skill_data.items():
+        if s == skill.lower() or s in [syn.lower() for syn in info.get("synonyms", [])]:
+            return skill
+    return match_input_to_skill(s)
+
 
 # Normalize skill names (handle synonyms)
 def normalize_skill(user_input, skill_data):
@@ -45,16 +55,30 @@ def find_missing_skills(user_skills, target_role):
     skill_data = load_skill_data()
 
     required_skills = db.get(target_role, [])
+    if not required_skills:
+        return []
+
     normalized_user = [normalize_skill(s, skill_data) for s in user_skills]
 
-    matched_skills = [skill for skill in required_skills if skill not in normalized_user]
-    return matched_skills
+    # Expand dependencies
+    def expand_dependencies(skill, visited):
+        if skill in visited:
+            return []
+        visited.add(skill)
+        deps = skill_data.get(skill, {}).get("dependencies", [])
+        result = []
+        for dep in deps:
+            result.append(dep)
+            result.extend(expand_dependencies(dep, visited))
+        return result
 
-    if not matched_skills:
-        return None
-    missing = [skill for skill in required_skills if skill not in matched_skills]
-    return missing
+    expanded_required = set()
+    for skill in required_skills:
+        expanded_required.add(skill)
+        expanded_required.update(expand_dependencies(skill, set()))
 
+    missing_skills = [skill for skill in expanded_required if skill not in normalized_user]
+    return sorted(set(missing_skills))
 # Generate micro-project suggestions
 def generate_micro_projects(missing_skills):
     projects = []

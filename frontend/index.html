@@ -15,6 +15,7 @@
   <script src="https://cdn.tailwindcss.com">
   </script>
 
+
 </head>
 <body class="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700 text-white flex flex-col items-center justify-center p-6">
 
@@ -28,11 +29,24 @@
   <div class="bg-white/10 backdrop-blur-lg rounded-2xl shadow-xl p-8 w-full max-w-2xl">
     <form id="recommendForm" class="flex flex-col gap-4">
       <div>
+  <label for="user_id" class="block mb-2 text-gray-200">User ID</label>
+  <input id="user_id" type="text" placeholder="e.g. dhanush123"
+    class="w-full rounded-lg px-4 py-2 bg-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400">
+</div>
+      <div>
         <label for="skills" class="block mb-2 text-gray-200">Enter your skills (comma separated)</label>
         <input id="skills" type="text" placeholder="e.g. HTML, CSS"
           class="w-full rounded-lg px-4 py-2 bg-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400">
       </div>
-
+<div>
+  <label for="resumeUpload" class="block mb-2 text-gray-200">Upload your resume (PDF)</label>
+  <input id="resumeUpload" type="file" accept=".pdf"
+    class="w-full rounded-lg px-4 py-2 bg-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400">
+  <button type="button" onclick="uploadResume()"
+    class="mt-2 bg-green-500 hover:bg-green-600 text-white font-semibold py-2 rounded-lg transition">
+    Extract Skills from Resume
+  </button>
+</div>
       <div>
         <label for="role" class="block mb-2 text-gray-200">Select your role</label>
         <select id="role"
@@ -66,75 +80,11 @@
     <div id="starterProjects" class="mb-4"></div>
     <div id="ai_projects" class="mb-4"></div>
   </div>
-
-  <script>
-  const form = document.getElementById('recommendForm');
-  const loading = document.getElementById('loading');
-  const results = document.getElementById('results');
-
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    results.classList.add('hidden');
-    loading.classList.remove('hidden');
-
-    const skills = document.getElementById('skills').value.split(',').map(s => s.trim());
-    const role = document.getElementById('role').value;
-
-    try {
-      const response = await fetch('http://127.0.0.1:5000/api/recommend', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ skills, role })
-      });
-
-      const data = await response.json();
-
-      // 🔸 Missing Skills Card
-      document.getElementById('missingSkills').innerHTML =
-        `<div class="mb-4 p-4 bg-yellow-100 text-yellow-800 rounded-lg shadow">
-           <h3 class="font-semibold text-lg mb-2">⚠️ Missing Skills</h3>
-           <ul class="list-disc list-inside">${data.missing_skills.map(skill => `<li>${skill}</li>`).join('')}</ul>
-         </div>`;
-
-      // 🔹 Recommended Projects Card
-      document.getElementById('recommendedProjects').innerHTML =
-        `<div class="mb-4 p-4 bg-blue-100 text-blue-800 rounded-lg shadow">
-           <h3 class="font-semibold text-lg mb-2">💡 Suggested Projects</h3>
-           <ul class="list-disc list-inside">${data.recommended_projects.map(p => `<li>${p.skill}: ${p.project}</li>`).join('')}</ul>
-         </div>`;
-
-      // 🟣 Starter Projects Card
-      document.getElementById('starterProjects').innerHTML =
-        `<div class="mb-4 p-4 bg-purple-100 text-purple-800 rounded-lg shadow">
-           <h3 class="font-semibold text-lg mb-2">🚀 Starter Projects</h3>
-           <ul class="list-disc list-inside">${(data.starter_projects || []).map(zip => {
-             const filename = zip.split('\\').pop();
-             return `<li><a href="file:///${zip.replace(/\\/g, '/')}" download="${filename}" class="underline">${filename}</a></li>`;
-           }).join('')}</ul>
-         </div>`;
-      // 🟢 AI Project Ideas Car
-      if (data.ai_projects && data.ai_projects.length > 0) {
-        document.getElementById('ai_projects').innerHTML =
-          `<div class="mb-4 p-4 bg-green-100 text-green-800 rounded-lg shadow">
-             <h3 class="font-semibold text-lg mb-2">🤖 AI Project Ideas</h3>
-             <ul class="list-disc list-inside">${data.ai_projects.map(idea => `<li>${idea}</li>`).join('')}</ul>
-           </div>`;
-      } else {
-        document.getElementById('ai_projects').innerHTML = '';
-      }
-
-    
-
-      // Reveal results
-      loading.classList.add('hidden');
-      results.classList.remove('hidden');
-      results.classList.add('transition-opacity', 'duration-500', 'opacity-100');
-    } catch (error) {
-      loading.classList.add('hidden');
-      alert('Error fetching recommendations.');
-    }
-  });
-  
-</script>
+  <div class="mt-8">
+    <h3 class="text-xl font-semibold text-white mb-2">📊 Skill Coverage</h3>
+    <canvas id ="skillChart" class="bg-white rounded-lg p-4"></canvas>
+  </div>
+  <script src ="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>
