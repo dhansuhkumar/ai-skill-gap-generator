@@ -11,7 +11,11 @@ document.addEventListener('DOMContentLoaded', () => {
     results.classList.add('hidden');
     loading.classList.remove('hidden');
 
-    const skills = document.getElementById('skills').value.split(',').map(s => s.trim());
+   const skillsInput = document.getElementById('skills').value;
+const skills = skillsInput
+  .split(',')
+  .map(s => s.trim())
+  .filter(s => s); // removes empty strings
     const role = document.getElementById('role').value;
     const user_id = document.getElementById('user_id')?.value || "dhanush123";
     fetch("http://127.0.0.1:5000/api/login", {
@@ -136,19 +140,31 @@ function uploadResume() {
   if (!file) return alert("Please select a PDF file.");
 
   const formData = new FormData();
-  formData.append("file", fileInput.files[0]);
+  formData.append("file", file);
 
   fetch("http://127.0.0.1:5000/api/upload_resume", {
     method: "POST",
     body: formData,
   })
-    .then((res) => res.json())
-    .then((data) => {
-      const skills = data.extracted_skills;
-      console.log("Extracted skills:", skills);
-      document.getElementById("skills").value = skills.join(", ");
+    .then(res => res.json())
+    .then(data => {
+      const skillsInput = document.getElementById("skills");
+
+      // parse whatever is already in the input
+      const manualSkills = skillsInput.value
+        .split(",")
+        .map(s => s.trim())
+        .filter(s => s);
+
+      // merge with extracted skills, remove duplicates
+      const merged = [...new Set([...manualSkills, ...(data.extracted_skills || [])])];
+
+      // update the field with the merged list
+      skillsInput.value = merged.join(", ");
+
+      console.log("Merged skills:", merged);
     })
-    .catch((err) => {
+    .catch(err => {
       console.error("Upload failed:", err);
       alert("Resume upload failed.");
     });

@@ -1,4 +1,4 @@
-FROM python:3.10-slim
+FROM python:3.11-slim
 
 WORKDIR /app
 
@@ -7,9 +7,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-ENV FLASK_APP=backend/run.py
+# Optional: Set environment variables here or in Render dashboard
 ENV FLASK_ENV=production
 
+# Expose port
 EXPOSE 5000
 
-CMD ["python", "backend/run.py"]
+# Run with Gunicorn (adjust if using factory)
+CMD ["gunicorn", "-b", "0.0.0.0:5000", "backend.run:app"]

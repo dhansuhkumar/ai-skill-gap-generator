@@ -1,4 +1,6 @@
 # database.py
+import os
+import sys
 import sqlite3
 
 DB_NAME = 'users.db'  # ✅ This must be at the top level

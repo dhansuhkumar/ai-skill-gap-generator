@@ -1,13 +1,13 @@
 import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from flask import Blueprint, request, jsonify, send_file, abort
+from flask import Blueprint, request, jsonify, send_file, abort, current_app
 from user_profile import get_user_profile, save_user_profile
 from app.recommender import find_missing_skills, generate_micro_projects
 from app.generator import create_zip
 from app.ai_generator import generate_ai_project_ideas
 from app.utils.validators import require_keys
-
+from flask import send_file, abort
 from flask_jwt_extended import jwt_required, get_jwt_identity,create_access_token
 import json
 import os
@@ -16,6 +16,7 @@ from werkzeug.utils import secure_filename
 from app.resume_parser import extract_skills_from_pdf
 
 main = Blueprint('main', __name__)
+PROJECTS_DIR = Path(__file__).parent / "projects"
 
 @main.route('/')
 def home():
@@ -135,3 +136,17 @@ def get_starter(skill):
     if not zip_file.exists():
         abort(404)
     return send_file(zip_file, as_attachment=True, mimetype='application/zip')
+
+@main.app_errorhandler(400)
+def bad_request(error):
+    return jsonify({"error": "Bad request", "message": str(error)}), 400
+
+@main.app_errorhandler(404)
+def not_found(error):
+    return jsonify({"error": "Not found", "message": str(error)}), 404
+
+@main.app_errorhandler(500)
+def internal_error(error):
+    current_app.logger.error(f"Server Error: {error}")
+    return jsonify({"error": "Internal server error"}), 500
+
