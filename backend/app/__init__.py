@@ -1,6 +1,6 @@
 import os
 import logging
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 from logging.handlers import RotatingFileHandler
@@ -22,6 +22,12 @@ def create_app():
     app.register_blueprint(main, url_prefix='/api')
 
     @app.route("/")
+    def embed():
+        from sentence_transformers import SentenceTransformer
+        model = SentenceTransformer('all-MiniLM-L6-v2')
+        text = request.json["text"]
+        embedding = model.encode(text)
+        return {"embedding": embedding.tolist()}
     def index():
         return jsonify({"status": "ok", "message": "Skill Gap Generator API is running!"})
 

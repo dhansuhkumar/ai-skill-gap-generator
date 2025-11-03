@@ -14,4 +14,4 @@ ENV FLASK_ENV=production
 EXPOSE 5000
 
 # Run with Gunicorn (adjust if using factory)
-CMD ["gunicorn", "-b", "0.0.0.0:5000", "backend.run:app"]
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "backend.run:app"]

@@ -3,7 +3,8 @@ import os
 import sys
 import sqlite3
 
-DB_NAME = 'users.db'  # ✅ This must be at the top level
+DB_NAME = os.environ.get("DATABASE_URL", "users.db")  # fallback to local file if not set
+ # ✅ This must be at the top level
 
 def init_db():
     conn = sqlite3.connect(DB_NAME)
