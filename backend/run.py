@@ -2,7 +2,7 @@
 import sys
 import os
 from dotenv import load_dotenv
-from backend.database import init_db
+from database import init_db
 from flask import request, jsonify
 
 # Add backend directory to sys.path
@@ -15,6 +15,9 @@ from app import create_app
 from app.ai_generator import generate_ai_project_ideas
 from app.recommender import find_missing_skills, generate_micro_projects
 from app.generator import create_zip
+
+port = int(os.environ.get("PORT", 5000))
+
 
 app = create_app()
 

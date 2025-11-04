@@ -21,6 +21,9 @@ def create_app():
     app.register_blueprint(auth, url_prefix='/auth')
     app.register_blueprint(main, url_prefix='/api')
 
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=True)
+
     @app.route("/")
     def embed():
         from sentence_transformers import SentenceTransformer
