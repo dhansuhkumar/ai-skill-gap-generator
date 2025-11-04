@@ -10,7 +10,7 @@
     "dependencies": ["HTML"]
   },
   "JavaScript": {
-    "synonyms": ["JS", "ECMAScript"],
+    "synonyms": ["JS", "ECMAScript", "Javascript"],
     "related": ["React", "Node.js", "Frontend"],
     "dependencies": ["HTML", "CSS"]
   },
