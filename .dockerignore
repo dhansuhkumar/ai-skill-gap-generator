@@ -1,6 +1,0 @@
-__pycache__/
-*.pt
-*.zip
-*.pdf
-*.spacy
-.env
