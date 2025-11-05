@@ -2,7 +2,7 @@
 import sys
 import os
 from dotenv import load_dotenv
-from database import init_db
+from backend.database import init_db
 from flask import request, jsonify
 
 # Add backend directory to sys.path
