@@ -14,4 +14,5 @@ ENV FLASK_ENV=production
 EXPOSE 5000
 
 # Run with Gunicorn (adjust if using factory)
-CMD ["gunicorn", "--bind", "0.0.0.0:$PORT", "backend.run:app"]
+CMD ["sh", "-c", "gunicorn backend.run:app --bind 0.0.0.0:${PORT:-5000}"]
+
