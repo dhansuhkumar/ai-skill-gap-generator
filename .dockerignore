@@ -1,0 +1,33 @@
+# Ignore Python cache & compiled files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore virtual environments
+venv/
+.env/
+env/
+
+# Ignore build artifacts
+build/
+dist/
+*.egg-info/
+
+# Ignore model and cache directories
+.cache/
+transformers_cache/
+torch_cache/
+datasets/
+spacy_models/
+tmp/
+logs/
+
+# Ignore version control and system files
+.git/
+.gitignore
+.DS_Store
+
+# Ignore any frontend or node directories if present
+node_modules/
+frontend/node_modules/
