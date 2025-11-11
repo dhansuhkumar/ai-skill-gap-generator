@@ -1,3 +1,8 @@
+// At the top of script.js
+const BASE_URL = window.location.hostname.includes("railway.app")
+  ? "https://ai-skill-gap-generator-production.up.railway.app"
+  : "http://127.0.0.1:8080";
+
 let skillChartInstance = null; // Global chart instance
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -18,7 +23,7 @@ const skills = skillsInput
   .filter(s => s); // removes empty strings
     const role = document.getElementById('role').value;
     const user_id = document.getElementById('user_id')?.value || "dhanush123";
-    fetch("http://127.0.0.1:8080/auth/login", {
+    fetch(`${BASE_URL}/auth/login`, {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({ user_id: "dhanush", password: "test123" })
@@ -30,7 +35,7 @@ const skills = skillsInput
 
     try {
       // 🔹 Step 1: Get recommendations
-      const response = await fetch('http://127.0.0.1:8080/api/recommend', {
+      const response = await fetch(`${BASE_URL}/api/recommend`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role, skills })
@@ -41,7 +46,7 @@ const skills = skillsInput
       // 🔒 Step 2: Save profile
     const token = localStorage.getItem("jwtToken");
 
-await fetch("http://127.0.0.1:8080/api/save_profile", {
+await fetch(`${BASE_URL}/api/save_profile`, {
   method: "POST",
   headers: {
     "Content-Type": "application/json",
@@ -142,7 +147,7 @@ function uploadResume() {
   const formData = new FormData();
   formData.append("file", file);
 
-  fetch("http://127.0.0.1:8080/api/upload_resume", {
+  fetch(`${BASE_URL}/api/upload_resume`, {
     method: "POST",
     body: formData,
   })
