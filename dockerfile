@@ -7,7 +7,7 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV FLASK_ENV=production
 
 # Set working directory
-WORKDIR /app
+WORKDIR /app/backend
 
 # Install system deps (only if needed for your libs)
 RUN apt-get update && apt-get install -y --no-install-recommends \
