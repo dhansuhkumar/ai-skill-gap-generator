@@ -18,7 +18,7 @@ const skills = skillsInput
   .filter(s => s); // removes empty strings
     const role = document.getElementById('role').value;
     const user_id = document.getElementById('user_id')?.value || "dhanush123";
-    fetch("http://127.0.0.1:5000/api/login", {
+    fetch("http://127.0.0.1:8080/auth/login", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({ user_id: "dhanush", password: "test123" })
@@ -30,7 +30,7 @@ const skills = skillsInput
 
     try {
       // 🔹 Step 1: Get recommendations
-      const response = await fetch('http://127.0.0.1:5000/api/recommend', {
+      const response = await fetch('http://127.0.0.1:8080/api/recommend', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role, skills })
@@ -41,7 +41,7 @@ const skills = skillsInput
       // 🔒 Step 2: Save profile
     const token = localStorage.getItem("jwtToken");
 
-await fetch("http://127.0.0.1:5000/api/save_profile", {
+await fetch("http://127.0.0.1:8080/api/save_profile", {
   method: "POST",
   headers: {
     "Content-Type": "application/json",
@@ -142,7 +142,7 @@ function uploadResume() {
   const formData = new FormData();
   formData.append("file", file);
 
-  fetch("http://127.0.0.1:5000/api/upload_resume", {
+  fetch("http://127.0.0.1:8080/api/upload_resume", {
     method: "POST",
     body: formData,
   })

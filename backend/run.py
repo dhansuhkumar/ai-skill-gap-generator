@@ -21,7 +21,7 @@ from app.generator import create_zip
 
 app = create_app()
 
-@app.route('/api/recommend', methods=['POST'])
+@app.route('/recommend', methods=['POST'])
 def recommend():
     data = request.get_json()
     user_skills = data.get("skills", [])
@@ -42,7 +42,7 @@ def recommend():
         "starter_projects": zip_files,
         "ai_projects": ai_projects
     })
-@app.route('/api/upload_resume', methods=['POST'])
+@app.route('/upload_resume', methods=['POST'])
 def upload_resume():
     if 'file' not in request.files:
         return jsonify({'error': 'No file part in request'}), 400
@@ -68,5 +68,10 @@ def add_security_headers(response):
     response.headers['Content-Security-Policy'] = "default-src 'self'"
     return response
 
+@app.route("/", methods=["GET"])
+def home():
+    return jsonify({"message": "✅ Skill Gap API is running!"})
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080, debug=True)
+
