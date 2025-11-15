@@ -79,7 +79,7 @@ await fetch(`${BASE_URL}/api/save_profile`, {
            <h3 class="font-semibold text-lg mb-2">🚀 Starter Projects</h3>
            <ul class="list-disc list-inside">${(data.starter_projects || []).map(zip => {
              const filename = zip.split('\\').pop();
-             return `<li><a href="file:///${zip.replace(/\\/g, '/')}" download="${filename}" class="underline">${filename}</a></li>`;
+             return `<li><a href="${zipBase}${filename}" download="${filename}" class="underline">${filename}</a></li>`;
            }).join('')}</ul>
          </div>`;
 
