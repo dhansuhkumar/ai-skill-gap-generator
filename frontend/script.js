@@ -1,7 +1,6 @@
 // At the top of script.js
 const BASE_URL = "https://ai-skill-gap-generator-production.up.railway.app"; // use your actual Railway URL
 const zipBase = "https://raw.githubusercontent.com/dhansuhkumar/ai-skill-gap-generator/main/backend/projects/";
-
 let skillChartInstance = null; // Global chart instance
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -79,8 +78,8 @@ await fetch(`${BASE_URL}/api/save_profile`, {
            <h3 class="font-semibold text-lg mb-2">🚀 Starter Projects</h3>
            <ul class="list-disc list-inside">
            ${(data.starter_projects || []).map(zip => {
-             const filename = zip.split('\\').pop();
-             return `<li><a href="file:///${zip.replace(/\\/g, '/')}" download="${filename}" class="underline">${filename}</a></li>`;
+             const filename = zip.split(/[\\/]/).pop();
+             return `<li><a href="${zipBase}${filename}" download="${filename}" class="underline">${filename}</a></li>`;
            }).join('')}</ul>
          </div>`;
 
