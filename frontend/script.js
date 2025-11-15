@@ -2,8 +2,6 @@
 const BASE_URL = "https://ai-skill-gap-generator-production.up.railway.app"; // use your actual Railway URL
 const zipBase = "https://raw.githubusercontent.com/dhansuhkumar/ai-skill-gap-generator/main/backend/projects/";
 
-let skillChartInstance = null; // Global chart instance
-
 document.addEventListener('DOMContentLoaded', () => {
   const form = document.getElementById('recommendForm');
   const loading = document.getElementById('loading');
