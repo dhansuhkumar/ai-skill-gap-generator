@@ -5,6 +5,11 @@ from flask import Flask, app, jsonify, request
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 from logging.handlers import RotatingFileHandler
+from dotenv import load_dotenv
+
+load_dotenv()
+
+from routes_phase2 import bp as phase2_bp
 
 from torch import embedding
 
@@ -15,7 +20,8 @@ def create_app():
     app = Flask(__name__)
     app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
     CORS(app, supports_credentials=True)
-    app.config["JWT_SECRET_KEY"] = "yoursecretkey"
+    # ✅ SECURE: Read secret from .env
+    app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")
     jwt = JWTManager(app)
 
     from app.routes import main
@@ -23,6 +29,8 @@ def create_app():
 
     app.register_blueprint(auth, url_prefix='/auth')
     app.register_blueprint(main, url_prefix='/api')
+    app.register_blueprint(phase2_bp, url_prefix="/api")
+
 
 
     # ✅ Root route - just shows API status

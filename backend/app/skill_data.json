@@ -43,5 +43,10 @@
     "synonyms": [],
     "related": ["Java", "Android"],
     "dependencies": ["Java"]
+  },
+  "C": {
+    "synonyms": [],
+    "related": ["C++", "Systems Programming"],
+    "dependencies": ["Java","Python"]
   }
 }

@@ -1,143 +1,163 @@
-// At the top of script.js
-const BASE_URL = "https://ai-skill-gap-generator-production.up.railway.app"; // use your actual Railway URL
+// frontend/script.js
+
+// 1. Auto-detect URL (Works on Localhost AND Railway)
+const BASE_URL = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+  ? "http://127.0.0.1:5000"
+  : "https://ai-skill-gap-generator-production.up.railway.app";
+
 const zipBase = "https://raw.githubusercontent.com/dhansuhkumar/ai-skill-gap-generator/main/backend/projects/";
-let skillChartInstance = null; // Global chart instance
+let skillChartInstance = null;
 
 document.addEventListener('DOMContentLoaded', () => {
   const form = document.getElementById('recommendForm');
   const loading = document.getElementById('loading');
   const results = document.getElementById('results');
 
-  // 🧠 Handle form submission for recommendations
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     results.classList.add('hidden');
     loading.classList.remove('hidden');
 
-   const skillsInput = document.getElementById('skills').value;
-const skills = skillsInput
-  .split(',')
-  .map(s => s.trim())
-  .filter(s => s); // removes empty strings
+    const skillsInput = document.getElementById('skills').value;
+    const skills = skillsInput.split(',').map(s => s.trim()).filter(s => s);
     const role = document.getElementById('role').value;
-    const user_id = document.getElementById('user_id')?.value || "dhanush123";
-    fetch(`${BASE_URL}/auth/login`, {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ user_id: "dhanush", password: "test123" })
-})
-.then(res => res.json())
-.then(data => {
-  localStorage.setItem("jwtToken", data.token);
-});
+    
+    // FIX: Your backend (auth.py) requires 'username', not 'user_id'
+    try {
+      const authRes = await fetch(`${BASE_URL}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: "dhanush", password: "securepassword123" })
+      });
+      
+      if(authRes.ok) {
+          const authData = await authRes.json();
+          localStorage.setItem("jwtToken", authData.access_token);
+      }
+    } catch (err) {
+      console.warn("Login skipped or failed (Dev mode):", err);
+    }
 
     try {
-      // 🔹 Step 1: Get recommendations
+      //  Step 1: Get recommendations
       const response = await fetch(`${BASE_URL}/api/recommend`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role, skills })
       });
 
+      if (!response.ok) throw new Error("Failed to fetch recommendations");
       const data = await response.json();
 
-      // 🔒 Step 2: Save profile
-    const token = localStorage.getItem("jwtToken");
-
-await fetch(`${BASE_URL}/api/save_profile`, {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-    "Authorization": `Bearer ${token}`
-  },
-  body: JSON.stringify({
-    role: "developer",
-    skills: ["python", "flask"],
-    recommendations: ["learn docker", "build flask app"]
-  })
-});
-
-
-      // 🟡 Missing Skills
-      document.getElementById('missingSkills').innerHTML =
-        `<div class="mb-4 p-4 bg-yellow-100 text-yellow-800 rounded-lg shadow">
-           <h3 class="font-semibold text-lg mb-2">⚠️ Missing Skills</h3>
-           <ul class="list-disc list-inside">${data.missing_skills.map(skill => `<li>${skill}</li>`).join('')}</ul>
-         </div>`;
-
-      // 🔵 Recommended Projects
-      document.getElementById('recommendedProjects').innerHTML =
-        `<div class="mb-4 p-4 bg-blue-100 text-blue-800 rounded-lg shadow">
-           <h3 class="font-semibold text-lg mb-2">💡 Suggested Projects</h3>
-           <ul class="list-disc list-inside">${data.recommended_projects.map(p => `<li>${p.skill}: ${p.project}</li>`).join('')}</ul>
-         </div>`;
-
-      // 🟣 Starter Projects
-      document.getElementById('starterProjects').innerHTML =
-        `<div class="mb-4 p-4 bg-purple-100 text-purple-800 rounded-lg shadow">
-           <h3 class="font-semibold text-lg mb-2">🚀 Starter Projects</h3>
-           <ul class="list-disc list-inside">
-           ${(data.starter_projects || []).map(zip => {
-             const filename = zip.split(/[\\/]/).pop();
-             return `<li><a href="${zipBase}${filename}" download="${filename}" class="underline">${filename}</a></li>`;
-           }).join('')}</ul>
-         </div>`;
-
-      // 🟢 AI Project Ideas
-      if (data.ai_projects && data.ai_projects.length > 0) {
-        document.getElementById('ai_projects').innerHTML =
-          `<div class="mb-4 p-4 bg-green-100 text-green-800 rounded-lg shadow">
-             <h3 class="font-semibold text-lg mb-2">🤖 AI Project Ideas</h3>
-             <ul class="list-disc list-inside">${data.ai_projects.map(idea => `<li>${idea}</li>`).join('')}</ul>
-           </div>`;
-      } else {
-        document.getElementById('ai_projects').innerHTML = '';
+      //  Step 2: Save profile (Silent fail if no token)
+      const token = localStorage.getItem("jwtToken");
+      if (token) {
+        fetch(`${BASE_URL}/api/save_profile`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify({ role, skills, recommendations: ["Generated by AI"] })
+        }).catch(e => console.log("Save profile ignored"));
       }
 
-      // 📊 Skill Coverage Chart
-      const allSkills = [...skills, ...data.missing_skills];
+      //  Step 3: Update the NEW UI (Glassmorphism)
+      
+      // A. Missing Skills (Tags)
+      const missingContainer = document.getElementById('missingSkillsList');
+      if (missingContainer) {
+          missingContainer.innerHTML = (data.missing_skills || []).map(skill => 
+            `<span class="bg-yellow-500/20 text-yellow-200 border border-yellow-500/30 px-3 py-1 rounded-full text-sm font-medium">
+              ${skill}
+             </span>`
+          ).join('');
+      }
+
+    // frontend/script.js (REPLACE ENTIRE Section B)
+
+      // B. Projects (Cards)
+      const projectContainer = document.getElementById('projectContainer');
+      if (projectContainer) {
+          
+          // 1. Recommended Projects (The core list)
+          const projectsHTML = (data.recommended_projects || []).map(p => `
+            <div class="hover:bg-white/5 p-4 rounded-xl border border-white/10 transition hover:-translate-y-1 mb-3">
+                <h4 class="text-lg font-bold text-blue-200">${p.skill}</h4>
+                <p class="text-gray-300 text-sm mt-1">${p.project}</p>
+            </div>
+          `).join('');
+
+          // 2. Starter Code (The ZIP file downloads)
+          const starterHTML = (data.starter_projects || []).map(zipPath => {
+            const filename = zipPath.split(/[\\/]/).pop();
+            return `
+            <div class="bg-purple-500/10 p-4 rounded-xl border border-purple-500/30 mb-3 flex justify-between items-center transition hover:bg-purple-500/20">
+                <div class="flex items-center gap-3">
+                    <div class="text-2xl">📦</div>
+                    <div>
+                        <h4 class="text-md font-bold text-purple-200">Starter Code: ${filename}</h4>
+                    </div>
+                </div>
+                <a href="${zipBase}${filename}" download="${filename}" 
+                   class="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded-lg text-sm font-bold">
+                  Download
+                </a>
+            </div>
+            `;
+          }).join('');
+
+          // 3. 🤖 AI Project Ideas (THIS IS WHERE THE AI DATA IS DISPLAYED)
+          // The block only renders if the list is NOT empty
+          const aiIdeasHTML = (data.ai_projects && data.ai_projects.length > 0) ? `
+              <div class="bg-indigo-500/10 p-4 rounded-2xl border border-indigo-500/30 mb-6 shadow-lg">
+                  <h3 class="text-xl font-bold text-indigo-300 mb-3 flex items-center gap-2">
+                      <span class="text-2xl">🤖</span> AI-Generated Project Ideas
+                  </h3>
+                  <ul class="list-disc pl-5 space-y-2 text-gray-200">
+                      ${data.ai_projects.map(idea => `<li>${idea}</li>`).join('')}
+                  </ul>
+              </div>
+          ` : '';
+          
+          // ✅ CRITICAL FIX: Include aiIdeasHTML in the final output string!
+          projectContainer.innerHTML = aiIdeasHTML + projectsHTML + starterHTML;
+      }
+// ... (rest of your script.js continues from section C. Chart)
+
+      // C. Chart
+      const allSkills = [...skills, ...(data.missing_skills || [])];
       const uniqueSkills = [...new Set(allSkills)];
-      const skillLabels = uniqueSkills;
-      const skillData = uniqueSkills.map(skill => skills.includes(skill) ? 1 : 0);
-      const skillColors = skillData.map(val => val ? '#4ade80' : '#f87171');
-
+      const skillColors = uniqueSkills.map(s => skills.includes(s) ? '#4ade80' : '#f87171');
+      
       const ctx = document.getElementById('skillChart').getContext('2d');
-      if (skillChartInstance) {
-        skillChartInstance.destroy();
-      }
+      if (skillChartInstance) skillChartInstance.destroy();
+      
       skillChartInstance = new Chart(ctx, {
-        type: 'bar',
+        type: 'doughnut',
         data: {
-          labels: skillLabels,
+          labels: uniqueSkills,
           datasets: [{
-            label: 'Skill Coverage',
-            data: skillData,
-            backgroundColor: skillColors
+            data: uniqueSkills.map(() => 1),
+            backgroundColor: skillColors,
+            borderWidth: 0
           }]
         },
-        options: {
-          scales: {
-            y: { beginAtZero: true, max: 1 }
-          },
-          plugins: {
-            legend: { display: false }
-          }
-        }
+        options: { responsive: true, cutout: '70%', plugins: { legend: { display: false } } }
       });
 
-      // ✅ Show results
       loading.classList.add('hidden');
       results.classList.remove('hidden');
-      results.classList.add('transition-opacity', 'duration-500', 'opacity-100');
+      
     } catch (error) {
       loading.classList.add('hidden');
-      console.error('Error fetching recommendations:', error);
-      alert('Error fetching recommendations.');
+      console.error('Error:', error);
+      alert('Error: ' + error.message);
     }
   });
 });
 
-// 📄 Resume Upload Handler
+// KEEPING YOUR ORIGINAL RESUME UPLOAD FUNCTION
 function uploadResume() {
   const fileInput = document.getElementById("resumeUpload");
   const file = fileInput.files[0];
@@ -146,30 +166,14 @@ function uploadResume() {
   const formData = new FormData();
   formData.append("file", file);
 
-  fetch(`${BASE_URL}/api/upload_resume`, {
-    method: "POST",
-    body: formData,
-  })
+  fetch(`${BASE_URL}/api/upload_resume`, { method: "POST", body: formData })
     .then(res => res.json())
     .then(data => {
       const skillsInput = document.getElementById("skills");
-
-      // parse whatever is already in the input
-      const manualSkills = skillsInput.value
-        .split(",")
-        .map(s => s.trim())
-        .filter(s => s);
-
-      // merge with extracted skills, remove duplicates
-      const merged = [...new Set([...manualSkills, ...(data.extracted_skills || [])])];
-
-      // update the field with the merged list
+      const manual = skillsInput.value.split(",").map(s => s.trim()).filter(s => s);
+      const merged = [...new Set([...manual, ...(data.extracted_skills || [])])];
       skillsInput.value = merged.join(", ");
-
-      console.log("Merged skills:", merged);
+      alert("✅ Skills Extracted!");
     })
-    .catch(err => {
-      console.error("Upload failed:", err);
-      alert("Resume upload failed.");
-    });
+    .catch(err => { console.error(err); alert("Upload failed."); });
 }

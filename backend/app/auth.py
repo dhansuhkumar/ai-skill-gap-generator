@@ -1,14 +1,17 @@
+import os
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token
 from datetime import timedelta
+from dotenv import load_dotenv
 
+load_dotenv()
 auth = Blueprint('auth_routes', __name__)
 
 # Dummy user store (replace with real DB later)
 USERS = {
-    "dhanush": "securepassword123",
-    "admin": "adminpass"
+    "dhanush": os.getenv("USER_PASSWORD"),
+    "admin": os.getenv("ADMIN_PASSWORD")
 }
 
 @auth.route('/login', methods=['POST'])

@@ -1,12 +1,19 @@
-import sqlite3
+# backend/test_ai.py
 
-conn = sqlite3.connect('users.db')
-c = conn.cursor()
+import os
+from dotenv import load_dotenv
+from app.ai_generator import generate_ai_project_ideas
 
-c.execute('SELECT * FROM users')
-rows = c.fetchall()
+load_dotenv()
 
-for row in rows:
-    print(row)
+print("▶ Running Gemini AI Test...")
 
-conn.close()
+role = "AI Engineer"
+skills = ["Python", "TensorFlow"]
+
+ideas = generate_ai_project_ideas(role, skills)
+
+print("✅ Output Type:", type(ideas))
+print("✅ Generated Ideas:")
+for i, idea in enumerate(ideas, 1):
+    print(f"{i}. {idea}")

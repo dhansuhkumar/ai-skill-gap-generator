@@ -36,6 +36,8 @@ def login():
 
 
 
+# backend/app/routes.py
+
 @main.route('/recommend', methods=['POST'])
 def recommend():
     data = request.get_json()
@@ -46,39 +48,53 @@ def recommend():
     
     role = data.get('role')
     user_skills = data.get('skills', [])
-    ai_projects = generate_ai_project_ideas(role, user_skills)
+    
+    # 1. AI Projects (Needs to run BEFORE other results are returned)
+    # Wrap in try-except to prevent crashing if the Gemini key is wrong
+    ai_projects = []
+    try:
+        ai_projects = generate_ai_project_ideas(role, user_skills)
+        print("✅ Final AI Projects:", ai_projects)
+        if not isinstance(ai_projects, list):
+            ai_projects = []
+    except Exception as e:
+        print(f"Error fetching AI projects: {e}")
+        # If it fails, it defaults to an empty list, so the app doesn't crash.
 
-    # Load database safely (use absolute path)
+
+    
+    # Load database safely
     db_path = os.path.join(os.path.dirname(__file__), 'skill_db.json')
     with open(db_path) as f:
         skill_db = json.load(f)
 
     missing = find_missing_skills(user_skills, role)
-    projects = generate_micro_projects(missing)
-    starter_projects = [str(create_zip(skill)) for skill in missing]
-    if missing is None:
+    
+    # ⚠️ Check for missing skills and handle the error gracefully
+    if not missing:
+        # If there are no missing skills, return a success message
         return jsonify({
-            "error": "No matching skills found for this role.",
+            "message": "You are a perfect match for this role!",
             "missing_skills": [],
             "recommended_projects": [],
-            "starter_projects": []
-        }),400
+            "starter_projects": [],
+            "ai_projects": ai_projects # Always include all keys!
+        }), 200
+        
+    projects = generate_micro_projects(missing)
+    # starter_projects is now a list of strings
+    starter_projects = [str(create_zip(skill)) for skill in missing] 
+    ai_projects = generate_ai_project_ideas(role, user_skills)
+    
+    # 🚀 FINAL RESPONSE: This one sends ALL the data
     return jsonify({
         "missing_skills": missing,
         "recommended_projects": projects,
-        "starter_projects": starter_projects 
+        "starter_projects": starter_projects,
+        "ai_projects": ai_projects # ✅ This is the key you were missing!
     })
-    
-    return jsonify({
-    "known_skills": known,
-    "missing_skills": missing,
-    "recommended_projects": projects,
-    "starter_projects": starter_projects,
-    "ai_projects": ai_projects
-})
-UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'uploads')
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
+# The rest of your file continues from the UPLOAD_FOLDER definition...
 # upload and parse resume
 @main.route("/upload_resume", methods=["POST"])
 def upload_resume():

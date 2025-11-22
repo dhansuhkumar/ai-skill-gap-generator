@@ -3,10 +3,11 @@ import os
 import sys
 import sqlite3
 
-DB_NAME = os.environ.get("DATABASE_URL", "users.db")  # fallback to local file if not set
+DB_NAME = os.path.join(os.path.dirname(__file__), "..", "users.db") # fallback to local file if not set
  # ✅ This must be at the top level
 
 def init_db():
+    print("Trying to open DB at:", DB_NAME)
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     c.execute('''
