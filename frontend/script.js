@@ -2,7 +2,7 @@
 
 // 1. Auto-detect URL (Works on Localhost AND Railway)
 const BASE_URL = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
-  ? "http://127.0.0.1:5000"
+  ? "http://127.0.0.1:8080"
   : "https://ai-skill-gap-generator-production.up.railway.app";
 
 const zipBase = "https://raw.githubusercontent.com/dhansuhkumar/ai-skill-gap-generator/main/backend/projects/";

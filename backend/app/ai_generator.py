@@ -26,6 +26,17 @@ def generate_ai_project_ideas(role, skills):
         )
 
         response = model.generate_content(prompt)
+        print("Gemini raw response:", response)
+                # ✅ Handle different SDK versions
+        text_out = getattr(response, "text", None)
+     
+        if not text_out and hasattr(response, "candidates"):
+            text_out = response.candidates[0].content.parts[0].text
+
+        if not text_out:
+            raise ValueError("Gemini response did not contain text")
+
+
         
         # 🟢 CRITICAL FIX: Robust Parsing
         # 1. Split by newline
@@ -39,6 +50,7 @@ def generate_ai_project_ideas(role, skills):
         
         # Ensure we return exactly 3 (or fewer) clean projects
         return [i for i in ideas if i][:3] 
+      
         
     except Exception as e:
         # If the API call fails (Quota, invalid key, or any crash), return the default list.
@@ -48,3 +60,4 @@ def generate_ai_project_ideas(role, skills):
             "Create a Task Tracker using LocalStorage",
             "Design a Weather Dashboard using Public APIs"
         ]
+    
