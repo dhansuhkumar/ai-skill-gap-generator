@@ -48,20 +48,16 @@ def recommend():
     
     role = data.get('role')
     user_skills = data.get('skills', [])
-    
-    # 1. AI Projects (Needs to run BEFORE other results are returned)
-    # Wrap in try-except to prevent crashing if the Gemini key is wrong
+   # --- START OF AI SECTION ---
     ai_projects = []
     try:
+        # This call is safe because it's in a try/except block
         ai_projects = generate_ai_project_ideas(role, user_skills)
-        print("✅ Final AI Projects:", ai_projects)
-        if not isinstance(ai_projects, list):
-            ai_projects = []
     except Exception as e:
         print(f"Error fetching AI projects: {e}")
-        # If it fails, it defaults to an empty list, so the app doesn't crash.
-
-
+        # Fallback is handled inside generate_ai_project_ideas, but just in case:
+        ai_projects = ["Build a simple To-Do List (System Fallback)"]
+    # --- END OF AI SECTION ---
     
     # Load database safely
     db_path = os.path.join(os.path.dirname(__file__), 'skill_db.json')
@@ -84,7 +80,6 @@ def recommend():
     projects = generate_micro_projects(missing)
     # starter_projects is now a list of strings
     starter_projects = [str(create_zip(skill)) for skill in missing] 
-    ai_projects = generate_ai_project_ideas(role, user_skills)
     
     # 🚀 FINAL RESPONSE: This one sends ALL the data
     return jsonify({

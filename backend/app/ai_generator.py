@@ -1,63 +1,56 @@
+# backend/app/ai_generator.py
 import os
 import google.generativeai as genai
 from dotenv import load_dotenv
 
 load_dotenv()
-
-# Configure with your API Key (Best to put this in a .env file later!)
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
-
-
 def generate_ai_project_ideas(role, skills):
-    """
-    Uses Gemini to generate creative micro-projects.
-    """
+    print(f"--- 🤖 AI Generator Started for: {role} ---")
+    
+    # 1. First, let's find a working model dynamically so this stops failing
+    valid_model_name = "gemini-pro" # Safe fallback
+    
     try:
-        model = genai.GenerativeModel('gemini-2.5-flash')
+        # List models to find the best available 'Flash' model
+        for m in genai.list_models():
+            if 'generateContent' in m.supported_generation_methods:
+                # Prefer 2.5, then 2.0, then 1.5
+                if "gemini-2.5-flash" in m.name:
+                    valid_model_name = m.name
+                    break
+                elif "gemini-2.0-flash" in m.name:
+                    valid_model_name = m.name
+                elif "gemini-1.5-flash" in m.name and "2.5" not in valid_model_name:
+                    valid_model_name = m.name
+
+        print(f"🔍 Selected Model: {valid_model_name}")
         
-        # 🟢 CRITICAL: Update the prompt to ask for a very specific, clean format.
-        # This increases the chances of successful parsing.
+    except Exception as e:
+        print(f"⚠️ Model list failed, using default: {e}")
+
+    try:
+        # 2. Initialize with the valid name found above (NO 'model=' keyword!)
+        model = genai.GenerativeModel(valid_model_name) 
+        
         prompt = (
             f"I am a student wanting to be a {role}. I know {', '.join(skills)}. "
-            f"Suggest 3 creative, small coding projects that will help me get hired. "
-            f"Each project must be on a new line and start with a hyphen (-). "
-            f"Keep descriptions short (under 15 words)."
+            f"Suggest 3 creative, small coding projects. "
+            f"Format: Hyphen (-) at start of each line."
         )
 
         response = model.generate_content(prompt)
-        print("Gemini raw response:", response)
-                # ✅ Handle different SDK versions
-        text_out = getattr(response, "text", None)
-     
-        if not text_out and hasattr(response, "candidates"):
-            text_out = response.candidates[0].content.parts[0].text
-
-        if not text_out:
-            raise ValueError("Gemini response did not contain text")
-
-
         
-        # 🟢 CRITICAL FIX: Robust Parsing
-        # 1. Split by newline
-        # 2. Filter lines starting with '*' or '-' or a number
-        # 3. Clean up leading characters
-        ideas = [
-            line.strip().lstrip('1234567890.-* ')
-            for line in response.text.split('\n') 
-            if line.strip().startswith(('-', '*')) or line.strip().startswith(tuple(str(i) for i in range(10)))
-        ]
+        ideas = [line.strip().lstrip('-* ') for line in response.text.split('\n') if line.strip()]
+        final_ideas = ideas[:3]  # Take only first 3 ideas
         
-        # Ensure we return exactly 3 (or fewer) clean projects
-        return [i for i in ideas if i][:3] 
-      
+        print(f"✅ AI Success: {final_ideas}")
+        return final_ideas
         
     except Exception as e:
-        # If the API call fails (Quota, invalid key, or any crash), return the default list.
-        print(f"AI Error: {e}")
-        return [
-            "Build a Portfolio Website with Dark Mode",
-            "Create a Task Tracker using LocalStorage",
-            "Design a Weather Dashboard using Public APIs"
-        ]
-    
+        print("❌ AI GENERATOR CRASHED ❌")
+        print(f"Error Type: {type(e).__name__}")
+        print(f"Error Message: {e}")
+        
+        return final_ideas

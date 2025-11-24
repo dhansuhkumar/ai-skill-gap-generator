@@ -48,7 +48,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (!response.ok) throw new Error("Failed to fetch recommendations");
       const data = await response.json();
-
+      // 💡 NEW DEBUG LINE: Log the full response object
+    console.log("Full API Response Data:", data); 
+// 💡 NEW DEBUG LINE: Log the specific AI projects list
+    console.log("Value of data.ai_projects:", data.ai_projects);
       //  Step 2: Save profile (Silent fail if no token)
       const token = localStorage.getItem("jwtToken");
       if (token) {
@@ -112,7 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
           const aiIdeasHTML = (data.ai_projects && data.ai_projects.length > 0) ? `
               <div class="bg-indigo-500/10 p-4 rounded-2xl border border-indigo-500/30 mb-6 shadow-lg">
                   <h3 class="text-xl font-bold text-indigo-300 mb-3 flex items-center gap-2">
-                      <span class="text-2xl">🤖</span> AI-Generated Project Ideas
+                      <span class="text-2xl">🤖</span> AI-Generated Project Ideas  for: ${role}
                   </h3>
                   <ul class="list-disc pl-5 space-y-2 text-gray-200">
                       ${data.ai_projects.map(idea => `<li>${idea}</li>`).join('')}

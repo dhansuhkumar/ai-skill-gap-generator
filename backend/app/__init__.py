@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from backend.routes_phase2 import bp as phase2_bp
+from routes_phase2 import bp as phase2_bp
 
 from torch import embedding
 
