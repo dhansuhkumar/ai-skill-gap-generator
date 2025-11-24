@@ -50,15 +50,11 @@ def recommend():
     user_skills = data.get('skills', [])
    # --- START OF AI SECTION ---
     ai_projects = []
-    try:
-        # This call is safe because it's in a try/except block
-        ai_projects = generate_ai_project_ideas(role, user_skills)
-    except Exception as e:
-        print(f"Error fetching AI projects: {e}")
-        # Fallback is handled inside generate_ai_project_ideas, but just in case:
-        ai_projects = ["Build a simple To-Do List (System Fallback)"]
-    # --- END OF AI SECTION ---
     
+    ai_projects = generate_ai_project_ideas(role, user_skills)
+    if not isinstance(ai_projects, list):
+        ai_projects = ["Error generating AI project ideas."]
+    # --- END OF AI SECTION ---
     # Load database safely
     db_path = os.path.join(os.path.dirname(__file__), 'skill_db.json')
     with open(db_path) as f:

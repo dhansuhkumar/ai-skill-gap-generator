@@ -116,6 +116,8 @@ document.addEventListener('DOMContentLoaded', () => {
               <div class="bg-indigo-500/10 p-4 rounded-2xl border border-indigo-500/30 mb-6 shadow-lg">
                   <h3 class="text-xl font-bold text-indigo-300 mb-3 flex items-center gap-2">
                       <span class="text-2xl">🤖</span> AI-Generated Project Ideas  for: ${role}
+                      <span class="ml-2 text-xs bg-indigo-700 text-white px-2 py-1 rounded">Live</span>
+
                   </h3>
                   <ul class="list-disc pl-5 space-y-2 text-gray-200">
                       ${data.ai_projects.map(idea => `<li>${idea}</li>`).join('')}
@@ -124,7 +126,7 @@ document.addEventListener('DOMContentLoaded', () => {
           ` : '';
           
           // ✅ CRITICAL FIX: Include aiIdeasHTML in the final output string!
-          projectContainer.innerHTML = aiIdeasHTML + projectsHTML + starterHTML;
+          projectContainer.innerHTML =  projectsHTML + starterHTML + aiIdeasHTML ;
       }
 // ... (rest of your script.js continues from section C. Chart)
 

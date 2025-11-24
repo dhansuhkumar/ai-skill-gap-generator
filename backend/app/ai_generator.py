@@ -8,15 +8,13 @@ genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
 def generate_ai_project_ideas(role, skills):
     print(f"--- 🤖 AI Generator Started for: {role} ---")
-    
-    # 1. First, let's find a working model dynamically so this stops failing
-    valid_model_name = "gemini-pro" # Safe fallback
-    
+
+    valid_model_name = "gemini-pro"  # Safe fallback
+
     try:
-        # List models to find the best available 'Flash' model
+        # Dynamically pick the best available model
         for m in genai.list_models():
             if 'generateContent' in m.supported_generation_methods:
-                # Prefer 2.5, then 2.0, then 1.5
                 if "gemini-2.5-flash" in m.name:
                     valid_model_name = m.name
                     break
@@ -24,33 +22,55 @@ def generate_ai_project_ideas(role, skills):
                     valid_model_name = m.name
                 elif "gemini-1.5-flash" in m.name and "2.5" not in valid_model_name:
                     valid_model_name = m.name
-
         print(f"🔍 Selected Model: {valid_model_name}")
-        
     except Exception as e:
         print(f"⚠️ Model list failed, using default: {e}")
 
     try:
-        # 2. Initialize with the valid name found above (NO 'model=' keyword!)
-        model = genai.GenerativeModel(valid_model_name) 
-        
+        model = genai.GenerativeModel(valid_model_name)
+
+        # Stronger prompt: force short, hyphenated titles only
         prompt = (
             f"I am a student wanting to be a {role}. I know {', '.join(skills)}. "
-            f"Suggest 3 creative, small coding projects. "
-            f"Format: Hyphen (-) at start of each line."
+            f"Suggest exactly 3 creative, small coding project titles. "
+            f"Each project must be a single short line starting with a hyphen (-). "
+            f"No explanations, no goals, no extra text — just the titles."
         )
 
         response = model.generate_content(prompt)
-        
-        ideas = [line.strip().lstrip('-* ') for line in response.text.split('\n') if line.strip()]
-        final_ideas = ideas[:3]  # Take only first 3 ideas
-        
-        print(f"✅ AI Success: {final_ideas}")
+        raw_text = getattr(response, "text", "").strip()
+        print("🔍 Raw Gemini output:", raw_text)
+
+        # Clean and filter lines
+        ideas = []
+        for line in raw_text.splitlines():
+            line = line.strip()
+            if line.startswith("-"):
+                # Remove leading hyphen, numbers, or bullets
+                clean = line.lstrip("-*0123456789. ").strip()
+                if clean:
+                    ideas.append(clean)
+
+        # Guarantee exactly 3 ideas
+        final_ideas = ideas[:3]
+        if len(final_ideas) < 3:
+            # Pad with fallback if Gemini gave fewer than 3
+            fallback = [
+                "Build a Portfolio Website with Dark Mode",
+                "Create a Task Tracker using LocalStorage",
+                "Design a Weather Dashboard using Public APIs"
+            ]
+            final_ideas += fallback[len(final_ideas):3]
+
+        print(f"✅ Cleaned AI Ideas: {final_ideas}")
         return final_ideas
-        
+
     except Exception as e:
         print("❌ AI GENERATOR CRASHED ❌")
         print(f"Error Type: {type(e).__name__}")
         print(f"Error Message: {e}")
-        
-        return final_ideas
+        return [
+            "Build a Portfolio Website with Dark Mode",
+            "Create a Task Tracker using LocalStorage",
+            "Design a Weather Dashboard using Public APIs"
+        ]

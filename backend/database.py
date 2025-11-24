@@ -18,5 +18,32 @@ def init_db():
             recommendations TEXT
         )
     ''')
+    # Add missing tables
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS profiles (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id TEXT,
+            display_name TEXT,
+            resume_parsed_json TEXT
+        )
+    ''')
+
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS skills (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE
+        )
+    ''')
+
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS profile_skills (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            profile_id INTEGER,
+            skill_id INTEGER,
+            confidence INTEGER,
+            source TEXT
+        )
+    ''')
+
     conn.commit()
     conn.close()
