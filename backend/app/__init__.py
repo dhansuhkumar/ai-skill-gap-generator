@@ -19,7 +19,7 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 def create_app():
     app = Flask(__name__)
     app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-    CORS(app, supports_credentials=True)
+    CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
     # ✅ SECURE: Read secret from .env
     app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")
     jwt = JWTManager(app)

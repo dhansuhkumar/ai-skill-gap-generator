@@ -1,7 +1,12 @@
 // frontend/script.js
 
 // 1. Auto-detect URL (Works on Localhost AND Railway)
-const BASE_URL = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+const isLocal =
+  window.location.hostname === "localhost" ||
+  window.location.hostname === "127.0.0.1" ||
+  window.location.protocol === "file:";
+
+const BASE_URL = isLocal
   ? "http://127.0.0.1:8080"
   : "https://ai-skill-gap-generator-production.up.railway.app";
 
@@ -40,7 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     try {
       //  Step 1: Get recommendations
-      const response = await fetch(`${BASE_URL}/api/recommend`, {
+      const response = await fetch(`${BASE_URL}/recommend`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role, skills })

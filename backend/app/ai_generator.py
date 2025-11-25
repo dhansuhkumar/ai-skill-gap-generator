@@ -56,13 +56,11 @@ def generate_ai_project_ideas(role, skills):
         if len(final_ideas) < 3:
             # Pad with fallback if Gemini gave fewer than 3
             fallback = [
-                "Build a Portfolio Website with Dark Mode",
+                " FallBAck:Build a Portfolio Website with Dark Mode",
                 "Create a Task Tracker using LocalStorage",
                 "Design a Weather Dashboard using Public APIs"
             ]
             final_ideas += fallback[len(final_ideas):3]
-
-        print(f"✅ Cleaned AI Ideas: {final_ideas}")
         return final_ideas
 
     except Exception as e:
