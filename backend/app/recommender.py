@@ -95,12 +95,18 @@ def generate_micro_projects(missing_skills):
       }
     """
     projects = []
-    for skill in missing_skills:
-        description = PROJECT_TEMPLATES.get(skill, f"Build a small project to learn {skill}.")
+    for i, skill in enumerate(missing_skills):
+    # ✅ only fetch videos for first 3 skills
+        if i >= 3:
+            videos = []
+    else:
+        videos = search_youtube_videos(skill)
+
+    description = PROJECT_TEMPLATES.get(skill, f"Build a small project to learn {skill}.")
         # Use a friendly search query to find tutorials for this skill
-        query = f"{skill} tutorial for beginners"
-        videos = search_youtube_videos(query, max_results=3)
-        projects.append({
+    query = f"{skill} tutorial for beginners"
+    videos = search_youtube_videos(query, max_results=3)
+    projects.append({
             "skill": skill,
             "project": description,
             "videos": videos

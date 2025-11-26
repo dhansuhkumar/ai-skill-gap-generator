@@ -4,7 +4,7 @@ import os
 from dotenv import load_dotenv
 from flask import request, jsonify
 from backend.database import init_db
-
+from pathlib import Path
 
 # Add backend directory to sys.path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -17,83 +17,91 @@ from app.ai_generator import generate_ai_project_ideas
 from app.recommender import find_missing_skills, generate_micro_projects
 from app.generator import create_zip
 from app.ai_skill_analyzer import find_required_and_missing_ai
-
-
-
+from app.ai_role_matcher import find_role_matches_ai
 
 app = create_app()
 
 @app.route('/recommend', methods=['POST'])
 def recommend():
     """
-    Main recommend endpoint used by the frontend.
+    Main endpoint used by the frontend.
 
-    Now uses AI to:
-      1) Generate required/core skills for the role.
-      2) Compute missing_skills = required - user_skills (in code).
+    100% AI-based (no skill_db.json):
 
-    Output shape remains the same as before, plus an extra
-    "required_skills_ai" field that frontend can use if it wants.
+      1) AI finds required skills for the selected role.
+      2) Code computes missing_skills = required - user_skills.
+      3) AI recommends suitable roles (including the selected one).
+      4) Code computes match % per role.
+      5) Micro projects + (optionally) YouTube are built from missing_skills.
     """
     data = request.get_json() or {}
     user_skills = data.get("skills", []) or []
     target_role = data.get("role", "") or ""
 
-    # 🤖 AI-generated project ideas (unchanged behavior: list of 3 titles)
+    # 1) AI project ideas (existing behavior)
     ai_projects = generate_ai_project_ideas(target_role, user_skills)
     if not isinstance(ai_projects, list):
         ai_projects = ["Error generating AI project ideas."]
 
-    # 🤖 AI-based required + missing skills, with safe fallback
+    # 2) AI-based required + missing skills (NO JSON fallback)
     required_skills_ai = []
+    missing = []
     try:
         ai_result = find_required_and_missing_ai(user_skills, target_role)
         required_skills_ai = ai_result.get("required_skills", []) or []
         missing = ai_result.get("missing_skills", []) or []
-
-        # If AI returns nothing useful, force fallback
-        if not isinstance(missing, list) or len(missing) == 0:
-            raise ValueError("AI missing_skills invalid or empty")
     except Exception as e:
-        print("⚠️ AI skill analyzer failed in /recommend, using classic find_missing_skills.")
-        print("Reason:", e)
-        missing = find_missing_skills(user_skills, target_role)
-        required_skills_ai = []
+        print("❌ AI skill analyzer failed in /recommend:", e)
+        # If AI fails completely, we can't honestly compute gaps
+        return jsonify({
+            "error": "AI skill analyzer failed",
+            "details": str(e),
+        }), 500
 
-    # If still no missing skills, keep your original nice message
+    # 3) Micro-projects for missing skills (can also include YouTube links if you've wired that)
+    projects = generate_micro_projects(missing)
+
+   
+
+    # 5) AI-based role matches (selected role prioritized)
+    job_matches = []
+    try:
+        job_matches = find_role_matches_ai(
+            user_skills=user_skills,
+            selected_role=target_role,
+            required_skills_for_selected=required_skills_ai,
+            max_roles=5,
+        )
+    except Exception as e:
+        print("⚠️ AI role matcher failed:", e)
+        job_matches = []
+
+    print("Received:", data)
+    print("Missing skills:", missing)
+    print("Required (AI):", required_skills_ai)
+    print("Job matches:", job_matches)
+
+    # If they already match all required skills, keep your "perfect match" message
     if not missing:
         return jsonify({
             "message": "You are a perfect match for this role!",
             "role": target_role,
             "known_skills": user_skills,
             "missing_skills": [],
+            "required_skills_ai": required_skills_ai,
             "recommended_projects": [],
-            "starter_projects": [],
             "ai_projects": ai_projects,
-            "required_skills_ai": required_skills_ai
+            "job_matches": job_matches,
         }), 200
-
-    # Project suggestions & starter zips
-    projects = generate_micro_projects(missing)
-    zip_files = [str(create_zip(skill)) for skill in missing]
-
-    print("Received:", data)
-    print("Response:", {
-        "missing": missing,
-        "projects": projects,
-        "ai_projects": ai_projects,
-        "required_skills_ai": required_skills_ai
-    })
 
     return jsonify({
         "role": target_role,
         "known_skills": user_skills,
         "missing_skills": missing,
+        "required_skills_ai": required_skills_ai,
         "recommended_projects": projects,
-        "starter_projects": zip_files,
         "ai_projects": ai_projects,
-        # New (for frontend to display core role skills if desired)
-        "required_skills_ai": required_skills_ai
+        "job_matches": job_matches,
     })
 
 @app.route('/upload_resume', methods=['POST'])
