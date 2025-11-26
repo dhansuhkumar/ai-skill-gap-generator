@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from app.semantic_matcher import match_input_to_skill
+from app.youtube_search import search_youtube_videos
+
 
 
 # Paths
@@ -81,11 +83,30 @@ def find_missing_skills(user_skills, target_role):
     return sorted(set(missing_skills))
 # Generate micro-project suggestions
 def generate_micro_projects(missing_skills):
+    """
+    For each missing skill, return:
+      {
+        "skill": "React",
+        "project": "Build a personal portfolio website using React.",
+        "videos": [
+          { "title": "...", "url": "...", "channel": "...", "thumbnail": "..." },
+          ...
+        ]
+      }
+    """
     projects = []
     for skill in missing_skills:
         description = PROJECT_TEMPLATES.get(skill, f"Build a small project to learn {skill}.")
-        projects.append({"skill": skill, "project": description})
+        # Use a friendly search query to find tutorials for this skill
+        query = f"{skill} tutorial for beginners"
+        videos = search_youtube_videos(query, max_results=3)
+        projects.append({
+            "skill": skill,
+            "project": description,
+            "videos": videos
+        })
     return projects
+
 
 # Suggest related skills (optional extra feature)
 def suggest_related_skills(user_skills):

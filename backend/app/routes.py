@@ -4,6 +4,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from flask import Blueprint, request, jsonify, send_file, abort, current_app
 from user_profile import get_user_profile, save_user_profile
 from app.recommender import find_missing_skills, generate_micro_projects
+from app.ai_skill_analyzer import find_required_and_missing_ai
 from app.generator import create_zip
 from app.ai_generator import generate_ai_project_ideas
 from app.utils.validators import require_keys
@@ -51,16 +52,29 @@ def recommend():
    # --- START OF AI SECTION ---
     ai_projects = []
     
+    # --- START OF AI PROJECTS SECTION (unchanged) ---
+    ai_projects = []
     ai_projects = generate_ai_project_ideas(role, user_skills)
     if not isinstance(ai_projects, list):
         ai_projects = ["Error generating AI project ideas."]
-    # --- END OF AI SECTION ---
-    # Load database safely
-    db_path = os.path.join(os.path.dirname(__file__), 'skill_db.json')
-    with open(db_path) as f:
-        skill_db = json.load(f)
+    # --- END OF AI PROJECTS SECTION ---
 
-    missing = find_missing_skills(user_skills, role)
+    
+     # --- NEW: AI required + missing skills with fallback ---
+    required_skills_ai = []
+    # ✅ NEW: AI-driven missing skill analysis with safe fallback
+    try:
+        ai_skill_analysis = find_required_and_missing_ai(user_skills, role)
+        required_skills_ai = ai_skill_analysis.get("required_skills", []) or []
+        missing = ai_skill_analysis.get("missing_skills", [])
+        # If model returned something weird, fallback
+        if not isinstance(missing, list) or not missing:
+            raise ValueError("AI missing_skills invalid or empty")
+    except Exception as e:
+        print("⚠️ AI skill analyzer failed, falling back to classic find_missing_skills.")
+        print("Reason:", e)
+        missing = find_missing_skills(user_skills, role)
+
     
     # ⚠️ Check for missing skills and handle the error gracefully
     if not missing:
@@ -82,7 +96,9 @@ def recommend():
         "missing_skills": missing,
         "recommended_projects": projects,
         "starter_projects": starter_projects,
-        "ai_projects": ai_projects # ✅ This is the key you were missing!
+        "ai_projects": ai_projects,
+        "required_skills_ai": required_skills_ai # optional extra field
+
     })
 
 # The rest of your file continues from the UPLOAD_FOLDER definition...

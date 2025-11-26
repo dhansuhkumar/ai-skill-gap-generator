@@ -16,6 +16,7 @@ from app import create_app
 from app.ai_generator import generate_ai_project_ideas
 from app.recommender import find_missing_skills, generate_micro_projects
 from app.generator import create_zip
+from app.ai_skill_analyzer import find_required_and_missing_ai
 
 
 
@@ -24,16 +25,65 @@ app = create_app()
 
 @app.route('/recommend', methods=['POST'])
 def recommend():
-    data = request.get_json()
-    user_skills = data.get("skills", [])
-    target_role = data.get("role", "")
+    """
+    Main recommend endpoint used by the frontend.
+
+    Now uses AI to:
+      1) Generate required/core skills for the role.
+      2) Compute missing_skills = required - user_skills (in code).
+
+    Output shape remains the same as before, plus an extra
+    "required_skills_ai" field that frontend can use if it wants.
+    """
+    data = request.get_json() or {}
+    user_skills = data.get("skills", []) or []
+    target_role = data.get("role", "") or ""
+
+    # 🤖 AI-generated project ideas (unchanged behavior: list of 3 titles)
     ai_projects = generate_ai_project_ideas(target_role, user_skills)
-    missing = find_missing_skills(user_skills, target_role)
+    if not isinstance(ai_projects, list):
+        ai_projects = ["Error generating AI project ideas."]
+
+    # 🤖 AI-based required + missing skills, with safe fallback
+    required_skills_ai = []
+    try:
+        ai_result = find_required_and_missing_ai(user_skills, target_role)
+        required_skills_ai = ai_result.get("required_skills", []) or []
+        missing = ai_result.get("missing_skills", []) or []
+
+        # If AI returns nothing useful, force fallback
+        if not isinstance(missing, list) or len(missing) == 0:
+            raise ValueError("AI missing_skills invalid or empty")
+    except Exception as e:
+        print("⚠️ AI skill analyzer failed in /recommend, using classic find_missing_skills.")
+        print("Reason:", e)
+        missing = find_missing_skills(user_skills, target_role)
+        required_skills_ai = []
+
+    # If still no missing skills, keep your original nice message
+    if not missing:
+        return jsonify({
+            "message": "You are a perfect match for this role!",
+            "role": target_role,
+            "known_skills": user_skills,
+            "missing_skills": [],
+            "recommended_projects": [],
+            "starter_projects": [],
+            "ai_projects": ai_projects,
+            "required_skills_ai": required_skills_ai
+        }), 200
+
+    # Project suggestions & starter zips
     projects = generate_micro_projects(missing)
     zip_files = [str(create_zip(skill)) for skill in missing]
 
     print("Received:", data)
-    print("Response:", {"missing": missing, "projects": projects, "ai_projects": ai_projects})
+    print("Response:", {
+        "missing": missing,
+        "projects": projects,
+        "ai_projects": ai_projects,
+        "required_skills_ai": required_skills_ai
+    })
 
     return jsonify({
         "role": target_role,
@@ -41,8 +91,11 @@ def recommend():
         "missing_skills": missing,
         "recommended_projects": projects,
         "starter_projects": zip_files,
-        "ai_projects": ai_projects
+        "ai_projects": ai_projects,
+        # New (for frontend to display core role skills if desired)
+        "required_skills_ai": required_skills_ai
     })
+
 @app.route('/upload_resume', methods=['POST'])
 def upload_resume():
     if 'file' not in request.files:
