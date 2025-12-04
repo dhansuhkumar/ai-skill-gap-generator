@@ -90,10 +90,13 @@ document.addEventListener("DOMContentLoaded", () => {
   const loading = document.getElementById("loading");
   const results = document.getElementById("results");
 
+  // Remove the old global include_youtube assignment.
+  // We'll read the checkbox inside the submit handler so it's always up-to-date.
+
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     results.classList.add("hidden");
-     startLoadingUI();
+    startLoadingUI();
 
     const skillsInput = document.getElementById("skills").value;
     const skills = skillsInput
@@ -109,20 +112,34 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     const role = roleInput;
 
-    // Optional: JWT login (ignore if fails)
+    // Read the checkbox *right now*
+    const includeVideosCheckbox = document.getElementById("includeVideos");
+    // Only add the flag if checkbox is present AND checked
+    const payload = { role, skills };
+    if (includeVideosCheckbox && includeVideosCheckbox.checked) {
+      payload.include_youtube = true;
+      // Use the exact key your backend checks for
+      payload.max_video_results = parseInt(
+        document.getElementById("maxVideoResults")?.value || "3",
+        10
+      );
+    }
+
+    // Optional: JWT login (ignore if fails) -- NOTE: your backend login route is /login
     try {
-      const authRes = await fetch(`${BASE_URL}/auth/login`, {
+      const authRes = await fetch(`${BASE_URL}/api/login`, { // <-- changed to /login
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          username: "dhanush",
-          password: "securepassword123",
+          user_id: "dhanush",
+          password: "test123",
         }),
       });
 
       if (authRes.ok) {
         const authData = await authRes.json();
-        localStorage.setItem("jwtToken", authData.access_token);
+        // you created token under key 'token' in backend, not access_token
+        if (authData.token) localStorage.setItem("jwtToken", authData.token);
       }
     } catch (err) {
       console.warn("Login skipped/failed:", err);
@@ -132,7 +149,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const response = await fetch(`${BASE_URL}/recommend`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role, skills }),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) throw new Error("Failed to fetch recommendations");

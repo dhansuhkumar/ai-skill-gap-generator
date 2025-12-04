@@ -9,9 +9,8 @@ from app.generator import create_zip
 from app.ai_generator import generate_ai_project_ideas
 from app.utils.validators import require_keys
 from flask import send_file, abort
-from flask_jwt_extended import jwt_required, get_jwt_identity,create_access_token
+from flask_jwt_extended import jwt_required, get_jwt_identity, create_access_token
 import json
-import os
 from pathlib import Path
 from werkzeug.utils import secure_filename
 from app.resume_parser import extract_skills_from_pdf
@@ -22,6 +21,7 @@ PROJECTS_DIR = Path(__file__).parent / "projects"
 @main.route('/')
 def home():
     return jsonify({"message": "Skill Gap API is running!"})
+
 @main.route('/login', methods=['POST'])
 def login():
     data = request.get_json()
@@ -36,9 +36,6 @@ def login():
     return jsonify({"error": "Invalid credentials"}), 401
 
 
-
-# backend/app/routes.py
-
 @main.route('/recommend', methods=['POST'])
 def recommend():
     data = request.get_json()
@@ -49,59 +46,62 @@ def recommend():
     
     role = data.get('role')
     user_skills = data.get('skills', [])
-   # --- START OF AI SECTION ---
-    ai_projects = []
     
-    # --- START OF AI PROJECTS SECTION (unchanged) ---
+    # ✅ CORRECT: Read the 'include_youtube' flag sent by frontend
+    fetch_videos = bool(data.get("include_youtube", False))
+    max_videos = int(data.get("max_video_results", 3))
+
+    print(f"LOG: /recommend hit via routes.py. Role: {role}, Fetch Videos: {fetch_videos}")
+
+    # --- START OF AI PROJECTS SECTION ---
     ai_projects = []
     ai_projects = generate_ai_project_ideas(role, user_skills)
     if not isinstance(ai_projects, list):
         ai_projects = ["Error generating AI project ideas."]
     # --- END OF AI PROJECTS SECTION ---
 
-    
-     # --- NEW: AI required + missing skills with fallback ---
+    # --- AI required + missing skills with fallback ---
     required_skills_ai = []
-    # ✅ NEW: AI-driven missing skill analysis with safe fallback
     try:
         ai_skill_analysis = find_required_and_missing_ai(user_skills, role)
         required_skills_ai = ai_skill_analysis.get("required_skills", []) or []
         missing = ai_skill_analysis.get("missing_skills", [])
-        # If model returned something weird, fallback
+        
         if not isinstance(missing, list) or not missing:
-            raise ValueError("AI missing_skills invalid or empty")
+            # Fallback if AI returns valid JSON but empty content that shouldn't be empty
+            # But technically empty missing skills IS valid (perfect match), so we proceed
+            if not missing and not required_skills_ai: 
+                 raise ValueError("AI missing_skills invalid")
     except Exception as e:
         print("⚠️ AI skill analyzer failed, falling back to classic find_missing_skills.")
         print("Reason:", e)
         missing = find_missing_skills(user_skills, role)
 
     
-    # ⚠️ Check for missing skills and handle the error gracefully
+    # If perfect match
     if not missing:
-        # If there are no missing skills, return a success message
         return jsonify({
             "message": "You are a perfect match for this role!",
             "missing_skills": [],
             "recommended_projects": [],
             "starter_projects": [],
-            "ai_projects": ai_projects # Always include all keys!
+            "ai_projects": ai_projects,
+            "required_skills_ai": required_skills_ai
         }), 200
         
-    projects = generate_micro_projects(missing)
-    # starter_projects is now a list of strings
+    # ✅ CORRECT: Pass the include_videos flag to recommender
+    projects = generate_micro_projects(missing, include_videos=fetch_videos, max_results=max_videos)
+    
     starter_projects = [str(create_zip(skill)) for skill in missing] 
     
-    # 🚀 FINAL RESPONSE: This one sends ALL the data
     return jsonify({
         "missing_skills": missing,
         "recommended_projects": projects,
         "starter_projects": starter_projects,
         "ai_projects": ai_projects,
-        "required_skills_ai": required_skills_ai # optional extra field
-
+        "required_skills_ai": required_skills_ai
     })
 
-# The rest of your file continues from the UPLOAD_FOLDER definition...
 # upload and parse resume
 @main.route("/upload_resume", methods=["POST"])
 def upload_resume():
@@ -116,14 +116,12 @@ def upload_resume():
         return jsonify({"error": "Only PDF files are supported"}), 400
 
     try:
-        skills = extract_skills_from_pdf(file)  # ✅ Use file object
+        skills = extract_skills_from_pdf(file)
         print("Extracted skills:", skills)
         return jsonify({"extracted_skills": skills})
     except Exception as e:
         print("Error extracting skills:", str(e))
         return jsonify({"error": str(e)}), 500
-
- 
 
 # save user profile
 @main.route('/save_profile', methods=['POST'])
@@ -140,8 +138,8 @@ def save_profile():
     recommendations = data.get('recommendations', [])
     save_user_profile(user_id, role, skills, recommendations)
     return jsonify({"message": "Profile saved successfully"}), 200
-# retrieve user profile
 
+# retrieve user profile
 @main.route('/profile/<user_id>', methods=['GET'])
 @jwt_required()
 def profile(user_id):
@@ -150,9 +148,7 @@ def profile(user_id):
         return jsonify(profile)
     return jsonify({"error": "Profile not found."}), 404
 
-   # ✅ Serve starter ZIP files via API
-PROJECTS_DIR = Path(__file__).parent / "projects"
-
+# Serve starter ZIP files
 @main.route('/api/starter/<skill>', methods=['GET'])
 def get_starter(skill):
     zip_file = PROJECTS_DIR / f"{skill.replace(' ', '_')}.zip"
@@ -172,4 +168,3 @@ def not_found(error):
 def internal_error(error):
     current_app.logger.error(f"Server Error: {error}")
     return jsonify({"error": "Internal server error"}), 500
-

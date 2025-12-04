@@ -17,7 +17,11 @@ print("YOUTUBE_API_KEY loaded?", bool(YOUTUBE_API_KEY))
 
 
 
-def search_youtube_videos(query: str, max_results: int = 3):
+def search_youtube_videos(query: str, max_results: int = 3, allow_search: bool = True):
+    if not allow_search:
+        print("ℹ️ YouTube search disabled by allow_search=False.")
+        return []
+    
     cache_key = f"{query}:{max_results}"
 
     # ✅ return cached result instead of calling API again

@@ -6,8 +6,6 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from app.semantic_matcher import match_input_to_skill
 from app.youtube_search import search_youtube_videos
 
-
-
 # Paths
 DB_PATH = Path(__file__).parent / "skill_db.json"
 DATA_PATH = Path(__file__).parent / "skill_data.json"
@@ -21,7 +19,6 @@ PROJECT_TEMPLATES = {
     "Machine Learning": "Train a simple ML model on a sample dataset."
 }
 
-# Load databases
 def load_skill_db():
     if not DB_PATH.exists() or DB_PATH.stat().st_size == 0:
         return {}
@@ -30,18 +27,10 @@ def load_skill_db():
 
 def load_skill_data():
     if not DATA_PATH.exists() or DATA_PATH.stat().st_size == 0:
-        return {}  # return empty dict instead of crashing
+        return {}
     with open(DATA_PATH) as f:
         return json.load(f)
-def normalize_skill(s, skill_data):
-    s = s.strip().lower()
-    for skill, info in skill_data.items():
-        if s == skill.lower() or s in [syn.lower() for syn in info.get("synonyms", [])]:
-            return skill
-    return match_input_to_skill(s)
 
-
-# Normalize skill names (handle synonyms)
 def normalize_skill(user_input, skill_data):
     user_input_lower = user_input.strip().lower()
     for skill, info in skill_data.items():
@@ -49,9 +38,8 @@ def normalize_skill(user_input, skill_data):
             return skill
         if any(user_input_lower == s.lower() for s in info.get("synonyms", [])):
             return skill
-    return user_input  # fallback
+    return match_input_to_skill(user_input)
 
-# Compare user skills with required skills
 def find_missing_skills(user_skills, target_role):
     db = load_skill_db()
     skill_data = load_skill_data()
@@ -62,7 +50,6 @@ def find_missing_skills(user_skills, target_role):
 
     normalized_user = [normalize_skill(s, skill_data) for s in user_skills]
 
-    # Expand dependencies
     def expand_dependencies(skill, visited):
         if skill in visited:
             return []
@@ -81,40 +68,33 @@ def find_missing_skills(user_skills, target_role):
 
     missing_skills = [skill for skill in expanded_required if skill not in normalized_user]
     return sorted(set(missing_skills))
-# Generate micro-project suggestions
-def generate_micro_projects(missing_skills):
-    """
-    For each missing skill, return:
-      {
-        "skill": "React",
-        "project": "Build a personal portfolio website using React.",
-        "videos": [
-          { "title": "...", "url": "...", "channel": "...", "thumbnail": "..." },
-          ...
-        ]
-      }
-    """
-    projects = []
-    for i, skill in enumerate(missing_skills):
-    # ✅ only fetch videos for first 3 skills
-        if i >= 3:
-            videos = []
-    else:
-        videos = search_youtube_videos(skill)
 
-    description = PROJECT_TEMPLATES.get(skill, f"Build a small project to learn {skill}.")
-        # Use a friendly search query to find tutorials for this skill
-    query = f"{skill} tutorial for beginners"
-    videos = search_youtube_videos(query, max_results=3)
-    projects.append({
+# ✅ FIXED: Handles include_videos logic internally, calls search correctly
+def generate_micro_projects(missing_skills, include_videos=False, max_results=3):
+    projects = []
+    
+    for skill in missing_skills:
+        description = PROJECT_TEMPLATES.get(skill, f"Build a small project to learn {skill}.")
+        videos = []
+        
+        # Only attempt search if the checkbox was Checked
+        if include_videos:
+            try:
+                query = f"{skill} tutorial for beginners"
+                # Correct call: Do not pass 'allow_search' here, logic is handled by the if statement above
+                videos = search_youtube_videos(query, max_results=max_results)
+            except Exception as e:
+                print(f"⚠️ YouTube search failed for '{skill}': {e}")
+                videos = []
+        
+        projects.append({
             "skill": skill,
             "project": description,
             "videos": videos
         })
+        
     return projects
 
-
-# Suggest related skills (optional extra feature)
 def suggest_related_skills(user_skills):
     skill_data = load_skill_data()
     related = []
