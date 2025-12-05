@@ -7,6 +7,28 @@ from dotenv import load_dotenv
 load_dotenv()
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
+
+def _select_model_fallback(default_name: str = "gemini-pro") -> str:
+    """
+    Small helper to pick a reasonable Gemini model, with a safe fallback.
+    """
+    model_name = default_name
+    try:
+        for m in genai.list_models():
+            if "generateContent" in getattr(m, "supported_generation_methods", []):
+                name = getattr(m, "name", "")
+                if "gemini-2.5-flash" in name:
+                    model_name = name
+                    break
+                elif "gemini-2.0-flash" in name:
+                    model_name = name
+                elif "gemini-1.5-flash" in name and "2.5" not in model_name:
+                    model_name = name
+    except Exception as e:
+        print(f"⚠️ Model list failed, using default '{model_name}': {e}")
+    return model_name
+
+
 def generate_ai_project_ideas(role, skills):
     """
     Generate AI-based project ideas for the given role and skills.
@@ -33,23 +55,8 @@ def generate_ai_project_ideas(role, skills):
     """
     print(f"--- 🤖 AI Generator Started for: {role} ---")
 
-    valid_model_name = "gemini-pro"  # Safe fallback
-
-    # ✅ 1) Pick best available model (your existing logic, kept)
-    try:
-        for m in genai.list_models():
-            if 'generateContent' in getattr(m, "supported_generation_methods", []):
-                name = getattr(m, "name", "")
-                if "gemini-2.5-flash" in name:
-                    valid_model_name = name
-                    break
-                elif "gemini-2.0-flash" in name:
-                    valid_model_name = name
-                elif "gemini-1.5-flash" in name and "2.5" not in valid_model_name:
-                    valid_model_name = name
-        print(f"🔍 Selected Model: {valid_model_name}")
-    except Exception as e:
-        print(f"⚠️ Model list failed, using default: {e}")
+    valid_model_name = _select_model_fallback()
+    print(f"🔍 Selected Model: {valid_model_name}")
 
     # ✅ 2) Helper: your old-style fallback parser (kept for safety)
     def _fallback_text_to_titles(raw_text: str):
@@ -169,3 +176,72 @@ def generate_ai_project_ideas(role, skills):
                 "Create a Task Tracker using LocalStorage",
                 "Design a Weather Dashboard using Public APIs"
             ]
+
+
+def generate_learning_path_for_skill(skill: str):
+    """
+    Generate an AI-based learning path for a single skill.
+
+    Returns a dict:
+        {
+          "summary": "Short overview of why this skill matters and how to learn it",
+          "steps": ["Step 1 ...", "Step 2 ...", ...]
+        }
+    """
+    if not skill:
+        return {"summary": "", "steps": []}
+
+    model_name = _select_model_fallback()
+    print(f"🔍 Learning-path model for '{skill}': {model_name}")
+
+    try:
+        model = genai.GenerativeModel(model_name)
+        prompt = f"""
+You are a friendly tech mentor.
+
+Skill: "{skill}"
+
+Create a focused learning path for an aspiring developer who wants to get job-ready using this skill.
+
+Return JSON ONLY in this exact format (no markdown, no extra text):
+{{
+  "summary": "1–2 sentence overview of why this skill matters and what they will be able to do with it.",
+  "steps": [
+    "Step 1: ...",
+    "Step 2: ...",
+    "Step 3: ...",
+    "Step 4: ... (optional)",
+    "Step 5: ... (optional)"
+  ]
+}}
+"""
+        response = model.generate_content(prompt)
+        raw = getattr(response, "text", "").strip()
+        print(f"🔍 Raw learning-path output for {skill}:", raw)
+
+        # Extract JSON object
+        start = raw.find("{")
+        end = raw.rfind("}")
+        if start == -1 or end == -1:
+            raise ValueError("No JSON object in learning-path output")
+
+        obj = json.loads(raw[start : end + 1])
+        if not isinstance(obj, dict):
+            raise ValueError("Learning-path JSON is not an object")
+
+        summary = (obj.get("summary") or "").strip()
+        steps = obj.get("steps") or []
+        if not isinstance(steps, list):
+            steps = []
+        steps = [str(s).strip() for s in steps if str(s).strip()]
+
+        return {
+            "summary": summary,
+            "steps": steps,
+        }
+    except Exception as e:
+        print(f"⚠️ Learning-path generation failed for '{skill}': {e}")
+        return {
+            "summary": f"Aim to build a few small, practical projects using {skill} and follow high-quality tutorials.",
+            "steps": [],
+        }

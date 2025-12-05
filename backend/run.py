@@ -38,6 +38,10 @@ def recommend():
     user_skills = data.get("skills", []) or []
     target_role = data.get("role", "") or ""
 
+    # ✅ Respect YouTube checkbox from frontend (include_youtube + max_video_results)
+    fetch_videos = bool(data.get("include_youtube", False))
+    max_videos = int(data.get("max_video_results", 3))
+
     # 1) AI project ideas (existing behavior)
     ai_projects = generate_ai_project_ideas(target_role, user_skills)
     if not isinstance(ai_projects, list):
@@ -59,7 +63,7 @@ def recommend():
         }), 500
 
     # 3) Micro-projects for missing skills (can also include YouTube links if you've wired that)
-    projects = generate_micro_projects(missing)
+    projects = generate_micro_projects(missing, include_videos=fetch_videos, max_results=max_videos)
 
    
 

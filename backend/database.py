@@ -45,5 +45,15 @@ def init_db():
         )
     ''')
 
+    # Auth users table for login/registration
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS auth_users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE,
+            password_hash TEXT,
+            created_at TEXT
+        )
+    ''')
+
     conn.commit()
     conn.close()

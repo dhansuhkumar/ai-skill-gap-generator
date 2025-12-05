@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Cool font (match main app) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login · AI Skill-Gap Generator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      font-family: "Nunito", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+        sans-serif;
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white flex items-center justify-center p-6">
+  <!-- Glow background -->
+  <div class="pointer-events-none fixed inset-0 opacity-40">
+    <div class="absolute -top-32 -left-32 w-80 h-80 bg-cyan-500 blur-3xl rounded-full mix-blend-screen"></div>
+    <div class="absolute -bottom-32 -right-32 w-80 h-80 bg-purple-500 blur-3xl rounded-full mix-blend-screen"></div>
+  </div>
+
+  <div class="relative w-full max-w-md bg-slate-900/80 border border-slate-700/80 rounded-2xl shadow-[0_0_40px_rgba(15,23,42,0.9)] p-6 md:p-8 z-10">
+    <div class="text-center mb-6">
+      <h1 class="text-2xl md:text-3xl font-extrabold mb-2 tracking-tight">
+        <span class="bg-gradient-to-r from-cyan-400 via-emerald-300 to-purple-400 bg-clip-text text-transparent">
+          AI Skill-Gap Generator
+        </span>
+      </h1>
+      <p class="text-xs text-slate-300">
+        Sign in or create an account to save and revisit your skill-gap analyses.
+      </p>
+    </div>
+
+    <div class="flex mb-4 text-xs">
+      <button id="tabLogin" class="flex-1 py-2 rounded-l-xl bg-slate-800 text-slate-100 border border-slate-700 border-r-0 font-semibold">
+        Login
+      </button>
+      <button id="tabRegister" class="flex-1 py-2 rounded-r-xl bg-slate-900 text-slate-400 border border-slate-700 font-semibold">
+        Register
+      </button>
+    </div>
+
+    <!-- Login form -->
+    <form id="loginForm" class="flex flex-col gap-3 mt-2">
+      <div class="flex flex-col gap-1">
+        <label for="loginUsername" class="text-xs text-slate-300">Username</label>
+        <input
+          id="loginUsername"
+          type="text"
+          autocomplete="username"
+          class="rounded-xl px-3 py-2 bg-slate-900/80 text-slate-100 placeholder-slate-500 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-500/80 focus:border-cyan-400 text-sm"
+          placeholder="e.g. dhanush"
+        />
+      </div>
+      <div class="flex flex-col gap-1">
+        <label for="loginPassword" class="text-xs text-slate-300">Password</label>
+        <input
+          id="loginPassword"
+          type="password"
+          autocomplete="current-password"
+          class="rounded-xl px-3 py-2 bg-slate-900/80 text-slate-100 placeholder-slate-500 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-500/80 focus:border-cyan-400 text-sm"
+          placeholder="Your password"
+        />
+      </div>
+      <button
+        type="submit"
+        class="mt-2 bg-gradient-to-r from-cyan-500 via-emerald-400 to-purple-500 hover:from-cyan-400 hover:via-emerald-300 hover:to-purple-400 text-slate-950 font-semibold py-2.5 rounded-xl text-sm shadow-lg shadow-cyan-500/30"
+      >
+        Login
+      </button>
+    </form>
+
+    <!-- Register form -->
+    <form id="registerForm" class="hidden flex flex-col gap-3 mt-2">
+      <div class="flex flex-col gap-1">
+        <label for="registerUsername" class="text-xs text-slate-300">Choose a username</label>
+        <input
+          id="registerUsername"
+          type="text"
+          autocomplete="username"
+          class="rounded-xl px-3 py-2 bg-slate-900/80 text-slate-100 placeholder-slate-500 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/80 focus:border-emerald-400 text-sm"
+          placeholder="e.g. dhanush"
+        />
+      </div>
+      <div class="flex flex-col gap-1">
+        <label for="registerPassword" class="text-xs text-slate-300">Choose a password</label>
+        <input
+          id="registerPassword"
+          type="password"
+          autocomplete="new-password"
+          class="rounded-xl px-3 py-2 bg-slate-900/80 text-slate-100 placeholder-slate-500 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/80 focus:border-emerald-400 text-sm"
+          placeholder="At least 6 characters"
+        />
+      </div>
+      <button
+        type="submit"
+        class="mt-2 bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-slate-950 font-semibold py-2.5 rounded-xl text-sm shadow-lg shadow-emerald-500/30"
+      >
+        Create account
+      </button>
+    </form>
+
+    <p id="message" class="mt-4 text-xs text-center text-slate-300"></p>
+
+    <p class="mt-4 text-[11px] text-center text-slate-400">
+      After you login, you will be redirected to the main dashboard where your previous analyses will be loaded automatically.
+    </p>
+  </div>
+
+  <script>
+    const isLocal =
+      window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1" ||
+      window.location.protocol === "file:";
+
+    const BASE_URL = isLocal
+      ? "http://127.0.0.1:8080"
+      : "https://ai-skill-gap-generator-production.up.railway.app";
+
+    document.addEventListener("DOMContentLoaded", () => {
+      const tabLogin = document.getElementById("tabLogin");
+      const tabRegister = document.getElementById("tabRegister");
+      const loginForm = document.getElementById("loginForm");
+      const registerForm = document.getElementById("registerForm");
+      const messageEl = document.getElementById("message");
+
+      if (!tabLogin || !tabRegister || !loginForm || !registerForm || !messageEl) {
+        return;
+      }
+
+      function showLogin() {
+        tabLogin.classList.add("bg-slate-800", "text-slate-100");
+        tabLogin.classList.remove("bg-slate-900", "text-slate-400");
+        tabRegister.classList.add("bg-slate-900", "text-slate-400");
+        tabRegister.classList.remove("bg-slate-800", "text-slate-100");
+        loginForm.classList.remove("hidden");
+        registerForm.classList.add("hidden");
+        messageEl.textContent = "";
+      }
+
+      function showRegister() {
+        tabRegister.classList.add("bg-slate-800", "text-slate-100");
+        tabRegister.classList.remove("bg-slate-900", "text-slate-400");
+        tabLogin.classList.add("bg-slate-900", "text-slate-400");
+        tabLogin.classList.remove("bg-slate-800", "text-slate-100");
+        loginForm.classList.add("hidden");
+        registerForm.classList.remove("hidden");
+        messageEl.textContent = "";
+      }
+
+      tabLogin.addEventListener("click", showLogin);
+      tabRegister.addEventListener("click", showRegister);
+
+      loginForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      messageEl.textContent = "";
+
+      const username = document.getElementById("loginUsername").value.trim();
+      const password = document.getElementById("loginPassword").value;
+      if (!username || !password) {
+        messageEl.textContent = "Please enter username and password.";
+        messageEl.className = "mt-4 text-xs text-center text-rose-300";
+        return;
+      }
+
+      try {
+        const res = await fetch(`${BASE_URL}/auth/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          messageEl.textContent = data.error || "Login failed.";
+          messageEl.className = "mt-4 text-xs text-center text-rose-300";
+          // If login fails, encourage user to register by switching tab
+          showRegister();
+          return;
+        }
+
+        if (!data.access_token) {
+          messageEl.textContent = "Login response missing token.";
+          messageEl.className = "mt-4 text-xs text-center text-rose-300";
+          return;
+        }
+
+        localStorage.setItem("jwtToken", data.access_token);
+        localStorage.setItem("username", username);
+
+        messageEl.textContent = "Login successful! Redirecting to dashboard...";
+        messageEl.className = "mt-4 text-xs text-center text-emerald-300";
+
+        setTimeout(() => {
+          window.location.href = "index.html";
+        }, 800);
+      } catch (err) {
+        console.error("Login error:", err);
+        messageEl.textContent = "Login error. Please try again.";
+        messageEl.className = "mt-4 text-xs text-center text-rose-300";
+        showRegister();
+      }
+    });
+
+    registerForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      messageEl.textContent = "";
+
+      const username = document.getElementById("registerUsername").value.trim();
+      const password = document.getElementById("registerPassword").value;
+      if (!username || !password) {
+        messageEl.textContent = "Please enter username and password.";
+        messageEl.className = "mt-4 text-xs text-center text-rose-300";
+        return;
+      }
+
+      try {
+        const res = await fetch(`${BASE_URL}/auth/register`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          messageEl.textContent = data.error || "Registration failed.";
+          messageEl.className = "mt-4 text-xs text-center text-rose-300";
+          return;
+        }
+
+        messageEl.textContent = "Account created! You can now login.";
+        messageEl.className = "mt-4 text-xs text-center text-emerald-300";
+        showLogin();
+        document.getElementById("loginUsername").value = username;
+      } catch (err) {
+        console.error("Register error:", err);
+        messageEl.textContent = "Registration error. Please try again.";
+        messageEl.className = "mt-4 text-xs text-center text-rose-300";
+      }
+    });
+  });
+  </script>
+</body>
+</html>
+
+

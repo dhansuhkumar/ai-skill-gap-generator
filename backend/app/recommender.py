@@ -5,19 +5,11 @@ from pathlib import Path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from app.semantic_matcher import match_input_to_skill
 from app.youtube_search import search_youtube_videos
+from app.ai_generator import generate_learning_path_for_skill
 
 # Paths
 DB_PATH = Path(__file__).parent / "skill_db.json"
 DATA_PATH = Path(__file__).parent / "skill_data.json"
-
-# Project templates
-PROJECT_TEMPLATES = {
-    "React": "Build a personal portfolio website using React.",
-    "JavaScript": "Build a calculator or simple interactive web app.",
-    "SQL": "Create a small database and perform queries.",
-    "Python": "Write a script to analyze data or automate a task.",
-    "Machine Learning": "Train a simple ML model on a sample dataset."
-}
 
 def load_skill_db():
     if not DB_PATH.exists() or DB_PATH.stat().st_size == 0:
@@ -74,7 +66,10 @@ def generate_micro_projects(missing_skills, include_videos=False, max_results=3)
     projects = []
     
     for skill in missing_skills:
-        description = PROJECT_TEMPLATES.get(skill, f"Build a small project to learn {skill}.")
+        # 🧠 AI-generated learning path for this specific skill
+        learning = generate_learning_path_for_skill(skill)
+        description = learning.get("summary") or ""
+        steps = learning.get("steps") or []
         videos = []
         
         # Only attempt search if the checkbox was Checked
@@ -90,7 +85,8 @@ def generate_micro_projects(missing_skills, include_videos=False, max_results=3)
         projects.append({
             "skill": skill,
             "project": description,
-            "videos": videos
+            "learning_path_steps": steps,
+            "videos": videos,
         })
         
     return projects

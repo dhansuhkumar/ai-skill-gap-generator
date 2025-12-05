@@ -87,8 +87,225 @@ function stopLoadingUI() {
 
 document.addEventListener("DOMContentLoaded", () => {
   const form = document.getElementById("recommendForm");
-  const loading = document.getElementById("loading");
   const results = document.getElementById("results");
+  const loginForm = document.getElementById("loginForm");
+  const authStatus = document.getElementById("authStatus");
+  const logoutButton = document.getElementById("logoutButton");
+  const wizardSteps = document.getElementById("wizardSteps");
+  const step1Fields = document.getElementById("step1Fields");
+  const step2Fields = document.getElementById("step2Fields");
+  const nextStepBtn = document.getElementById("nextStepBtn");
+  const backStepBtn = document.getElementById("backStepBtn");
+  const themeDarkBtn = document.getElementById("themeDark");
+  const themeLightBtn = document.getElementById("themeLight");
+
+  let currentStep = 1;
+
+  // Hard gate: if not logged in, send user to login page
+  const tokenAtStart = localStorage.getItem("jwtToken");
+  const usernameAtStart = localStorage.getItem("username");
+  if (!tokenAtStart || !usernameAtStart) {
+    // Avoid redirect loop if someone accidentally opens login.html with this script
+    const currentPage = window.location.pathname.split("/").pop() || "";
+    if (currentPage.toLowerCase() === "index.html" || currentPage === "") {
+      window.location.href = "login.html";
+      return;
+    }
+  }
+
+  // Theme handling
+  function applyTheme(theme) {
+    if (theme === "light") {
+      document.body.classList.add("light-theme");
+    } else {
+      document.body.classList.remove("light-theme");
+    }
+    localStorage.setItem("themePreference", theme);
+    if (themeDarkBtn && themeLightBtn) {
+      if (theme === "light") {
+        themeLightBtn.classList.add("bg-slate-800", "text-slate-100");
+        themeDarkBtn.classList.remove("bg-slate-800", "text-slate-100");
+      } else {
+        themeDarkBtn.classList.add("bg-slate-800", "text-slate-100");
+        themeLightBtn.classList.remove("bg-slate-800", "text-slate-100");
+      }
+    }
+  }
+
+  const savedTheme = localStorage.getItem("themePreference") || "dark";
+  applyTheme(savedTheme);
+
+  if (themeDarkBtn) {
+    themeDarkBtn.addEventListener("click", () => applyTheme("dark"));
+  }
+  if (themeLightBtn) {
+    themeLightBtn.addEventListener("click", () => applyTheme("light"));
+  }
+
+  // Wizard step handling
+  function setStep(step) {
+    currentStep = step;
+    if (step1Fields && step2Fields) {
+      if (step === 1) {
+        step1Fields.classList.remove("hidden");
+        step2Fields.classList.add("hidden");
+      } else {
+        step1Fields.classList.add("hidden");
+        step2Fields.classList.remove("hidden");
+      }
+    }
+    if (wizardSteps) {
+      const stepNodes = wizardSteps.querySelectorAll("[data-step]");
+      stepNodes.forEach((node) => {
+        const s = parseInt(node.getAttribute("data-step"), 10);
+        const badge = node.querySelector("span.w-6");
+        if (!badge) return;
+        if (s === step) {
+          badge.classList.add("bg-cyan-500", "text-slate-950");
+          badge.classList.remove("bg-slate-800", "text-slate-300");
+          node.classList.remove("opacity-60");
+        } else {
+          badge.classList.add("bg-slate-800", "text-slate-300");
+          badge.classList.remove("bg-cyan-500", "text-slate-950");
+          if (s > step) {
+            node.classList.add("opacity-60");
+          }
+        }
+      });
+    }
+  }
+
+  setStep(1);
+
+  if (nextStepBtn) {
+    nextStepBtn.addEventListener("click", () => {
+      setStep(2);
+    });
+  }
+
+  if (backStepBtn) {
+    backStepBtn.addEventListener("click", () => {
+      setStep(1);
+    });
+  }
+
+  // Helper: check auth state on load
+  function refreshAuthUI() {
+    const token = localStorage.getItem("jwtToken");
+    const username = localStorage.getItem("username");
+    if (token && username) {
+      if (authStatus)
+        authStatus.textContent = `Logged in as ${username}`;
+      if (logoutButton) logoutButton.classList.remove("hidden");
+    } else {
+      if (authStatus) authStatus.textContent = "Not logged in";
+      if (logoutButton) logoutButton.classList.add("hidden");
+    }
+  }
+
+  refreshAuthUI();
+
+  // Try to load existing profile for the logged-in user
+  async function loadUserProfile() {
+    const token = localStorage.getItem("jwtToken");
+    const username = localStorage.getItem("username");
+    if (!token || !username) return;
+
+    try {
+      const res = await fetch(`${BASE_URL}/api/profile/${encodeURIComponent(username)}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!res.ok) return;
+      const profile = await res.json();
+
+      // Pre-fill inputs if we have data
+      const skillsInput = document.getElementById("skills");
+      const roleInput = document.getElementById("role");
+      if (skillsInput && Array.isArray(profile.skills)) {
+        skillsInput.value = profile.skills.join(", ");
+      }
+      if (roleInput && profile.role) {
+        roleInput.value = profile.role;
+      }
+
+      // Optionally render last recommendations
+      if (profile.recommendations) {
+        // Reuse UI renderer with minimal fake structure
+        updateUIWithRecommendations(
+          { 
+            missing_skills: [],
+            recommended_projects: profile.recommendations,
+            starter_projects: [],
+            ai_projects: [],
+            required_skills_ai: [],
+            job_matches: [],
+          },
+          profile.role || "",
+          profile.skills || []
+        );
+        const results = document.getElementById("results");
+        if (results) results.classList.remove("hidden");
+      }
+    } catch (e) {
+      console.log("Failed to load saved profile (ignored):", e);
+    }
+  }
+
+  loadUserProfile();
+
+  if (logoutButton) {
+    logoutButton.addEventListener("click", () => {
+      localStorage.removeItem("jwtToken");
+      localStorage.removeItem("username");
+      refreshAuthUI();
+      alert("You have been logged out.");
+    });
+  }
+
+  if (loginForm) {
+    loginForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const usernameInput = document.getElementById("loginUsername");
+      const passwordInput = document.getElementById("loginPassword");
+      const username = usernameInput.value.trim();
+      const password = passwordInput.value;
+
+      if (!username || !password) {
+        alert("Please enter username and password.");
+        return;
+      }
+
+      try {
+        const res = await fetch(`${BASE_URL}/auth/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password }),
+        });
+
+        if (!res.ok) {
+          alert("Login failed. Check your credentials.");
+          return;
+        }
+
+        const data = await res.json();
+        if (!data.access_token) {
+          alert("Login response missing token.");
+          return;
+        }
+
+        localStorage.setItem("jwtToken", data.access_token);
+        localStorage.setItem("username", username);
+        refreshAuthUI();
+        alert("Logged in successfully!");
+        await loadUserProfile();
+      } catch (err) {
+        console.error("Login error:", err);
+        alert("Login error. Please try again.");
+      }
+    });
+  }
 
   // Remove the old global include_youtube assignment.
   // We'll read the checkbox inside the submit handler so it's always up-to-date.
@@ -125,26 +342,6 @@ document.addEventListener("DOMContentLoaded", () => {
       );
     }
 
-    // Optional: JWT login (ignore if fails) -- NOTE: your backend login route is /login
-    try {
-      const authRes = await fetch(`${BASE_URL}/api/login`, { // <-- changed to /login
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: "dhanush",
-          password: "test123",
-        }),
-      });
-
-      if (authRes.ok) {
-        const authData = await authRes.json();
-        // you created token under key 'token' in backend, not access_token
-        if (authData.token) localStorage.setItem("jwtToken", authData.token);
-      }
-    } catch (err) {
-      console.warn("Login skipped/failed:", err);
-    }
-
     try {
       const response = await fetch(`${BASE_URL}/recommend`, {
         method: "POST",
@@ -156,9 +353,9 @@ document.addEventListener("DOMContentLoaded", () => {
       const data = await response.json();
       console.log("Full /recommend response:", data);
 
-      // Save profile silently if token exists
       const token = localStorage.getItem("jwtToken");
-      if (token) {
+      const username = localStorage.getItem("username");
+      if (token && username) {
         fetch(`${BASE_URL}/api/save_profile`, {
           method: "POST",
           headers: {
@@ -168,7 +365,7 @@ document.addEventListener("DOMContentLoaded", () => {
           body: JSON.stringify({
             role,
             skills,
-            recommendations: ["Generated by AI"],
+            recommendations: data.recommended_projects || [],
           }),
         }).catch((e) => console.log("Save profile ignored:", e));
       }
@@ -202,13 +399,18 @@ function updateUIWithRecommendations(data, role, userSkills) {
         '<span class="text-emerald-300 text-xs">You are a perfect match for this role! 🎉</span>';
     } else {
       missingContainer.innerHTML = missingSkills
-        .map(
-          (skill) => `
-        <span class="bg-rose-500/15 text-rose-200 border border-rose-500/40 px-3 py-1 rounded-full text-[11px] font-medium">
-          ${skill}
+        .map((skill, idx) => {
+          const priority =
+            idx < 2 ? "High impact" : idx < 5 ? "Medium impact" : "Nice to have";
+          return `
+        <span class="bg-rose-500/15 text-rose-200 border border-rose-500/40 px-3 py-1 rounded-full text-[11px] font-medium flex items-center gap-2">
+          <span>${skill}</span>
+          <span class="text-[9px] font-semibold uppercase tracking-wide px-2 py-[2px] rounded-full bg-rose-500/30 text-rose-100 border border-rose-300/60">
+            ${priority}
+          </span>
         </span>
-      `
-        )
+      `;
+        })
         .join("");
     }
   }
@@ -286,11 +488,19 @@ function updateUIWithRecommendations(data, role, userSkills) {
       jobFitLevel.textContent = levelText;
       jobFitLevel.className = levelClass;
 
+      const topToFocus = missingSkills.slice(0, 3);
+      const focusText =
+        topToFocus.length > 0
+          ? `Focus on <span class="font-semibold">${topToFocus.join(
+              ", "
+            )}</span> next to move this closer to 100%.`
+          : "You’re very close – keep practicing and refining your portfolio projects.";
+
       jobFitSummary.innerHTML = `
         <span class="text-[11px] text-slate-200">
           You match <span class="font-semibold">${primary.known_count}</span> of
           <span class="font-semibold">${primary.total_required}</span> core skills for this role.
-          Focus on the missing skills on the left to push this closer to 100%.
+          ${focusText}
         </span>
       `;
 
@@ -348,45 +558,113 @@ function updateUIWithRecommendations(data, role, userSkills) {
 
   // Practice Projects + YouTube links
   if (projectContainer) {
+    const palette = [
+      {
+        cardBg: "bg-gradient-to-r from-cyan-950/80 to-cyan-800/80",
+        cardBorder: "border-cyan-400/70",
+        badgeBg: "bg-cyan-500/20",
+        badgeText: "text-cyan-200",
+        badgeBorder: "border-cyan-400/60",
+      },
+      {
+        cardBg: "bg-gradient-to-r from-emerald-950/80 to-emerald-800/80",
+        cardBorder: "border-emerald-400/70",
+        badgeBg: "bg-emerald-500/20",
+        badgeText: "text-emerald-200",
+        badgeBorder: "border-emerald-400/60",
+      },
+      {
+        cardBg: "bg-gradient-to-r from-amber-950/80 to-amber-800/80",
+        cardBorder: "border-amber-400/70",
+        badgeBg: "bg-amber-500/20",
+        badgeText: "text-amber-100",
+        badgeBorder: "border-amber-400/60",
+      },
+      {
+        cardBg: "bg-gradient-to-r from-rose-950/80 to-rose-800/80",
+        cardBorder: "border-rose-400/70",
+        badgeBg: "bg-rose-500/20",
+        badgeText: "text-rose-200",
+        badgeBorder: "border-rose-400/60",
+      },
+      {
+        cardBg: "bg-gradient-to-r from-purple-950/80 to-purple-800/80",
+        cardBorder: "border-purple-400/70",
+        badgeBg: "bg-purple-500/20",
+        badgeText: "text-purple-200",
+        badgeBorder: "border-purple-400/60",
+      },
+    ];
+
     const projectsHTML = recommendedProjects
-      .map((p) => {
+      .map((p, idx) => {
+        const colors = palette[idx % palette.length];
         const videos = p.videos || [];
+        const steps = p.learning_path_steps || [];
+        const stepsHTML =
+          steps.length > 0
+            ? `
+          <div class="mt-3 border-t border-slate-700/70 pt-2">
+            <p class="text-sm text-white mb-2">📚 Learning Path</p>
+            <div class="grid grid-cols-1 gap-2">
+              ${steps
+                .map(
+                  (s, idx) => `
+                <div class="flex items-start gap-2 rounded-lg bg-slate-950/60 border border-slate-700/70 px-3 py-2">
+                  <span class="mt-[1px] inline-flex items-center justify-center w-6 h-6 rounded-full bg-cyan-500 text-[11px] font-bold text-slate-950">
+                    ${idx + 1}
+                  </span>
+                  <p class="text-sm text-white/90 leading-snug">${s}</p>
+                </div>
+              `
+                )
+                .join("")}
+            </div>
+          </div>
+        `
+            : "";
         const videosHTML =
           videos.length > 0
             ? `
           <div class="mt-3 border-t border-slate-700/70 pt-2">
-            <p class="text-[11px] text-slate-300 mb-1">🎥 Watch & Learn</p>
-            <ul class="space-y-1 text-[11px]">
+            <p class="text-sm text-white mb-2">🎥 Watch & Learn</p>
+            <div class="grid grid-cols-1 gap-2">
               ${videos
                 .map(
                   (v) => `
-                <li>
-                  <a href="${v.url}" target="_blank" class="text-cyan-300 hover:underline">
-                    ${v.title}
-                  </a>
-                  <span class="text-slate-400"> · ${v.channel}</span>
-                </li>
+                <a href="${v.url}" target="_blank"
+                   class="flex items-center justify-between rounded-lg bg-slate-950/60 border border-slate-700/70 px-3 py-2 hover:border-cyan-400 hover:bg-slate-900/80 transition">
+                  <div class="flex flex-col">
+                    <span class="text-sm font-semibold text-cyan-200 line-clamp-1">${v.title}</span>
+                    <span class="text-[11px] text-white/70">${v.channel}</span>
+                  </div>
+                  <span class="text-sm text-cyan-200 font-semibold">▶</span>
+                </a>
               `
                 )
                 .join("")}
-            </ul>
+            </div>
           </div>
         `
             : "";
 
         return `
-        <div class="hover:bg-slate-800/70 p-4 rounded-xl border border-slate-700/80 transition hover:-translate-y-[2px]">
-          <h4 class="text-sm font-bold text-cyan-200">${p.skill}</h4>
-          <p class="text-slate-200 text-[12px] mt-1">${p.project}</p>
+        <div class="p-4 md:p-5 rounded-xl border ${colors.cardBg} ${colors.cardBorder} transition hover:-translate-y-[2px] hover:shadow-lg hover:shadow-cyan-500/20">
+          <div class="flex items-center justify-between mb-1">
+            <h4 class="text-base font-bold text-white">${p.skill}</h4>
+            <span class="text-[11px] px-2 py-[2px] rounded-full ${colors.badgeBg} ${colors.badgeText} ${colors.badgeBorder}">
+              Focus skill
+            </span>
+          </div>
+          <p class="text-white/90 text-sm mt-2 leading-snug">${p.project}</p>
+          ${stepsHTML}
           ${videosHTML}
         </div>
       `;
       })
       .join("");
 
-    projectContainer.innerHTML =
-      projectsHTML ||
-      '<p class="text-slate-300 text-sm">No skill-based project suggestions available.</p>';
+    projectContainer.innerHTML = projectsHTML || "";
   }
 
   // Starter Code packs

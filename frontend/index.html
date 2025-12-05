@@ -1,10 +1,53 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <!-- Cool font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+
   <style>
     html {
       text-size-adjust: 100%;
       -webkit-text-size-adjust: 100%;
+    }
+
+    /* Simple light theme override */
+    body.light-theme {
+      background: radial-gradient(circle at top, #e5f4ff 0, #f9fafb 40%, #e5e7eb 100%);
+      color: #020617;
+    }
+
+    body.light-theme .bg-slate-900\/70,
+    body.light-theme .bg-slate-900\/80,
+    body.light-theme .bg-slate-900\/90 {
+      background-color: rgba(248, 250, 252, 0.96);
+    }
+
+    body.light-theme .border-slate-700\/70,
+    body.light-theme .border-slate-700\/80 {
+      border-color: rgba(148, 163, 184, 0.8);
+    }
+
+    body.light-theme .text-slate-100,
+    body.light-theme .text-slate-200,
+    body.light-theme .text-slate-300,
+    body.light-theme .text-slate-400 {
+      color: #020617;
+    }
+
+    body.light-theme .bg-slate-950\/80,
+    body.light-theme .bg-slate-800\/80 {
+      background-color: rgba(226, 232, 240, 0.9);
+    }
+
+    body.light-theme input,
+    body.light-theme textarea {
+      color: #020617;
+    }
+    body {
+      font-family: "Nunito", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+        sans-serif;
     }
   </style>
 
@@ -23,11 +66,31 @@
 
   <!-- Header -->
   <div class="relative text-center mb-10 z-10">
-    <h1 class="text-4xl md:text-5xl font-extrabold mb-3 tracking-tight">
+    <div class="flex items-center justify-between gap-4 mb-3">
+      <h1 class="text-4xl md:text-5xl font-extrabold tracking-tight">
       <span class="bg-gradient-to-r from-cyan-400 via-emerald-300 to-purple-400 bg-clip-text text-transparent">
         AI Skill-Gap Generator
       </span>
-    </h1>
+      </h1>
+      <!-- Theme toggle -->
+      <div class="flex items-center gap-1 text-[11px] bg-slate-900/70 border border-slate-700/70 rounded-full px-2 py-1">
+        <span class="text-slate-300 mr-1">Theme</span>
+        <button
+          type="button"
+          id="themeDark"
+          class="px-2 py-0.5 rounded-full bg-slate-800 text-slate-100"
+        >
+          🌙
+        </button>
+        <button
+          type="button"
+          id="themeLight"
+          class="px-2 py-0.5 rounded-full text-slate-300 hover:bg-slate-800/80"
+        >
+          ☀️
+        </button>
+      </div>
+    </div>
     <p class="text-sm md:text-base text-slate-300 max-w-xl mx-auto">
       See how ready you are for your dream tech role, what you’re missing, and what to build next — all in one futuristic dashboard.
     </p>
@@ -45,20 +108,24 @@
       </span>
     </div>
 
-    <form id="recommendForm" class="flex flex-col gap-4">
-      <!-- User ID -->
-      <div class="flex flex-col gap-2">
-        <label for="user_id" class="text-xs font-medium text-slate-300">User ID (optional)</label>
-        <input
-          id="user_id"
-          type="text"
-          placeholder="e.g. dhanush123"
-          class="w-full rounded-xl px-4 py-2.5 bg-slate-900/80 text-slate-100 placeholder-slate-500 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-500/80 focus:border-cyan-400"
-        />
+    <!-- Simple step indicator -->
+    <div id="wizardSteps" class="flex items-center justify-between text-[11px] mb-4">
+      <div data-step="1" class="flex-1 flex items-center gap-2">
+        <span class="w-6 h-6 rounded-full flex items-center justify-center bg-cyan-500 text-slate-950 font-semibold">1</span>
+        <span>Your skills</span>
       </div>
+      <div class="flex-1 h-px mx-2 bg-slate-700/70"></div>
+      <div data-step="2" class="flex-1 flex items-center gap-2 opacity-60">
+        <span class="w-6 h-6 rounded-full flex items-center justify-center bg-slate-800 text-slate-300 font-semibold">2</span>
+        <span>Your dream role</span>
+      </div>
+    </div>
 
-      <!-- Skills -->
-      <div class="flex flex-col gap-2">
+    <form id="recommendForm" class="flex flex-col gap-4">
+      <!-- STEP 1: Skills & Resume -->
+      <div id="step1Fields" class="flex flex-col gap-4">
+        <!-- Skills -->
+        <div class="flex flex-col gap-2">
         <label for="skills" class="text-xs font-medium text-slate-300">Your current skills</label>
         <input
           id="skills"
@@ -71,8 +138,8 @@
         </p>
       </div>
 
-      <!-- Resume Upload -->
-      <div class="flex flex-col gap-2">
+        <!-- Resume Upload -->
+        <div class="flex flex-col gap-2">
         <label for="resumeUpload" class="text-xs font-medium text-slate-300">Upload your resume (PDF)</label>
         <input
           id="resumeUpload"
@@ -87,67 +154,144 @@
         >
           <span>⚡ Extract skills from resume</span>
         </button>
+        </div>
+
+        <div class="flex justify-end mt-2">
+          <button
+            type="button"
+            id="nextStepBtn"
+            class="bg-gradient-to-r from-cyan-500 to-emerald-400 hover:from-cyan-400 hover:to-emerald-300 text-slate-950 font-semibold px-4 py-2 rounded-xl text-sm shadow-md shadow-cyan-500/30"
+          >
+            Next: Choose role →
+          </button>
+        </div>
       </div>
 
-      <!-- Role Search -->
-      <div class="flex flex-col gap-2">
-        <label for="role" class="text-xs font-medium text-slate-300">Search your dream role</label>
-        <input
-          id="role"
-          type="text"
-          list="roleOptions"
-          placeholder="e.g. Web Developer, Data Scientist, ML Engineer"
-          autocomplete="off"
-          class="w-full rounded-xl px-4 py-2.5 bg-slate-900/80 text-slate-100 placeholder-slate-500 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-purple-500/80 focus:border-purple-400"
-        />
+      <!-- STEP 2: Role & Options -->
+      <div id="step2Fields" class="flex flex-col gap-4 hidden">
+        <!-- Role Search -->
+        <div class="flex flex-col gap-2">
+          <label for="role" class="text-xs font-medium text-slate-300">Search your dream role</label>
+          <input
+            id="role"
+            type="text"
+            list="roleOptions"
+            placeholder="e.g. Web Developer, Data Scientist, ML Engineer"
+            autocomplete="off"
+            class="w-full rounded-xl px-4 py-2.5 bg-slate-900/80 text-slate-100 placeholder-slate-500 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-purple-500/80 focus:border-purple-400"
+          />
 
-        <datalist id="roleOptions">
-          <option value="Web Developer"></option>
-          <option value="Frontend Developer"></option>
-          <option value="Backend Developer"></option>
-          <option value="Full Stack Developer"></option>
+          <datalist id="roleOptions">
+            <option value="Web Developer"></option>
+            <option value="Frontend Developer"></option>
+            <option value="Backend Developer"></option>
+            <option value="Full Stack Developer"></option>
 
-          <option value="Data Scientist"></option>
-          <option value="Data Analyst"></option>
-          <option value="Machine Learning Engineer"></option>
-          <option value="AI Engineer"></option>
+            <option value="Data Scientist"></option>
+            <option value="Data Analyst"></option>
+            <option value="Machine Learning Engineer"></option>
+            <option value="AI Engineer"></option>
 
-          <option value="Mobile App Developer"></option>
-          <option value="Android Developer"></option>
-          <option value="iOS Developer"></option>
+            <option value="Mobile App Developer"></option>
+            <option value="Android Developer"></option>
+            <option value="iOS Developer"></option>
 
-          <option value="DevOps Engineer"></option>
-          <option value="Cloud Engineer"></option>
-          <option value="Cybersecurity Engineer"></option>
-          <option value="QA Engineer"></option>
-          <option value="Automation Test Engineer"></option>
+            <option value="DevOps Engineer"></option>
+            <option value="Cloud Engineer"></option>
+            <option value="Cybersecurity Engineer"></option>
+            <option value="QA Engineer"></option>
+            <option value="Automation Test Engineer"></option>
 
-          <option value="UI/UX Designer"></option>
-          <option value="Product Engineer"></option>
-        </datalist>
+            <option value="UI/UX Designer"></option>
+            <option value="Product Engineer"></option>
+          </datalist>
 
-        <p class="text-[11px] text-slate-400">
-          Start typing and pick a suggestion, or type your own role name.
-        </p>
+          <p class="text-[11px] text-slate-400">
+            Start typing and pick a suggestion, or type your own role name.
+          </p>
+        </div>
+
+        <div class="flex items-center gap-2 mt-2">
+          <input 
+            type="checkbox" 
+            id="includeVideos" 
+            class="w-4 h-4 rounded bg-slate-900 border-slate-700 text-cyan-500 focus:ring-cyan-500/80"
+          />
+          <label for="includeVideos" class="text-xs font-medium text-slate-300 select-none">
+            Include YouTube Tutorials (Uses API Quota)
+          </label>
+        </div>
+
+        <!-- Role Chatbox -->
+        <div
+          id="roleChatbox"
+          class="mt-4 bg-slate-900/80 border border-slate-700/80 rounded-2xl p-4 flex flex-col gap-3"
+        >
+          <div class="flex items-center justify-between gap-2">
+            <div>
+              <p class="text-[11px] font-semibold uppercase tracking-wide text-cyan-300">
+                Chat about this Role
+              </p>
+              <p class="text-[11px] text-slate-400">
+                Tell the AI about your background so it can better understand your skill gaps.
+              </p>
+            </div>
+            <span
+              id="roleChatRoleLabel"
+              class="text-[11px] px-2 py-1 rounded-full bg-slate-800/80 border border-slate-600 text-slate-200"
+            >
+              No role selected
+            </span>
+          </div>
+
+          <div
+            id="roleChatMessages"
+            class="h-52 max-h-60 overflow-y-auto rounded-xl bg-slate-950/60 border border-slate-800/80 px-3 py-2 space-y-2 text-[12px]"
+          >
+            <p class="text-slate-500 text-[11px]" id="roleChatEmptyState">
+              Choose a role above, then start chatting with the AI about your skills, projects, and goals.
+            </p>
+          </div>
+
+          <div id="roleChatStatus" class="text-[11px] text-slate-400 hidden">
+            AI is thinking...
+          </div>
+
+          <div class="flex items-center gap-2 mt-1">
+            <input
+              id="roleChatInput"
+              type="text"
+              placeholder="Describe your background or ask a question about this role..."
+              class="flex-1 rounded-xl px-3 py-2 bg-slate-900/80 text-slate-100 placeholder-slate-500 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-500/80 focus:border-cyan-400 text-[12px]"
+            />
+            <button
+              type="button"
+              id="roleChatSend"
+              class="inline-flex items-center justify-center gap-1 px-3 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-400 hover:from-cyan-400 hover:to-emerald-300 text-slate-950 text-[12px] font-semibold shadow-md shadow-cyan-500/30 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              <span>Send</span>
+              <span>➤</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Wizard controls -->
+        <div class="flex items-center justify-between mt-4">
+          <button
+            type="button"
+            id="backStepBtn"
+            class="text-xs px-3 py-2 rounded-xl border border-slate-600 text-slate-200 hover:bg-slate-800/80"
+          >
+            ← Back
+          </button>
+          <button
+            type="submit"
+            class="bg-gradient-to-r from-cyan-500 via-emerald-400 to-purple-500 hover:from-cyan-400 hover:via-emerald-300 hover:to-purple-400 text-slate-950 font-semibold py-2.5 px-4 rounded-xl text-sm transition shadow-xl shadow-cyan-500/30"
+          >
+            Analyze & Generate Roadmap
+          </button>
+        </div>
       </div>
-      <div class="flex items-center gap-2 mt-2">
-  <input 
-    type="checkbox" 
-    id="includeVideos" 
-    class="w-4 h-4 rounded bg-slate-900 border-slate-700 text-cyan-500 focus:ring-cyan-500/80"
-  />
-  <label for="includeVideos" class="text-xs font-medium text-slate-300 select-none">
-    Include YouTube Tutorials (Uses API Quota)
-  </label>
-</div>
-
-      <!-- Submit -->
-      <button
-        type="submit"
-        class="mt-2 bg-gradient-to-r from-cyan-500 via-emerald-400 to-purple-500 hover:from-cyan-400 hover:via-emerald-300 hover:to-purple-400 text-slate-950 font-semibold py-2.5 rounded-xl transition shadow-xl shadow-cyan-500/30"
-      >
-        Analyze & Generate Roadmap
-      </button>
     </form>
   </div>
 
@@ -192,124 +336,118 @@
 
   <!-- Output Section -->
   <div id="results" class="hidden w-full max-w-6xl mt-10 animate-fade-in relative z-10">
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-      
-      <!-- LEFT COLUMN: Skill Gaps + Coverage -->
-      <div class="md:col-span-1 flex flex-col gap-6">
-        <!-- Skill Gap Overview -->
-        <div class="bg-slate-900/80 backdrop-blur-xl border border-slate-700/80 rounded-2xl p-5 shadow-[0_0_30px_rgba(15,23,42,0.9)]">
-          <h2 class="text-sm font-semibold text-slate-100 mb-2 flex items-center gap-2">
-            <span class="text-cyan-400 text-lg">🧩</span>
-            Skill Gap Overview
-          </h2>
-          <p class="text-[11px] text-slate-400 mb-3">
-            These are the skills your dream role expects vs what you already know.
-          </p>
+    <!-- ROW 1: Three summary cards across -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start mb-6">
+      <!-- Skill Gap Overview -->
+      <div class="bg-slate-900/80 backdrop-blur-xl border border-slate-700/80 rounded-2xl p-5 shadow-[0_0_30px_rgba(15,23,42,0.9)]">
+        <h2 class="text-sm font-semibold text-slate-100 mb-2 flex items-center gap-2">
+          <span class="text-cyan-400 text-lg">🧩</span>
+          Skill Gap Overview
+        </h2>
+        <p class="text-[11px] text-slate-400 mb-3">
+          These are the skills your dream role expects vs what you already know.
+        </p>
 
-          <div class="mb-3">
-            <h3 class="text-[11px] font-semibold text-rose-300 mb-1 uppercase tracking-wide">Missing Skills</h3>
-            <div id="missingSkillsList" class="flex flex-wrap gap-2"></div>
-          </div>
-
-          <div id="requiredSkillsBlock" class="mt-3 hidden">
-            <h3 class="text-[11px] font-semibold text-cyan-300 mb-1 uppercase tracking-wide">
-              Core Skills for this Role (AI)
-            </h3>
-            <div id="requiredSkillsList" class="flex flex-wrap gap-2"></div>
-          </div>
+        <div class="mb-3">
+          <h3 class="text-[11px] font-semibold text-rose-300 mb-1 uppercase tracking-wide">Missing Skills</h3>
+          <div id="missingSkillsList" class="flex flex-wrap gap-2"></div>
         </div>
 
-        <!-- Skill Coverage Chart -->
-        <div class="bg-slate-900/80 backdrop-blur-xl border border-slate-700/80 rounded-2xl p-5 shadow-[0_0_30px_rgba(15,23,42,0.9)]">
-          <h3 class="text-sm font-semibold text-slate-100 mb-2 flex items-center gap-2">
-            <span class="text-emerald-400 text-lg">📊</span>
-            Skill Coverage
+        <div id="requiredSkillsBlock" class="mt-3 hidden">
+          <h3 class="text-[11px] font-semibold text-cyan-300 mb-1 uppercase tracking-wide">
+            Core Skills for this Role (AI)
           </h3>
-          <p class="text-[11px] text-slate-400 mb-3">
-            How many of the required skills you already have vs what’s missing.
-          </p>
-          <canvas id="skillChart" class="bg-slate-950/80 rounded-xl p-3"></canvas>
+          <div id="requiredSkillsList" class="flex flex-wrap gap-2"></div>
         </div>
       </div>
 
-      <!-- RIGHT COLUMN: Job Readiness + Project Lab -->
-      <div class="md:col-span-2 flex flex-col gap-6">
-        
-        <!-- Job Readiness Card -->
-        <div class="bg-slate-900/90 backdrop-blur-2xl border border-emerald-500/50 rounded-2xl p-5 shadow-[0_0_40px_rgba(16,185,129,0.35)]">
-          <div class="flex items-start justify-between gap-4">
-            <div>
-              <p class="text-[10px] text-slate-400 uppercase tracking-[0.18em]">Job Readiness</p>
-              <h2 class="text-xl font-bold text-emerald-300 mt-1" id="jobFitRoleTitle">
-                <!-- filled by JS -->
-              </h2>
-              <p id="jobFitSummary" class="text-[11px] text-slate-200 mt-1"></p>
-            </div>
-            <div class="text-right">
-              <p class="text-[10px] text-slate-400 mb-1">Overall Fit</p>
-              <p id="jobFitPercent" class="text-4xl font-extrabold text-emerald-400 drop-shadow-[0_0_15px_rgba(16,185,129,0.7)]">
-                0%
-              </p>
-              <p
-                id="jobFitLevel"
-                class="text-[11px] mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-800/80 text-slate-200 border border-slate-500/80"
-              >
-                Exploring
-              </p>
-            </div>
-          </div>
+      <!-- Skill Coverage Chart -->
+      <div class="bg-slate-900/80 backdrop-blur-xl border border-slate-700/80 rounded-2xl p-5 shadow-[0_0_30px_rgba(15,23,42,0.9)]">
+        <h3 class="text-sm font-semibold text-slate-100 mb-2 flex items-center gap-2">
+          <span class="text-emerald-400 text-lg">📊</span>
+          Skill Coverage
+        </h3>
+        <p class="text-[11px] text-slate-400 mb-3">
+          How many of the required skills you already have vs what’s missing.
+        </p>
+        <canvas id="skillChart" class="bg-slate-950/80 rounded-xl p-3"></canvas>
+      </div>
 
-          <div class="w-full bg-slate-800/80 rounded-full h-2 mt-4 overflow-hidden">
-            <div
-              id="jobFitBar"
-              class="h-2 rounded-full bg-gradient-to-r from-rose-500 via-amber-400 to-emerald-400"
-              style="width: 0%;"
-            ></div>
-          </div>
-
-          <div class="mt-4">
-            <p class="text-[11px] text-slate-400 mb-1">Other roles you are also a good fit for:</p>
-            <div id="jobMatchesList" class="space-y-1">
-              <!-- filled by JS -->
-            </div>
-          </div>
-        </div>
-
-        <!-- Project Lab -->
-        <div class="bg-slate-900/80 backdrop-blur-2xl border border-slate-700/80 rounded-2xl p-6 shadow-[0_0_30px_rgba(15,23,42,0.9)]">
-          <h2 class="text-xl font-bold text-slate-100 mb-2 flex items-center gap-2">
-            <span class="text-cyan-400 text-xl">🧪</span>
-            Project Lab
-          </h2>
-          <p class="text-[11px] text-slate-400 mb-4">
-            AI ideas for inspiration, plus concrete practice projects with curated video resources.
-          </p>
-
-          <!-- AI Project Ideas -->
-          <div id="aiProjectIdeasBox" class="bg-gradient-to-r from-indigo-900/70 to-purple-900/70 border border-indigo-500/50 rounded-xl p-4 mb-4 hidden">
-            <h3 class="text-sm font-semibold text-indigo-100 mb-2 flex items-center gap-2">
-              <span class="text-lg">🤖</span> AI-Generated Project Ideas
-            </h3>
-            <ul id="aiProjectIdeasList" class="list-disc list-inside text-indigo-100 text-[12px] space-y-1"></ul>
-          </div>
-
-          <!-- Practice Projects -->
+      <!-- Job Readiness Card -->
+      <div class="bg-slate-900/90 backdrop-blur-2xl border border-emerald-500/50 rounded-2xl p-5 shadow-[0_0_40px_rgba(16,185,129,0.35)]">
+        <div class="flex items-start justify-between gap-4">
           <div>
-            <h3 class="text-sm font-semibold text-cyan-200 mb-2 flex items-center gap-2">
-              <span class="text-lg">🛠️</span> Skill Practice Projects
-            </h3>
-            <div id="projectContainer" class="space-y-4 max-h-[420px] overflow-y-auto pr-2"></div>
+            <p class="text-[10px] text-slate-400 uppercase tracking-[0.18em]">Job Readiness</p>
+            <h2 class="text-xl font-bold text-emerald-300 mt-1" id="jobFitRoleTitle">
+              <!-- filled by JS -->
+            </h2>
+            <p id="jobFitSummary" class="text-[11px] text-slate-200 mt-1"></p>
           </div>
-
-          <!-- Starter Code Downloads -->
-          <div id="starterCodeBox" class="mt-4 hidden">
-            <h3 class="text-sm font-semibold text-purple-200 mb-2 flex items-center gap-2">
-              <span class="text-lg">📦</span> Starter Code Packs
-            </h3>
-            <div id="starterProjectsList" class="space-y-3"></div>
+          <div class="text-right">
+            <p class="text-[10px] text-slate-400 mb-1">Overall Fit</p>
+            <p id="jobFitPercent" class="text-4xl font-extrabold text-emerald-400 drop-shadow-[0_0_15px_rgba(16,185,129,0.7)]">
+              0%
+            </p>
+            <p
+              id="jobFitLevel"
+              class="text-[11px] mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-800/80 text-slate-200 border border-slate-500/80"
+            >
+              Exploring
+            </p>
           </div>
         </div>
 
+        <div class="w-full bg-slate-800/80 rounded-full h-2 mt-4 overflow-hidden">
+          <div
+            id="jobFitBar"
+            class="h-2 rounded-full bg-gradient-to-r from-rose-500 via-amber-400 to-emerald-400"
+            style="width: 0%;"
+          ></div>
+        </div>
+
+        <div class="mt-4">
+          <p class="text-[11px] text-slate-400 mb-1">Other roles you are also a good fit for:</p>
+          <div id="jobMatchesList" class="space-y-1">
+            <!-- filled by JS -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ROW 2: Project Lab full width -->
+    <div class="mt-4">
+      <div class="bg-slate-900/80 backdrop-blur-2xl border border-slate-700/80 rounded-2xl p-6 shadow-[0_0_30px_rgba(15,23,42,0.9)]">
+        <h2 class="text-lg md:text-xl font-bold text-slate-100 mb-2 flex items-center gap-2">
+          <span class="text-cyan-400 text-xl">🧪</span>
+          Project Lab – Practice & Learn
+        </h2>
+        <p class="text-xs md:text-sm text-slate-300 mb-4">
+          Start with one skill, follow the steps, and watch the suggested videos. Treat this like your personal mini course.
+        </p>
+
+        <!-- AI Project Ideas -->
+        <div id="aiProjectIdeasBox" class="bg-gradient-to-r from-indigo-900/70 to-purple-900/70 border border-indigo-500/50 rounded-xl p-4 mb-4 hidden">
+          <h3 class="text-sm font-semibold text-indigo-100 mb-2 flex items-center gap-2">
+            <span class="text-lg">🤖</span> AI-Generated Project Ideas
+          </h3>
+          <ul id="aiProjectIdeasList" class="list-disc list-inside text-indigo-100 text-[12px] space-y-1"></ul>
+        </div>
+
+        <!-- Practice Projects -->
+        <div>
+          <h3 class="text-sm md:text-base font-semibold text-cyan-200 mb-3 flex items-center gap-2">
+            <span class="text-lg">🛠️</span> Skill Practice Projects
+          </h3>
+          <div id="projectContainer" class="space-y-4"></div>
+        </div>
+
+        <!-- Starter Code Downloads -->
+        <div id="starterCodeBox" class="mt-4 hidden">
+          <h3 class="text-sm font-semibold text-purple-200 mb-2 flex items-center gap-2">
+            <span class="text-lg">📦</span> Starter Code Packs
+          </h3>
+          <div id="starterProjectsList" class="space-y-3"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -317,5 +455,145 @@
   <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="script.js"></script>
+  <script>
+    // --- Role-aware chatbox state ---
+    let currentRole = "";
+    const roleInput = document.getElementById('role');
+    const roleChatRoleLabel = document.getElementById('roleChatRoleLabel');
+    const roleChatMessages = document.getElementById('roleChatMessages');
+    const roleChatEmptyState = document.getElementById('roleChatEmptyState');
+    const roleChatInput = document.getElementById('roleChatInput');
+    const roleChatSend = document.getElementById('roleChatSend');
+    const roleChatStatus = document.getElementById('roleChatStatus');
+
+    /** @type {{sender: 'user' | 'ai', text: string}[]} */
+    const roleChatHistory = [];
+
+    function renderRoleChat() {
+      if (!roleChatMessages) return;
+
+      roleChatMessages.innerHTML = "";
+
+      if (roleChatHistory.length === 0) {
+        const p = document.createElement('p');
+        p.id = 'roleChatEmptyState';
+        p.className = 'text-slate-500 text-[11px]';
+        p.textContent = currentRole
+          ? `You selected "${currentRole}". Tell the AI about your background, skills, and projects so it can analyze your fit.`
+          : 'Choose a role above, then start chatting with the AI about your skills, projects, and goals.';
+        roleChatMessages.appendChild(p);
+        return;
+      }
+
+      roleChatHistory.forEach(msg => {
+        const wrapper = document.createElement('div');
+        const bubble = document.createElement('div');
+
+        const isUser = msg.sender === 'user';
+        wrapper.className = `flex ${isUser ? 'justify-end' : 'justify-start'}`;
+
+        bubble.className = [
+          'max-w-[80%] rounded-2xl px-3 py-2 text-[12px] leading-snug shadow-sm',
+          isUser
+            ? 'bg-cyan-500 text-slate-950 rounded-br-sm'
+            : 'bg-slate-800/90 text-slate-100 rounded-bl-sm border border-slate-700/80'
+        ].join(' ');
+        bubble.textContent = msg.text;
+
+        wrapper.appendChild(bubble);
+        roleChatMessages.appendChild(wrapper);
+      });
+
+      roleChatMessages.scrollTop = roleChatMessages.scrollHeight;
+    }
+
+    function setRoleChatLoading(isLoading) {
+      if (!roleChatStatus || !roleChatSend || !roleChatInput) return;
+      roleChatStatus.classList.toggle('hidden', !isLoading);
+      roleChatSend.disabled = isLoading;
+      roleChatInput.disabled = isLoading;
+    }
+
+    async function sendRoleChatMessage() {
+      if (!roleChatInput || !roleChatSend) return;
+
+      const text = roleChatInput.value.trim();
+      if (!text) return;
+
+      if (!currentRole) {
+        alert('Please select a role first before chatting with the AI.');
+        return;
+      }
+
+      // Push user message locally
+      roleChatHistory.push({ sender: 'user', text });
+      roleChatInput.value = "";
+      renderRoleChat();
+      setRoleChatLoading(true);
+
+      try {
+        const response = await fetch('/api/role-chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            role: currentRole,
+            messages: roleChatHistory.slice(-10) // send last 10 messages for context
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Server error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const reply = (data && data.reply) || "I couldn't generate a reply. Please try again.";
+
+        roleChatHistory.push({ sender: 'ai', text: reply });
+        renderRoleChat();
+      } catch (err) {
+        console.error('Role chat failed:', err);
+        roleChatHistory.push({
+          sender: 'ai',
+          text: "⚠️ I had trouble responding just now. Please check your connection and try again.",
+        });
+        renderRoleChat();
+      } finally {
+        setRoleChatLoading(false);
+      }
+    }
+
+    if (roleInput) {
+      roleInput.addEventListener('input', (e) => {
+        const value = e.target.value || '';
+        currentRole = value.trim();
+        if (roleChatRoleLabel) {
+          roleChatRoleLabel.textContent = currentRole ? `Role: ${currentRole}` : 'No role selected';
+        }
+        renderRoleChat();
+
+        // If this is the first time a role is chosen and chat is empty, seed a greeting
+        if (currentRole && roleChatHistory.length === 0) {
+          roleChatHistory.push({
+            sender: 'ai',
+            text: `Great, you're exploring the "${currentRole}" role. Tell me about your experience, skills, and projects so I can understand your current level.`,
+          });
+          renderRoleChat();
+        }
+      });
+    }
+
+    if (roleChatSend) {
+      roleChatSend.addEventListener('click', sendRoleChatMessage);
+    }
+
+    if (roleChatInput) {
+      roleChatInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          sendRoleChatMessage();
+        }
+      });
+    }
+  </script>
 </body>
 </html>

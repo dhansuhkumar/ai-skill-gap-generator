@@ -6,6 +6,7 @@ from user_profile import get_user_profile, save_user_profile
 from app.recommender import find_missing_skills, generate_micro_projects
 from app.ai_skill_analyzer import find_required_and_missing_ai
 from app.generator import create_zip
+from app.role_chat import generate_role_chat_reply
 from app.ai_generator import generate_ai_project_ideas
 from app.utils.validators import require_keys
 from flask import send_file, abort
@@ -21,20 +22,6 @@ PROJECTS_DIR = Path(__file__).parent / "projects"
 @main.route('/')
 def home():
     return jsonify({"message": "Skill Gap API is running!"})
-
-@main.route('/login', methods=['POST'])
-def login():
-    data = request.get_json()
-    user_id = data.get('user_id')
-    password = data.get('password')
-
-    # TEMP: Hardcoded user for testing
-    if user_id == "dhanush" and password == "test123":
-        access_token = create_access_token(identity="dhanush123")
-        return jsonify(token=access_token), 200
-
-    return jsonify({"error": "Invalid credentials"}), 401
-
 
 @main.route('/recommend', methods=['POST'])
 def recommend():
@@ -101,6 +88,41 @@ def recommend():
         "ai_projects": ai_projects,
         "required_skills_ai": required_skills_ai
     })
+
+
+@main.route("/api/role-chat", methods=["POST"])
+def role_chat():
+    """
+    Lightweight role-aware chat endpoint used by the frontend chatbox.
+
+    Expects JSON:
+      {
+        "role": "Frontend Developer",
+        "messages": [
+          {"sender": "user", "text": "..."},
+          {"sender": "ai", "text": "..."}
+        ]
+      }
+
+    Returns JSON:
+      { "reply": "..." }
+    """
+    data = request.get_json() or {}
+    role = (data.get("role") or "").strip()
+    messages = data.get("messages") or []
+
+    if not isinstance(messages, list):
+        return jsonify({"error": "messages must be a list"}), 400
+
+    try:
+        reply = generate_role_chat_reply(role, messages)
+    except Exception as e:
+        print("❌ Role chat generation failed:", e)
+        return jsonify({
+            "reply": "I had trouble generating a response just now. Please try again in a moment."
+        }), 200
+
+    return jsonify({"reply": reply})
 
 # upload and parse resume
 @main.route("/upload_resume", methods=["POST"])
