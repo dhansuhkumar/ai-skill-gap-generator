@@ -3,7 +3,11 @@
 import os
 import json
 from dotenv import load_dotenv
-import google.generativeai as genai
+try:
+    import google.generativeai as genai
+except Exception as _e:
+    genai = None
+    print("⚠️ google.generativeai import failed (AI features disabled):", _e)
 
 load_dotenv()
 
@@ -11,7 +15,13 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 if not GEMINI_API_KEY:
     print("⚠️ GEMINI_API_KEY is not set. AI skill analyzer will fall back to classic logic.")
 else:
-    genai.configure(api_key=GEMINI_API_KEY)
+    if genai:
+        try:
+            genai.configure(api_key=GEMINI_API_KEY)
+        except Exception as _e:
+            print("⚠️ genai.configure failed in ai_skill_analyzer:", _e)
+    else:
+        print("⚠️ genai library not available; AI skill analyzer will be disabled.")
 
 
 def _normalize_skill_name(name: str) -> str:
@@ -85,7 +95,7 @@ def find_required_and_missing_ai(user_skills, target_role):
     if not GEMINI_API_KEY:
         raise RuntimeError("GEMINI_API_KEY is missing; cannot use AI skill analyzer.")
 
-    model_name = "gemini-2.5-flask"
+    model_name = "gemini-2.5-flash-native-audio-dialog"
     try:
         for m in genai.list_models():
             if 'generateContent' in getattr(m, "supported_generation_methods", []):

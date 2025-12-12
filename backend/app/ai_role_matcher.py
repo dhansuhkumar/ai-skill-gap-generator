@@ -3,15 +3,22 @@
 import os
 import json
 from dotenv import load_dotenv
-import google.generativeai as genai
+try:
+    import google.generativeai as genai
+except Exception as _e:
+    genai = None
+    print("⚠️ google.generativeai import failed (AI role matcher disabled):", _e)
 
 load_dotenv()
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
+if GEMINI_API_KEY and genai:
+    try:
+        genai.configure(api_key=GEMINI_API_KEY)
+    except Exception as _e:
+        print("⚠️ genai.configure failed in ai_role_matcher:", _e)
 else:
-    print("⚠️ GEMINI_API_KEY not set – AI role matcher will fail until configured.")
+    print("⚠️ GEMINI_API_KEY not set or genai unavailable – AI role matcher will be disabled.")
 
 
 def _norm_skill(name: str) -> str:

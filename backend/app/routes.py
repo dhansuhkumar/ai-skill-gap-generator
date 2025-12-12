@@ -3,11 +3,40 @@ import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from flask import Blueprint, request, jsonify, send_file, abort, current_app
 from user_profile import get_user_profile, save_user_profile
-from app.recommender import find_missing_skills, generate_micro_projects
-from app.ai_skill_analyzer import find_required_and_missing_ai
-from app.generator import create_zip
-from app.role_chat import generate_role_chat_reply
-from app.ai_generator import generate_ai_project_ideas
+# Optional AI/ML-powered modules: import lazily or provide safe fallbacks
+try:
+    from app.recommender import find_missing_skills, generate_micro_projects
+except Exception as _e:
+    def find_missing_skills(user_skills, role):
+        return []
+    def generate_micro_projects(missing_skills, include_videos=False, max_results=3):
+        return []
+
+try:
+    from app.ai_skill_analyzer import find_required_and_missing_ai
+except Exception as _e:
+    def find_required_and_missing_ai(user_skills, role):
+        # Fallback: return empty required list so caller can handle
+        return {"required_skills": [], "missing_skills": []}
+
+try:
+    from app.generator import create_zip
+except Exception:
+    def create_zip(skill_name):
+        # Fallback: just return a path-like string (no file created)
+        return str((Path(__file__).parent / 'projects' / f"{skill_name}.zip").resolve())
+
+try:
+    from app.role_chat import generate_role_chat_reply
+except Exception:
+    def generate_role_chat_reply(role, messages):
+        return "(AI role chat unavailable)"
+
+try:
+    from app.ai_generator import generate_ai_project_ideas
+except Exception:
+    def generate_ai_project_ideas(role, user_skills):
+        return []
 from app.utils.validators import require_keys
 from flask import send_file, abort
 from flask_jwt_extended import jwt_required, get_jwt_identity, create_access_token

@@ -333,6 +333,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const includeVideosCheckbox = document.getElementById("includeVideos");
     // Only add the flag if checkbox is present AND checked
     const payload = { role, skills };
+    // Add single raw profile prompt if user provided it
+    const rawProfileEl = document.getElementById("rawProfileInput");
+    if (rawProfileEl) {
+      const rawText = rawProfileEl.value.trim();
+      if (rawText) payload.raw_profile_text = rawText;
+    }
     if (includeVideosCheckbox && includeVideosCheckbox.checked) {
       payload.include_youtube = true;
       // Use the exact key your backend checks for
@@ -397,21 +403,95 @@ function updateUIWithRecommendations(data, role, userSkills) {
     if (missingSkills.length === 0) {
       missingContainer.innerHTML =
         '<span class="text-emerald-300 text-xs">You are a perfect match for this role! 🎉</span>';
+      // hide generate button wrapper if present
+      const genWrapHide = document.getElementById("generateProjectsWrapper");
+      if (genWrapHide) genWrapHide.classList.add("hidden");
     } else {
+      // Render selectable checkboxes for missing skills (checked by default)
       missingContainer.innerHTML = missingSkills
         .map((skill, idx) => {
-          const priority =
-            idx < 2 ? "High impact" : idx < 5 ? "Medium impact" : "Nice to have";
+          const priority = idx < 2 ? "High impact" : idx < 5 ? "Medium impact" : "Nice to have";
           return `
-        <span class="bg-rose-500/15 text-rose-200 border border-rose-500/40 px-3 py-1 rounded-full text-[11px] font-medium flex items-center gap-2">
-          <span>${skill}</span>
-          <span class="text-[9px] font-semibold uppercase tracking-wide px-2 py-[2px] rounded-full bg-rose-500/30 text-rose-100 border border-rose-300/60">
+        <label class="flex items-center gap-2 bg-rose-500/15 text-rose-200 border border-rose-500/40 px-3 py-1 rounded-full text-[11px] font-medium cursor-pointer">
+          <input type="checkbox" class="missing-skill-checkbox" value="${skill}" checked />
+          <span class="ml-1">${skill}</span>
+          <span class="ml-2 text-[9px] font-semibold uppercase tracking-wide px-2 py-[2px] rounded-full bg-rose-500/30 text-rose-100 border border-rose-300/60">
             ${priority}
           </span>
-        </span>
+        </label>
       `;
         })
         .join("");
+
+      // Show generate button
+      const genWrap = document.getElementById("generateProjectsWrapper");
+      if (genWrap) genWrap.classList.remove("hidden");
+
+      // Attach click handler for the generate button
+      const genBtn = document.getElementById("generateProjectsBtn");
+      if (genBtn) {
+        genBtn.onclick = async function () {
+          const checkboxes = Array.from(document.querySelectorAll('.missing-skill-checkbox'));
+          const selected = checkboxes.filter(c => c.checked).map(c => c.value);
+          if (!selected || selected.length === 0) {
+            alert('Please select at least one skill to generate projects for.');
+            return;
+          }
+
+          // Build payload for /recommend/projects
+          const rawProfileEl = document.getElementById('rawProfileInput');
+          const includeVideosCheckbox = document.getElementById('includeVideos');
+          const payload = { selected_missing_skills: selected };
+          if (rawProfileEl && rawProfileEl.value.trim()) payload.raw_profile_text = rawProfileEl.value.trim();
+          if (includeVideosCheckbox && includeVideosCheckbox.checked) {
+            payload.include_youtube = true;
+            payload.max_video_results = parseInt(document.getElementById('maxVideoResults')?.value || '3', 10);
+          }
+
+          try {
+            genBtn.disabled = true;
+            genBtn.textContent = 'Generating...';
+            const res = await fetch(`${BASE_URL}/recommend/projects`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload),
+            });
+            if (!res.ok) throw new Error('Failed to generate projects');
+            const json = await res.json();
+            const projects = json.recommended_projects || [];
+
+            // Render returned projects into the project container (reuse existing UI structure)
+            const projectContainer = document.getElementById('projectContainer');
+            if (projectContainer) {
+              const palette = [
+                { cardBg: 'bg-gradient-to-r from-cyan-950/80 to-cyan-800/80', cardBorder: 'border-cyan-400/70', badgeBg: 'bg-cyan-500/20', badgeText: 'text-cyan-200', badgeBorder: 'border-cyan-400/60' },
+                { cardBg: 'bg-gradient-to-r from-emerald-950/80 to-emerald-800/80', cardBorder: 'border-emerald-400/70', badgeBg: 'bg-emerald-500/20', badgeText: 'text-emerald-200', badgeBorder: 'border-emerald-400/60' },
+                { cardBg: 'bg-gradient-to-r from-amber-950/80 to-amber-800/80', cardBorder: 'border-amber-400/70', badgeBg: 'bg-amber-500/20', badgeText: 'text-amber-100', badgeBorder: 'border-amber-400/60' },
+              ];
+
+              const projectsHTML = projects.map((p, idx) => {
+                const colors = palette[idx % palette.length];
+                const videos = p.videos || [];
+                const steps = p.learning_path_steps || [];
+                const stepsHTML = steps.length > 0 ? `<div class="mt-3 border-t border-slate-700/70 pt-2"><p class="text-sm text-white mb-2">📚 Learning Path</p><div class="grid grid-cols-1 gap-2">${steps.map((s, idx) => `<div class="flex items-start gap-2 rounded-lg bg-slate-950/60 border border-slate-700/70 px-3 py-2"><span class="mt-[1px] inline-flex items-center justify-center w-6 h-6 rounded-full bg-cyan-500 text-[11px] font-bold text-slate-950">${idx+1}</span><p class="text-sm text-white/90 leading-snug">${s}</p></div>`).join('')}</div></div>` : '';
+                const videosHTML = videos.length > 0 ? `<div class="mt-3 border-t border-slate-700/70 pt-2"><p class="text-sm text-white mb-2">🎥 Watch & Learn</p><div class="grid grid-cols-1 gap-2">${videos.map(v => `<a href="${v.url}" target="_blank" class="flex items-center justify-between rounded-lg bg-slate-950/60 border border-slate-700/70 px-3 py-2 hover:border-cyan-400 hover:bg-slate-900/80 transition"><div class="flex flex-col"><span class="text-sm font-semibold text-cyan-200 line-clamp-1">${v.title}</span><span class="text-[11px] text-white/70">${v.channel}</span></div><span class="text-sm text-cyan-200 font-semibold">▶</span></a>`).join('')}</div></div>` : '';
+
+                return `<div class="p-4 md:p-5 rounded-xl border ${colors.cardBg} ${colors.cardBorder} transition hover:-translate-y-[2px] hover:shadow-lg hover:shadow-cyan-500/20"><div class="flex items-center justify-between mb-1"><h4 class="text-base font-bold text-white">${p.skill}</h4><span class="text-[11px] px-2 py-[2px] rounded-full ${colors.badgeBg} ${colors.badgeText} ${colors.badgeBorder}">Focus skill</span></div><p class="text-white/90 text-sm mt-2 leading-snug">${p.project}</p>${stepsHTML}${videosHTML}</div>`;
+              }).join('');
+
+              projectContainer.innerHTML = projectsHTML || '';
+            }
+
+            genBtn.textContent = 'Generate Projects for Selected Skills';
+          } catch (err) {
+            console.error('Error generating projects:', err);
+            alert('Failed to generate projects: ' + err.message);
+            genBtn.textContent = 'Generate Projects for Selected Skills';
+          } finally {
+            genBtn.disabled = false;
+          }
+        };
+      }
     }
   }
 

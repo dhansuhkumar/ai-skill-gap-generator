@@ -3,15 +3,22 @@ import json
 from typing import List, Dict, Any
 
 from dotenv import load_dotenv
-import google.generativeai as genai
+try:
+    import google.generativeai as genai
+except Exception as _e:
+    genai = None
+    print("⚠️ google.generativeai import failed (role chat disabled):", _e)
 
 load_dotenv()
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
+if GEMINI_API_KEY and genai:
+    try:
+        genai.configure(api_key=GEMINI_API_KEY)
+    except Exception as _e:
+        print("⚠️ genai.configure failed for role_chat:", _e)
 else:
-    print("⚠️ GEMINI_API_KEY not set – role chat endpoint will not be able to call AI.")
+    print("⚠️ GEMINI_API_KEY not set or genai unavailable – role chat will not call AI.")
 
 
 def _build_role_chat_prompt(role: str, messages: List[Dict[str, Any]]) -> str:

@@ -1,6 +1,5 @@
 import os
 import logging
-from xml.parsers.expat import model
 from flask import Flask, app, jsonify, request
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
@@ -9,9 +8,15 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from routes_phase2 import bp as phase2_bp
-
-from torch import embedding
+# Optional phase2 routes may not exist in the committed tree (guard import)
+phase2_bp = None
+try:
+    from backend.app.routes_phase2 import bp as phase2_bp
+except Exception:
+    try:
+        from routes_phase2 import bp as phase2_bp
+    except Exception:
+        phase2_bp = None
 
 UPLOAD_FOLDER = os.path.join(os.getcwd(), 'uploads')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -29,7 +34,8 @@ def create_app():
 
     app.register_blueprint(auth, url_prefix='/auth')
     app.register_blueprint(main, url_prefix='/api')
-    app.register_blueprint(phase2_bp, url_prefix="/api")
+    if phase2_bp:
+        app.register_blueprint(phase2_bp, url_prefix="/api")
 
 
 

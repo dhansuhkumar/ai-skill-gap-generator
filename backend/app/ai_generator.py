@@ -1,11 +1,19 @@
 # backend/app/ai_generator.py
 import os
 import json
-import google.generativeai as genai
+try:
+    import google.generativeai as genai
+except Exception as _e:
+    genai = None
+    print("⚠️ google.generativeai import failed (AI generator disabled):", _e)
 from dotenv import load_dotenv
 
 load_dotenv()
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+if genai:
+    try:
+        genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+    except Exception as _e:
+        print("⚠️ genai.configure failed:", _e)
 
 
 def _select_model_fallback(default_name: str = "gemini-pro") -> str:
@@ -13,6 +21,8 @@ def _select_model_fallback(default_name: str = "gemini-pro") -> str:
     Small helper to pick a reasonable Gemini model, with a safe fallback.
     """
     model_name = default_name
+    if not genai:
+        return model_name
     try:
         for m in genai.list_models():
             if "generateContent" in getattr(m, "supported_generation_methods", []):
@@ -54,6 +64,14 @@ def generate_ai_project_ideas(role, skills):
         - If everything fails, returns your old hardcoded 3 defaults.
     """
     print(f"--- 🤖 AI Generator Started for: {role} ---")
+
+    # If genai is not available, return a small deterministic fallback list
+    if not genai:
+        return [
+            "Build a Portfolio Website with Dark Mode",
+            "Create a Task Tracker using LocalStorage",
+            "Design a Weather Dashboard using Public APIs",
+        ]
 
     valid_model_name = _select_model_fallback()
     print(f"🔍 Selected Model: {valid_model_name}")
