@@ -11,7 +11,7 @@ load_dotenv()
 # Optional phase2 routes may not exist in the committed tree (guard import)
 phase2_bp = None
 try:
-    from backend.app.routes_phase2 import bp as phase2_bp
+    from backend.routes_phase2 import bp as phase2_bp
 except Exception:
     try:
         from routes_phase2 import bp as phase2_bp
