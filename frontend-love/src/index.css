@@ -1,0 +1,95 @@
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 220 20% 97%;
+    --foreground: 220 25% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 220 25% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 25% 10%;
+    --primary: 262 83% 58%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 187 85% 53%;
+    --secondary-foreground: 220 25% 10%;
+    --muted: 220 15% 92%;
+    --muted-foreground: 220 10% 45%;
+    --accent: 330 81% 60%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 15% 88%;
+    --input: 220 15% 88%;
+    --ring: 262 83% 58%;
+    --radius: 1rem;
+    --cyan: 187 85% 53%;
+    --purple: 262 83% 58%;
+    --rose: 330 81% 60%;
+    --emerald: 160 84% 39%;
+    --amber: 38 92% 50%;
+    --sky: 199 89% 48%;
+    --gradient-mesh: radial-gradient(at 40% 20%, hsl(262 83% 58% / 0.3) 0px, transparent 50%),
+                     radial-gradient(at 80% 0%, hsl(187 85% 53% / 0.3) 0px, transparent 50%),
+                     radial-gradient(at 0% 50%, hsl(330 81% 60% / 0.2) 0px, transparent 50%),
+                     radial-gradient(at 80% 50%, hsl(160 84% 39% / 0.2) 0px, transparent 50%);
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 220 25% 10%;
+    --sidebar-primary: 262 83% 58%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 15% 95%;
+    --sidebar-accent-foreground: 220 25% 10%;
+    --sidebar-border: 220 15% 88%;
+    --sidebar-ring: 262 83% 58%;
+  }
+
+  .dark {
+    --background: 222 47% 8%;
+    --foreground: 210 40% 98%;
+    --card: 222 47% 11%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222 47% 11%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 262 83% 65%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 187 85% 53%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 222 47% 15%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 330 81% 60%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 222 47% 18%;
+    --input: 222 47% 18%;
+    --ring: 262 83% 65%;
+    --gradient-mesh: radial-gradient(at 40% 20%, hsl(262 83% 58% / 0.15) 0px, transparent 50%),
+                     radial-gradient(at 80% 0%, hsl(187 85% 53% / 0.15) 0px, transparent 50%),
+                     radial-gradient(at 0% 50%, hsl(330 81% 60% / 0.1) 0px, transparent 50%);
+    --sidebar-background: 222 47% 11%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 262 83% 65%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 222 47% 15%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 222 47% 18%;
+    --sidebar-ring: 262 83% 65%;
+  }
+}
+
+@layer base {
+  * { @apply border-border; }
+  body { @apply bg-background text-foreground font-sans antialiased; font-family: 'Nunito', sans-serif; }
+  h1, h2, h3, h4, h5, h6 { font-family: 'Space Grotesk', sans-serif; }
+}
+
+@layer utilities {
+  .gradient-text { @apply bg-clip-text text-transparent; background-image: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent))); }
+  .gradient-text-secondary { @apply bg-clip-text text-transparent; background-image: linear-gradient(135deg, hsl(var(--cyan)), hsl(var(--primary))); }
+  .mesh-background { background-image: var(--gradient-mesh); }
+  .glass { @apply bg-card/80 backdrop-blur-xl border border-border/50; }
+  .glass-strong { @apply bg-card/90 backdrop-blur-2xl border border-border/60; }
+}
