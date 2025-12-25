@@ -1,249 +1,190 @@
 # backend/app/ai_generator.py
 import os
 import json
+import hashlib
+import logging
+import threading
+from typing import List
+from dotenv import load_dotenv
+
 try:
     import google.generativeai as genai
 except Exception as _e:
     genai = None
     print("⚠️ google.generativeai import failed (AI generator disabled):", _e)
-from dotenv import load_dotenv
 
 load_dotenv()
-if genai:
-    try:
-        genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-    except Exception as _e:
-        print("⚠️ genai.configure failed:", _e)
+
+logger = logging.getLogger(__name__)
+if not logger.handlers:
+    # Basic logging configuration for module-level messages
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
+
+# Circuit breaker flag and simple in-memory cache (thread-safe)
+_LOCK = threading.Lock()
+AI_AVAILABLE = True
+AI_CACHE = {}
+# Last source used for observability (set per call)
+LAST_AI_SOURCE = None
+
+# Track whether we've configured genai with API key
+_GENAI_CONFIGURED = False
 
 
-def _select_model_fallback(default_name: str = "gemini-pro") -> str:
+def _ensure_genai_configured():
+    """Ensure genai is configured with GEMINI_API_KEY if available.
+
+    This is safe to call multiple times.
     """
-    Small helper to pick a reasonable Gemini model, with a safe fallback.
-    """
-    model_name = default_name
+    global _GENAI_CONFIGURED
+    if _GENAI_CONFIGURED:
+        return
     if not genai:
-        return model_name
+        return
+    key = os.getenv("GEMINI_API_KEY")
+    if not key:
+        logger.info("GEMINI_API_KEY not set; AI disabled")
+        return
     try:
-        for m in genai.list_models():
-            if "generateContent" in getattr(m, "supported_generation_methods", []):
-                name = getattr(m, "name", "")
-                if "gemini-2.5-flash" in name:
-                    model_name = name
-                    break
-                elif "gemini-2.0-flash" in name:
-                    model_name = name
-                elif "gemini-1.5-flash" in name and "2.5" not in model_name:
-                    model_name = name
+        genai.configure(api_key=key, transport='rest')
+        _GENAI_CONFIGURED = True
+        logger.info("genai configured with GEMINI_API_KEY")
     except Exception as e:
-        print(f"⚠️ Model list failed, using default '{model_name}': {e}")
-    return model_name
+        logger.warning("genai.configure failed: %s", e)
+
+
+def _cache_key(role: str, skills: List[str]) -> str:
+    key = (role or "") + "|" + ",".join(sorted([str(s).strip() for s in (skills or []) if s]))
+    return hashlib.sha256(key.encode("utf-8")).hexdigest()
+
+
+def _strip_markdown(text: str) -> str:
+    if not isinstance(text, str):
+        return text
+    t = text.strip()
+    # Remove triple-backtick fences if any
+    if t.startswith("```") and t.endswith("```"):
+        parts = t.split("\n")
+        if parts and parts[0].startswith("```"):
+            parts = parts[1:]
+        if parts and parts[-1].strip().endswith("```"):
+            parts = parts[:-1]
+        t = "\n".join(parts).strip()
+    # Remove surrounding single backticks
+    t = t.strip('`')
+    return t
+
+
+def _extract_json_like(text: str):
+    """Try to extract a JSON object or array substring from text.
+
+    Returns the JSON string or raises ValueError.
+    """
+    if not isinstance(text, str):
+        raise ValueError("No text to parse")
+    s = text.strip()
+    # find first { or [ and matching closing
+    first_obj = min([idx for idx in [s.find('{'), s.find('[')] if idx != -1], default=-1)
+    if first_obj == -1:
+        raise ValueError("No JSON start found")
+    # Choose whether object or array
+    open_ch = s[first_obj]
+    close_ch = '}' if open_ch == '{' else ']'
+    depth = 0
+    for i in range(first_obj, len(s)):
+        if s[i] == open_ch:
+            depth += 1
+        elif s[i] == close_ch:
+            depth -= 1
+            if depth == 0:
+                return s[first_obj:i+1]
+    raise ValueError("No matching JSON end found")
 
 
 def generate_ai_project_ideas(role, skills):
     """
-    Generate AI-based project ideas for the given role and skills.
-
-    🧠 External behavior (NO CHANGE):
-        - Returns a list of 3 strings (project titles) just like before.
-
-    🧠 Internal upgrade:
-        - Asks Gemini for a JSON array of objects:
-          [
-            {
-              "title": "...",
-              "description": "...",
-              "difficulty": "beginner|intermediate|advanced",
-              "youtube_search_query": "..."
-            },
-            ...
-          ]
-
-        - Parses that JSON safely.
-        - Extracts just the 'title' field for the current API output.
-        - Falls back to your OLD hyphen-line parsing if JSON fails.
-        - If everything fails, returns your old hardcoded 3 defaults.
+    Deterministic-first project ideas generator. Tries AI once, falls back to fixed list.
+    Returns list[str] of 3 project titles.
     """
-    print(f"--- 🤖 AI Generator Started for: {role} ---")
+    fallback_list = [
+        "Build a Portfolio Website with Dark Mode",
+        "Create a Task Tracker using LocalStorage",
+        "Design a Weather Dashboard using Public APIs",
+    ]
 
-    # If genai is not available, return a small deterministic fallback list
-    if not genai:
-        return [
-            "Build a Portfolio Website with Dark Mode",
-            "Create a Task Tracker using LocalStorage",
-            "Design a Weather Dashboard using Public APIs",
-        ]
+    with _LOCK:
+        if not AI_AVAILABLE or not genai:
+            return fallback_list
 
-    valid_model_name = _select_model_fallback()
-    print(f"🔍 Selected Model: {valid_model_name}")
+    _ensure_genai_configured()
+    if not _GENAI_CONFIGURED:
+        return fallback_list
 
-    # ✅ 2) Helper: your old-style fallback parser (kept for safety)
-    def _fallback_text_to_titles(raw_text: str):
-        """
-        Use your previous hyphen-line logic to extract up to 3 ideas.
-        """
-        ideas = []
-        for line in raw_text.splitlines():
-            line = line.strip()
-            if line.startswith("-"):
-                # Remove leading hyphen, numbers, or bullets
-                clean = line.lstrip("-*0123456789. ").strip()
-                if clean:
-                    ideas.append(clean)
-
-        final_ideas = ideas[:3]
-        if len(final_ideas) < 3:
-            # Same fallback list you had before
-            fallback = [
-                "Build a Portfolio Website with Dark Mode",
-                "Create a Task Tracker using LocalStorage",
-                "Design a Weather Dashboard using Public APIs"
-            ]
-            final_ideas += fallback[len(final_ideas):3]
-        return final_ideas
-
-    # ✅ 3) Try the NEW structured-JSON prompt first
+    model_name = os.getenv("GEMINI_MODEL", "gemini-1.5-pro")
     try:
-        model = genai.GenerativeModel(valid_model_name)
-
-        # 🧾 New, stronger prompt: JSON output with rich data.
+        model = genai.GenerativeModel(model_name)
         prompt = (
-            "You are a senior software engineer helping a student choose small projects.\n\n"
-            f"Target role: {role}\n"
-            f"Current skills: {', '.join(skills) if skills else 'None listed'}\n\n"
-            "Generate EXACTLY 3 project ideas as a JSON array.\n"
-            "NO markdown, NO explanation, JSON ONLY.\n\n"
-            "JSON format:\n"
-            "[\n"
-            "  {\n"
-            "    \"title\": \"short project title, 6-12 words\",\n"
-            "    \"description\": \"1-2 sentence explanation of what they will build\",\n"
-            "    \"difficulty\": \"beginner\" | \"intermediate\" | \"advanced\",\n"
-            "    \"youtube_search_query\": \"best tutorial search query to learn this project\"\n"
-            "  }\n"
-            "]\n"
+            "Return EXACTLY 3 short project titles (strings) as a JSON array."
+            " No markdown, no explanation. JSON ONLY."
+            f" Target role: {role}. Current skills: {', '.join(skills) if skills else 'None'}."
         )
-
         response = model.generate_content(prompt)
-        raw_text = getattr(response, "text", "").strip()
-        print("🔍 Raw Gemini output (structured attempt):", raw_text)
-
-        # Try to extract JSON array from the text
-        start = raw_text.find("[")
-        end = raw_text.rfind("]")
-        if start == -1 or end == -1:
-            raise ValueError("No JSON array found in model output")
-
-        json_str = raw_text[start:end + 1]
-        projects = json.loads(json_str)
-
-        if not isinstance(projects, list) or len(projects) == 0:
-            raise ValueError("Parsed JSON is not a non-empty list")
-
-        # Extract just the titles for now (to keep existing API behavior)
-        titles = []
-        for p in projects:
-            if isinstance(p, dict):
-                title = p.get("title") or p.get("name") or ""
-                if title:
-                    titles.append(title.strip())
-
-        titles = [t for t in titles if t]
-
-        # Ensure exactly 3 titles
-        titles = titles[:3]
-        if len(titles) < 3:
-            # Pad using the fallback logic on the original text
-            more = _fallback_text_to_titles(raw_text)
-            # merge, avoiding duplicates
-            for t in more:
-                if t not in titles and len(titles) < 3:
-                    titles.append(t)
-
-        print("✅ Final AI Project Titles:", titles)
-        return titles
-
+        raw = getattr(response, "text", "") or ""
+        raw = _strip_markdown(raw)
+        json_str = _extract_json_like(raw)
+        arr = json.loads(json_str)
+        if not isinstance(arr, list):
+            raise ValueError("AI did not return a JSON array")
+        titles = [str(x).strip() for x in arr if isinstance(x, str) and str(x).strip()][:3]
+        if len(titles) == 3:
+            return titles
+        return fallback_list
     except Exception as e:
-        print("⚠️ Structured JSON generation failed, falling back to old-style parsing.")
-        print(f"Error Type: {type(e).__name__}")
-        print(f"Error Message: {e}")
-
-        # Try old behavior: hyphen-based lines
-        try:
-            model = genai.GenerativeModel(valid_model_name)
-
-            old_prompt = (
-                f"I am a student wanting to be a {role}. I know {', '.join(skills)}. "
-                f"Suggest exactly 3 creative, small coding project titles. "
-                f"Each project must be a single short line starting with a hyphen (-). "
-                f"No explanations, no goals, no extra text — just the titles."
-            )
-
-            old_response = model.generate_content(old_prompt)
-            old_raw_text = getattr(old_response, "text", "").strip()
-            print("🔍 Raw Gemini output (fallback mode):", old_raw_text)
-
-            return _fallback_text_to_titles(old_raw_text)
-
-        except Exception as inner_e:
-            print("❌ AI GENERATOR CRASHED EVEN IN FALLBACK ❌")
-            print(f"Error Type: {type(inner_e).__name__}")
-            print(f"Error Message: {inner_e}")
-            # Absolute last-resort fallback (your old static list)
-            return [
-                "Build a Portfolio Website with Dark Mode",
-                "Create a Task Tracker using LocalStorage",
-                "Design a Weather Dashboard using Public APIs"
-            ]
+        logger.warning("generate_ai_project_ideas failed: %s", e)
+        return fallback_list
 
 
 def generate_learning_path_for_skill(skill: str):
-    """
-    Generate an AI-based learning path for a single skill.
-
-    Returns a dict:
-        {
-          "summary": "Short overview of why this skill matters and how to learn it",
-          "steps": ["Step 1 ...", "Step 2 ...", ...]
-        }
-    """
+    fallback = {
+        "summary": f"Learn core concepts of {skill} and build a small project.",
+        "steps": [
+            f"Follow an introductory tutorial for {skill}",
+            f"Build a tiny project using {skill}",
+            "Refine by adding tests and reading official docs",
+        ],
+    }
+    
     if not skill:
         return {"summary": "", "steps": []}
 
-    model_name = _select_model_fallback()
-    print(f"🔍 Learning-path model for '{skill}': {model_name}")
+    with _LOCK:
+        if not AI_AVAILABLE or not genai:
+            return fallback
 
+    _ensure_genai_configured()
+    if not _GENAI_CONFIGURED:
+        return fallback
+
+    model_name = os.getenv("GEMINI_MODEL", "gemini-1.5-pro")
     try:
         model = genai.GenerativeModel(model_name)
-        prompt = f"""
-You are a friendly tech mentor.
-
-Skill: "{skill}"
-
-Create a focused learning path for an aspiring developer who wants to get job-ready using this skill.
-
-Return JSON ONLY in this exact format (no markdown, no extra text):
-{{
-  "summary": "1–2 sentence overview of why this skill matters and what they will be able to do with it.",
-  "steps": [
-    "Step 1: ...",
-    "Step 2: ...",
-    "Step 3: ...",
-    "Step 4: ... (optional)",
-    "Step 5: ... (optional)"
-  ]
-}}
-"""
+        prompt = (
+            f"Create a concise learning path for the skill: '{skill}'.\n"
+            "Return a JSON object with:\n"
+            "  \"summary\": \"Brief summary of the approach\",\n"
+            "  \"steps\": [\"Step 1\", \"Step 2\", \"Step 3\"]\n"
+            "Return JSON ONLY. No markdown."
+        )
         response = model.generate_content(prompt)
         raw = getattr(response, "text", "").strip()
-        print(f"🔍 Raw learning-path output for {skill}:", raw)
-
         # Extract JSON object
-        start = raw.find("{")
-        end = raw.rfind("}")
-        if start == -1 or end == -1:
-            raise ValueError("No JSON object in learning-path output")
-
-        obj = json.loads(raw[start : end + 1])
+        json_str = _extract_json_like(raw)
+        obj = json.loads(json_str)
+        
         if not isinstance(obj, dict):
             raise ValueError("Learning-path JSON is not an object")
 
@@ -258,8 +199,138 @@ Return JSON ONLY in this exact format (no markdown, no extra text):
             "steps": steps,
         }
     except Exception as e:
-        print(f"⚠️ Learning-path generation failed for '{skill}': {e}")
-        return {
-            "summary": f"Aim to build a few small, practical projects using {skill} and follow high-quality tutorials.",
-            "steps": [],
+        logger.warning(f"Learning-path generation failed for '{skill}': {e}")
+        return fallback
+
+
+def get_unified_analysis(user_skills, target_role):
+    """
+    Single Gemini request returning a validated JSON object with keys:
+      - required_skills: list[str]
+      - missing_skills: list[str]
+      - job_matches: list[{role, match_percent}]
+      - ai_projects: list[str] (exactly 3)
+
+    Uses model from `GEMINI_MODEL` env or default `gemini-1.5-pro`.
+    Caches results and respects the circuit breaker `AI_AVAILABLE`.
+    Raises on validation or API errors to trigger fallback in caller.
+    """
+    global AI_AVAILABLE, AI_CACHE, LAST_AI_SOURCE
+
+    user_skills = user_skills or []
+    target_role = target_role or ""
+
+    cache_key = _cache_key(target_role, user_skills)
+    with _LOCK:
+        if cache_key in AI_CACHE:
+            LAST_AI_SOURCE = "cache"
+            return AI_CACHE[cache_key]
+        if not AI_AVAILABLE:
+            LAST_AI_SOURCE = "fallback"
+            raise RuntimeError("AI unavailable")
+
+    # Ensure genai configured
+    _ensure_genai_configured()
+    if not _GENAI_CONFIGURED or not genai:
+        with _LOCK:
+            LAST_AI_SOURCE = "fallback"
+        raise RuntimeError("AI unavailable or not configured")
+
+    model_name = os.getenv("GEMINI_MODEL", "gemini-1.5-pro")
+
+    user_skills_list = json.dumps([str(s).strip() for s in (user_skills or [])])
+    prompt = (
+        "You are an expert technical career coach.\n"
+        "Return ONLY a single raw JSON object that exactly matches the schema below.\n"
+        "If you cannot comply exactly, return an empty JSON object {} and nothing else.\n\n"
+        "Schema (JSON):\n"
+        "{\n"
+        "  \"schema_version\": \"v1\",\n"
+        "  \"required_skills\": [\"skill1\", \"skill2\", ...],\n"
+        "  \"missing_skills\": [\"skillA\", \"skillB\"],\n"
+        "  \"job_matches\": [ { \"role\": \"Role Name\", \"match_percent\": 85 }, ... ],\n"
+        "  \"ai_projects\": [\"Project idea 1\", \"Project idea 2\", \"Project idea 3\"]\n"
+        "}\n\n"
+        f"Target role: {target_role}\n"
+        f"User skills: {user_skills_list}\n"
+        "Use canonical industry skill names. Compute missing_skills by subtracting user_skills from required_skills.\n"
+        "Provide up to 10 required_skills, 3–5 job_matches (role + integer match_percent), and exactly 3 project ideas.\n"
+        "Return JSON ONLY.\n"
+    )
+
+    try:
+        model = genai.GenerativeModel(model_name)
+        response = model.generate_content(prompt)
+        raw = getattr(response, "text", "") or ""
+        raw = _strip_markdown(raw)
+        try:
+            json_str = _extract_json_like(raw)
+            parsed = json.loads(json_str)
+        except Exception as pe:
+            # parsing failure: do not trip circuit-breaker; propagate to caller
+            logger.debug("JSON extraction failed: %s", pe)
+            raise
+
+        # Validate keys and types
+        required_keys = ["schema_version", "required_skills", "missing_skills", "job_matches", "ai_projects"]
+        if not isinstance(parsed, dict):
+            raise ValueError("AI output is not a JSON object")
+        for k in required_keys:
+            if k not in parsed:
+                raise KeyError(f"Missing required key: {k}")
+
+        if not isinstance(parsed.get("required_skills"), list):
+            raise TypeError("required_skills must be a list")
+        if not isinstance(parsed.get("missing_skills"), list):
+            raise TypeError("missing_skills must be a list")
+        if not isinstance(parsed.get("job_matches"), list):
+            raise TypeError("job_matches must be a list")
+        if not isinstance(parsed.get("ai_projects"), list):
+            raise TypeError("ai_projects must be a list")
+
+        ai_projects = [str(x).strip() for x in parsed.get("ai_projects") if str(x).strip()]
+        if len(ai_projects) != 3:
+            raise ValueError("ai_projects must be exactly 3 strings")
+
+        jm_valid = []
+        for jm in parsed.get("job_matches"):
+            if not isinstance(jm, dict):
+                continue
+            role = jm.get("role")
+            pct = jm.get("match_percent")
+            if role is None or pct is None:
+                continue
+            try:
+                pct = int(pct)
+            except Exception:
+                raise TypeError("job_matches.match_percent must be an integer")
+            jm_valid.append({"role": str(role), "match_percent": int(pct)})
+        if not (3 <= len(jm_valid) <= 5):
+            raise ValueError("job_matches must contain 3 to 5 valid entries")
+
+        result = {
+            "schema_version": parsed.get("schema_version"),
+            "required_skills": [str(s).strip() for s in parsed.get("required_skills")][:10],
+            "missing_skills": [str(s).strip() for s in parsed.get("missing_skills")],
+            "job_matches": jm_valid,
+            "ai_projects": ai_projects,
         }
+
+        with _LOCK:
+            AI_CACHE[cache_key] = result
+            LAST_AI_SOURCE = "gemini"
+        return result
+
+    except Exception as e:
+        msg = str(e).lower()
+        # Only trigger circuit-breaker for quota/auth/resource errors
+        for token in ("429", "resourceexhausted", "defaultcredentialserror", "permission", "quota", "notfound"):
+            if token in msg:
+                with _LOCK:
+                    AI_AVAILABLE = False
+                logger.warning("Disabling AI_AVAILABLE due to error: %s", e)
+                break
+        with _LOCK:
+            LAST_AI_SOURCE = "fallback"
+        logger.exception("get_unified_analysis failed")
+        raise
