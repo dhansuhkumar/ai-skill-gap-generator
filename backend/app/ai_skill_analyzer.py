@@ -11,17 +11,9 @@ except Exception as _e:
 
 load_dotenv()
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-if not GEMINI_API_KEY:
-    print("⚠️ GEMINI_API_KEY is not set. AI skill analyzer will fall back to classic logic.")
-else:
-    if genai:
-        try:
-            genai.configure(api_key=GEMINI_API_KEY)
-        except Exception as _e:
-            print("⚠️ genai.configure failed in ai_skill_analyzer:", _e)
-    else:
-        print("⚠️ genai library not available; AI skill analyzer will be disabled.")
+# Do not configure genai at import time. The central ai_generator module will
+# manage configuration and single-entrypoint AI usage. This keeps imports safe
+# when AI is disabled or during fallback flows.
 
 
 def _normalize_skill_name(name: str) -> str:

@@ -205,13 +205,14 @@ def generate_learning_path_for_skill(skill: str):
 
 def get_unified_analysis(user_skills, target_role):
     """
-    Single Gemini request returning a validated JSON object with keys:
-      - required_skills: list[str]
-      - missing_skills: list[str]
-      - job_matches: list[{role, match_percent}]
-      - ai_projects: list[str] (exactly 3)
+    Single Gemini request returning a validated JSON object matching the task schema:
+      - candidate_required_skills (max 20)
+      - candidate_missing_skills
+      - suggested_focus_skills (up to 5)
+      - job_matches (3-5 entries with integer match_percent)
+      - ai_projects_sample (exactly 3 objects with title and short)
 
-    Uses model from `GEMINI_MODEL` env or default `gemini-1.5-pro`.
+    Uses `GEMINI_MODEL` env var (default `models/gemini-2.5-flash`).
     Caches results and respects the circuit breaker `AI_AVAILABLE`.
     Raises on validation or API errors to trigger fallback in caller.
     """
@@ -236,27 +237,47 @@ def get_unified_analysis(user_skills, target_role):
             LAST_AI_SOURCE = "fallback"
         raise RuntimeError("AI unavailable or not configured")
 
-    model_name = os.getenv("GEMINI_MODEL", "gemini-1.5-pro")
+    model_name = os.getenv("GEMINI_MODEL", "models/gemini-2.5-flash")
 
     user_skills_list = json.dumps([str(s).strip() for s in (user_skills or [])])
-    prompt = (
-        "You are an expert technical career coach.\n"
-        "Return ONLY a single raw JSON object that exactly matches the schema below.\n"
-        "If you cannot comply exactly, return an empty JSON object {} and nothing else.\n\n"
-        "Schema (JSON):\n"
-        "{\n"
-        "  \"schema_version\": \"v1\",\n"
-        "  \"required_skills\": [\"skill1\", \"skill2\", ...],\n"
-        "  \"missing_skills\": [\"skillA\", \"skillB\"],\n"
-        "  \"job_matches\": [ { \"role\": \"Role Name\", \"match_percent\": 85 }, ... ],\n"
-        "  \"ai_projects\": [\"Project idea 1\", \"Project idea 2\", \"Project idea 3\"]\n"
-        "}\n\n"
-        f"Target role: {target_role}\n"
-        f"User skills: {user_skills_list}\n"
-        "Use canonical industry skill names. Compute missing_skills by subtracting user_skills from required_skills.\n"
-        "Provide up to 10 required_skills, 3–5 job_matches (role + integer match_percent), and exactly 3 project ideas.\n"
-        "Return JSON ONLY.\n"
-    )
+    # Exact prompt required by system/task — placeholders replaced with actual inputs
+    prompt = """
+You are an expert technical career coach and data engineer. Return ONLY a single valid JSON object (no markdown, no commentary) that exactly matches the schema described below. If you cannot strictly follow these constraints, return an empty JSON object {} and nothing else.
+
+Schema:
+{
+  "schema_version": "v1",
+  "candidate_required_skills": ["skill1", "skill2", ...],           // canonical names; max 20
+  "candidate_missing_skills": ["skillA", "skillB", ...],           // subset of above
+  "suggested_focus_skills": ["skillA", "skillC"],                  // up to 5 skills we suggest the user focus on first
+  "job_matches": [
+     { "role":"Role Name", "match_percent": 85 },
+     ...
+  ],                                                                // 3-5 entries
+  "ai_projects_sample": [
+     { "title":"Short title", "short":"1-line description" },
+     ...
+  ]                                                                  // exactly 3
+}
+
+Inputs:
+- Target role: <<TARGET_ROLE>>
+- User skills list: <<USER_SKILLS_JSON>>   (JSON array)
+
+Rules:
+1. Use canonical, consistent skill names (e.g., "JavaScript", "React", "Node.js", "Python", "PostgreSQL", "Docker", "AWS").
+2. Decide up to 20 required skills for the role in 2025; include modern stack items and infra if relevant.
+3. Compute missing_skills = required_skills minus user_skills (do exact match on canonical names).
+4. Provide suggested_focus_skills: top 3-5 missing skills prioritized by impact (which skills will most improve match%).
+5. Provide 3 brief project ideas (title + one-line short).
+6. Provide 3-5 job_matches with integer match_percent computed assuming user has the provided user_skills.
+7. All match_percent values must be integers 0-100.
+8. Output JSON only. No extra keys. No commentary. If uncertain, return {}.
+
+End of prompt.
+"""
+    # Substitute placeholders exactly as required
+    prompt = prompt.replace("<<TARGET_ROLE>>", str(target_role or "")).replace("<<USER_SKILLS_JSON>>", user_skills_list)
 
     try:
         model = genai.GenerativeModel(model_name)
@@ -271,27 +292,40 @@ def get_unified_analysis(user_skills, target_role):
             logger.debug("JSON extraction failed: %s", pe)
             raise
 
-        # Validate keys and types
-        required_keys = ["schema_version", "required_skills", "missing_skills", "job_matches", "ai_projects"]
+        # Validate keys and types per exact schema required by the task
+        required_keys = ["schema_version", "candidate_required_skills", "candidate_missing_skills", "suggested_focus_skills", "job_matches", "ai_projects_sample"]
         if not isinstance(parsed, dict):
             raise ValueError("AI output is not a JSON object")
         for k in required_keys:
             if k not in parsed:
                 raise KeyError(f"Missing required key: {k}")
 
-        if not isinstance(parsed.get("required_skills"), list):
-            raise TypeError("required_skills must be a list")
-        if not isinstance(parsed.get("missing_skills"), list):
-            raise TypeError("missing_skills must be a list")
+        if not isinstance(parsed.get("candidate_required_skills"), list):
+            raise TypeError("candidate_required_skills must be a list")
+        if not isinstance(parsed.get("candidate_missing_skills"), list):
+            raise TypeError("candidate_missing_skills must be a list")
+        if not isinstance(parsed.get("suggested_focus_skills"), list):
+            raise TypeError("suggested_focus_skills must be a list")
         if not isinstance(parsed.get("job_matches"), list):
             raise TypeError("job_matches must be a list")
-        if not isinstance(parsed.get("ai_projects"), list):
-            raise TypeError("ai_projects must be a list")
+        if not isinstance(parsed.get("ai_projects_sample"), list):
+            raise TypeError("ai_projects_sample must be a list")
 
-        ai_projects = [str(x).strip() for x in parsed.get("ai_projects") if str(x).strip()]
-        if len(ai_projects) != 3:
-            raise ValueError("ai_projects must be exactly 3 strings")
+        # Validate ai_projects_sample (exactly 3 objects with title and short)
+        aps = parsed.get("ai_projects_sample")
+        if len(aps) != 3:
+            raise ValueError("ai_projects_sample must contain exactly 3 items")
+        aps_clean = []
+        for it in aps:
+            if not isinstance(it, dict):
+                raise TypeError("ai_projects_sample items must be objects")
+            title = it.get("title")
+            short = it.get("short")
+            if not title or not short:
+                raise ValueError("ai_projects_sample items must have title and short")
+            aps_clean.append({"title": str(title).strip(), "short": str(short).strip()})
 
+        # Validate job_matches
         jm_valid = []
         for jm in parsed.get("job_matches"):
             if not isinstance(jm, dict):
@@ -304,16 +338,19 @@ def get_unified_analysis(user_skills, target_role):
                 pct = int(pct)
             except Exception:
                 raise TypeError("job_matches.match_percent must be an integer")
+            if pct < 0 or pct > 100:
+                raise ValueError("job_matches.match_percent must be 0-100")
             jm_valid.append({"role": str(role), "match_percent": int(pct)})
         if not (3 <= len(jm_valid) <= 5):
             raise ValueError("job_matches must contain 3 to 5 valid entries")
 
         result = {
             "schema_version": parsed.get("schema_version"),
-            "required_skills": [str(s).strip() for s in parsed.get("required_skills")][:10],
-            "missing_skills": [str(s).strip() for s in parsed.get("missing_skills")],
+            "candidate_required_skills": [str(s).strip() for s in parsed.get("candidate_required_skills")][:20],
+            "candidate_missing_skills": [str(s).strip() for s in parsed.get("candidate_missing_skills")],
+            "suggested_focus_skills": [str(s).strip() for s in parsed.get("suggested_focus_skills")][:5],
             "job_matches": jm_valid,
-            "ai_projects": ai_projects,
+            "ai_projects_sample": aps_clean,
         }
 
         with _LOCK:

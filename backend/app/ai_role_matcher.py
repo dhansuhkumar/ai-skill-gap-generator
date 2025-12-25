@@ -11,14 +11,10 @@ except Exception as _e:
 
 load_dotenv()
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-if GEMINI_API_KEY and genai:
-    try:
-        genai.configure(api_key=GEMINI_API_KEY)
-    except Exception as _e:
-        print("⚠️ genai.configure failed in ai_role_matcher:", _e)
-else:
-    print("⚠️ GEMINI_API_KEY not set or genai unavailable – AI role matcher will be disabled.")
+# Do NOT configure genai at import time. Configuration will be handled by the
+# central ai_generator module when a real AI call is made. This avoids making
+# API calls or touching credentials during simple imports (e.g., during /recommend
+# when we are using the unified analysis).
 
 
 def _norm_skill(name: str) -> str:

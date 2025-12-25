@@ -62,33 +62,54 @@ def find_missing_skills(user_skills, target_role):
     return sorted(set(missing_skills))
 
 # ✅ FIXED: Handles include_videos logic internally, calls search correctly
-def generate_micro_projects(missing_skills, include_videos=False, max_results=3):
+LEARNING_PATH_CACHE = {}
+YT_CACHE = {}
+
+
+def generate_micro_projects(missing_skills, include_videos=False, max_results_per_skill=3):
+    """
+    Generate micro-projects + learning paths for selected skills.
+    - `max_results_per_skill` is capped at 10 for safety.
+    """
     projects = []
-    
+    max_results_per_skill = int(max_results_per_skill or 3)
+    if max_results_per_skill > 10:
+        max_results_per_skill = 10
+
     for skill in missing_skills:
-        # 🧠 AI-generated learning path for this specific skill
-        learning = generate_learning_path_for_skill(skill)
-        description = learning.get("summary") or ""
-        steps = learning.get("steps") or []
-        videos = []
-        
-        # Only attempt search if the checkbox was Checked
-        if include_videos:
+        # learning path caching to avoid repeated AI calls
+        lp = LEARNING_PATH_CACHE.get(skill)
+        if lp is None:
             try:
-                query = f"{skill} tutorial for beginners"
-                # Correct call: Do not pass 'allow_search' here, logic is handled by the if statement above
-                videos = search_youtube_videos(query, max_results=max_results)
-            except Exception as e:
-                print(f"⚠️ YouTube search failed for '{skill}': {e}")
-                videos = []
-        
+                lp = generate_learning_path_for_skill(skill)
+            except Exception:
+                lp = {"summary": f"Learn {skill}", "steps": []}
+            LEARNING_PATH_CACHE[skill] = lp
+
+        description = lp.get("summary") or ""
+        steps = lp.get("steps") or []
+
+        videos = []
+        if include_videos:
+            # cache YouTube search results per skill+limit
+            yk = f"{skill}:{max_results_per_skill}"
+            videos = YT_CACHE.get(yk)
+            if videos is None:
+                try:
+                    query = f"{skill} tutorial for beginners"
+                    videos = search_youtube_videos(query, max_results=max_results_per_skill)
+                except Exception as e:
+                    print(f"⚠️ YouTube search failed for '{skill}': {e}")
+                    videos = []
+                YT_CACHE[yk] = videos
+
         projects.append({
             "skill": skill,
             "project": description,
             "learning_path_steps": steps,
             "videos": videos,
         })
-        
+
     return projects
 
 def suggest_related_skills(user_skills):

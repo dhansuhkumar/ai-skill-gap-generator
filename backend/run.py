@@ -18,10 +18,10 @@ init_db()
 
 # Use explicit package imports to avoid "No module named 'app'" when running as a module
 from backend.app import create_app
-from backend.app.ai_generator import generate_ai_project_ideas
+from backend.app.ai_generator import generate_ai_project_ideas, get_unified_analysis
+from backend.app import ai_generator as _ai_gen_module
 from backend.app.recommender import generate_micro_projects, find_missing_skills
-from backend.app.ai_skill_analyzer import find_required_and_missing_ai
-from backend.app.ai_role_matcher import find_role_matches_ai, _compute_match
+from backend.app.ai_role_matcher import _compute_match
 
 app = create_app()
 
@@ -46,24 +46,42 @@ def recommend():
     fetch_videos = bool(data.get("include_youtube", False))
     max_videos = int(data.get("max_video_results", 3))
 
-    # 1) AI project ideas (existing behavior)
-    ai_projects = generate_ai_project_ideas(target_role, user_skills)
-    if not isinstance(ai_projects, list):
-        ai_projects = ["Error generating AI project ideas."]
-
-    # 2) AI-based required + missing skills (NO JSON fallback)
+    # Attempt unified AI analysis (single Gemini call) with cache detection
     required_skills_ai = []
     missing = []
+    ai_projects = []
+    job_matches = []
+    cache_hit = False
+    ai_used = False
+    ai_source = "fallback"
+
     try:
-        ai_result = find_required_and_missing_ai(user_skills, target_role)
-        required_skills_ai = ai_result.get("required_skills", []) or []
-        missing = ai_result.get("missing_skills", []) or []
+        # detect cache hit before call
+        try:
+            ck = _ai_gen_module._cache_key(target_role, user_skills)
+            with _ai_gen_module._LOCK:
+                cache_hit = ck in _ai_gen_module.AI_CACHE
+        except Exception:
+            cache_hit = False
+
+        ai_result = get_unified_analysis(user_skills, target_role)
+
+        # Map unified schema to frontend keys
+        required_skills_ai = ai_result.get("candidate_required_skills", [])[:10]
+        missing = ai_result.get("candidate_missing_skills", [])
+        ai_projects = ai_result.get("ai_projects_sample", [])
+        job_matches = ai_result.get("job_matches", [])
+
+        ai_source = getattr(_ai_gen_module, "LAST_AI_SOURCE", "gemini") or "gemini"
+        ai_used = ai_source in ("gemini", "cache")
+
     except Exception as e:
-        print("⚠️ AI skill analyzer failed in /recommend:", e)
-        # Fallback: use deterministic DB-based missing skills if AI is unavailable
+        print("⚠️ Unified AI analysis failed in /recommend:", e)
+        # Fallback: deterministic DB-based missing skills
         try:
             missing = find_missing_skills(user_skills, target_role)
             required_skills_ai = []
+            ai_projects = generate_ai_project_ideas(target_role, user_skills)
         except Exception as inner:
             print("❌ Fallback skill lookup also failed:", inner)
             return jsonify({
@@ -72,27 +90,32 @@ def recommend():
             }), 500
 
     # 3) Micro-projects for missing skills (can also include YouTube links if you've wired that)
-    projects = generate_micro_projects(missing, include_videos=fetch_videos, max_results=max_videos)
+    projects = generate_micro_projects(missing, include_videos=fetch_videos, max_results_per_skill=max_videos)
 
    
 
-    # 5) AI-based role matches (selected role prioritized)
-    job_matches = []
-    try:
-        job_matches = find_role_matches_ai(
-            user_skills=user_skills,
-            selected_role=target_role,
-            required_skills_for_selected=required_skills_ai,
-            max_roles=5,
-        )
-    except Exception as e:
-        print("⚠️ AI role matcher failed:", e)
-        job_matches = []
+    # If unified did not provide job_matches, synthesize a minimal match for the selected role
+    if not job_matches:
+        try:
+            if required_skills_ai:
+                percent, known, total, missing_for_role = _compute_match(user_skills, required_skills_ai)
+                job_matches = [{
+                    "role": target_role or "Selected role",
+                    "match_percent": int(percent),
+                }]
+            else:
+                job_matches = [{
+                    "role": target_role or "Selected role",
+                    "match_percent": 0,
+                }]
+        except Exception:
+            job_matches = [{"role": target_role or "Selected role", "match_percent": 0}]
 
-    print("Received:", data)
-    print("Missing skills:", missing)
-    print("Required (AI):", required_skills_ai)
-    print("Job matches:", job_matches)
+    # Emit single structured log per request as required
+    ai_used_flag = "true" if ai_used else "false"
+    cache_hit_flag = "true" if cache_hit else "false"
+    ai_src = ai_source or ("fallback" if not ai_used else "gemini")
+    app.logger.info(f"AI_USED={ai_used_flag} AI_SOURCE={ai_src} ROLE={target_role} CACHE_HIT={cache_hit_flag}")
 
     # If the AI role matcher failed to return anything, synthesize a simple
     # fallback so the frontend can always display a job readiness card.
@@ -143,6 +166,8 @@ def recommend():
         "recommended_projects": projects,
         "ai_projects": ai_projects,
         "job_matches": job_matches,
+        "include_youtube": fetch_videos,
+        "max_video_results_per_skill": max_videos,
     })
 
 
@@ -171,7 +196,7 @@ def recommend_projects():
         max_videos = int(data.get('max_video_results', 3) or 3)
 
         try:
-                projects = generate_micro_projects(selected, include_videos=fetch_videos, max_results=max_videos)
+                projects = generate_micro_projects(selected, include_videos=fetch_videos, max_results_per_skill=max_videos)
         except Exception as e:
                 print("⚠️ generate_micro_projects failed in /recommend/projects:", e)
                 projects = []
