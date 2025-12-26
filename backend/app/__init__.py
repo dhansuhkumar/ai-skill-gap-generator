@@ -29,8 +29,25 @@ def create_app():
     app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")
     jwt = JWTManager(app)
 
-    from app.routes import main
-    from app.auth import auth
+    # Attach Supabase client (if configured) to the app for use in routes
+    try:
+        from backend.supabase_client import get_supabase
+    except Exception:
+        try:
+            from supabase_client import get_supabase
+        except Exception:
+            get_supabase = None
+
+    if get_supabase:
+        try:
+            app.supabase = get_supabase()
+        except Exception:
+            app.supabase = None
+    else:
+        app.supabase = None
+
+    from .routes import main
+    from .auth import auth
 
     app.register_blueprint(auth, url_prefix='/auth')
     app.register_blueprint(main, url_prefix='/api')

@@ -4,9 +4,13 @@ import sys
 import sqlite3
 
 DB_NAME = os.path.join(os.path.dirname(__file__), "..", "users.db") # fallback to local file if not set
- # ✅ This must be at the top level
 
 def init_db():
+    # If Supabase is configured, skip local SQLite initialization
+    if os.getenv("SUPABASE_URL") and os.getenv("SUPABASE_KEY"):
+        print("Supabase detected via env vars — skipping local SQLite init.")
+        return
+
     print("Trying to open DB at:", DB_NAME)
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()

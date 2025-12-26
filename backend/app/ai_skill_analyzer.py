@@ -3,17 +3,12 @@
 import os
 import json
 from dotenv import load_dotenv
-try:
-    import google.generativeai as genai
-except Exception as _e:
-    genai = None
-    print("⚠️ google.generativeai import failed (AI features disabled):", _e)
+from dotenv import load_dotenv
 
 load_dotenv()
 
-# Do not configure genai at import time. The central ai_generator module will
-# manage configuration and single-entrypoint AI usage. This keeps imports safe
-# when AI is disabled or during fallback flows.
+# This module no longer imports or configures Gemini directly; use
+# `ai_generator.get_unified_analysis` for AI-driven analysis.
 
 
 def _normalize_skill_name(name: str) -> str:
@@ -84,83 +79,7 @@ def find_required_and_missing_ai(user_skills, target_role):
     and fall back to the classic find_missing_skills().
     """
 
-    if not GEMINI_API_KEY:
-        raise RuntimeError("GEMINI_API_KEY is missing; cannot use AI skill analyzer.")
-
-    model_name = "gemini-2.5-flash-native-audio-dialog"
-    try:
-        for m in genai.list_models():
-            if 'generateContent' in getattr(m, "supported_generation_methods", []):
-                name = getattr(m, "name", "")
-                if "gemini-2.5-flash" in name:
-                    model_name = name
-                    break
-                elif "gemini-2.0-flash" in name:
-                    model_name = name
-                elif "gemini-1.5-flash" in name and "2.5" not in model_name:
-                    model_name = name
-        print(f"🔍 Selected Model for Skill Analyzer: {model_name}")
-    except Exception as e:
-        print(f"⚠️ Error selecting model: {e}")
-    model = genai.GenerativeModel(model_name)
-
-    # Prompt: ask ONLY for required/core skills
-    prompt = f"""
-You are an expert technical recruiter.
-
-User wants to become: "{target_role}"
-User currently has skills: {", ".join(user_skills) if user_skills else "None"}
-
-Step 1: Decide the essential technical skills required for this role in 2025.
-Step 2: Return them as a JSON object with ONE key "required_skills".
-
-Return JSON only, no explanation, no markdown.
-
-Format:
-{{
-  "required_skills": ["skill1", "skill2", "skill3", ...]
-}}
-
-Rules:
-- Use short, concrete skill names like "HTML", "CSS", "JavaScript", "React", "SQL", "Python", "Git".
-- No soft skills.
-- Maximum 15 skills.
-"""
-
-    response = model.generate_content(prompt)
-    raw_text = getattr(response, "text", "").strip()
-    print("🔍 Raw AI Required Skills output:", raw_text)
-
-    # Extract JSON safely
-    start = raw_text.find("{")
-    end = raw_text.rfind("}")
-    if start == -1 or end == -1:
-        raise ValueError("AI output did not contain a JSON object.")
-
-    json_str = raw_text[start:end + 1]
-    data = json.loads(json_str)
-
-    required_skills = data.get("required_skills", [])
-    if not isinstance(required_skills, list) or len(required_skills) == 0:
-        raise ValueError("AI did not return a valid required_skills list.")
-
-    # Normalize required list (remove empties, duplicates)
-    cleaned_required = []
-    seen = set()
-    for s in required_skills:
-        if not isinstance(s, str):
-            continue
-        s_clean = s.strip()
-        if not s_clean:
-            continue
-        key = _normalize_skill_name(s_clean)
-        if key and key not in seen:
-            seen.add(key)
-            cleaned_required.append(s_clean)
-
-    missing_skills = _compute_missing(user_skills, cleaned_required)
-
-    return {
-        "required_skills": cleaned_required,
-        "missing_skills": missing_skills,
-    }
+    # This function no longer makes direct Gemini calls. Use the central
+    # `ai_generator.get_unified_analysis(user_skills, target_role)` which runs a
+    # single, controlled Gemini request and returns the required/missing skills.
+    raise RuntimeError("Use ai_generator.get_unified_analysis(user_skills, target_role) instead of direct AI calls.")

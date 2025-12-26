@@ -3,15 +3,11 @@ import json
 from typing import List, Dict, Any
 
 from dotenv import load_dotenv
-try:
-    import google.generativeai as genai
-except Exception as _e:
-    genai = None
-    print("⚠️ google.generativeai import failed (role chat disabled):", _e)
 
 load_dotenv()
 
-# Do not configure genai at import time here; centralize configuration in ai_generator
+# This module does not call Gemini directly. For interactive AI chat, integrate
+# with the central `ai_generator` entrypoint to avoid distributed Gemini calls.
 
 
 def _build_role_chat_prompt(role: str, messages: List[Dict[str, Any]]) -> str:
@@ -58,41 +54,12 @@ def generate_role_chat_reply(role: str, messages: List[Dict[str, Any]]) -> str:
     """
     Call Gemini to generate the next chat reply for the role conversation.
     """
-    if not GEMINI_API_KEY:
-        # Fallback: simple deterministic reply if AI is not configured
-        return (
-            "AI chat is not fully configured yet (missing GEMINI_API_KEY), "
-            "but you can still describe your skills, projects, and goals for this role. "
-            "Focus on concrete technologies you've used and years of experience."
-        )
-
-    model_name = "gemini-2.5-flask"
-    try:
-        for m in genai.list_models():
-            if "generateContent" in getattr(m, "supported_generation_methods", []):
-                name = getattr(m, "name", "")
-                if "gemini-2.5-flash" in name:
-                    model_name = name
-                    break
-                elif "gemini-2.0-flash" in name:
-                    model_name = name
-                elif "gemini-1.5-flash" in name and "2.5" not in model_name:
-                    model_name = name
-        print(f"🔍 Selected Model for Role Chat: {model_name}")
-    except Exception as e:
-        print(f"⚠️ Error selecting model for role chat: {e}")
-
-    model = genai.GenerativeModel(model_name)
-    prompt = _build_role_chat_prompt(role, messages)
-
-    response = model.generate_content(prompt)
-    text = getattr(response, "text", "").strip()
-    if not text:
-        return (
-            "I couldn't generate a detailed response just now. "
-            "Could you briefly list your main skills and recent projects for this role?"
-        )
-    return text
+    # Currently deterministic fallback. Integrate with `ai_generator` for
+    # production AI chat while keeping a single, centralized Gemini usage.
+    return (
+        "AI chat is not available in this runtime. Please describe your skills, "
+        "recent projects, and goals for this role. Focus on concrete technologies and years of experience."
+    )
 
 
 

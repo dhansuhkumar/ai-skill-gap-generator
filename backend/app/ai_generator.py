@@ -7,13 +7,9 @@ import threading
 from typing import List
 from dotenv import load_dotenv
 
-try:
-    import google.generativeai as genai
-except Exception as _e:
-    genai = None
-    print("⚠️ google.generativeai import failed (AI generator disabled):", _e)
-
 load_dotenv()
+
+from backend.app.ai import router as ai_router
 
 logger = logging.getLogger(__name__)
 if not logger.handlers:
@@ -31,30 +27,7 @@ AI_CACHE = {}
 # Last source used for observability (set per call)
 LAST_AI_SOURCE = None
 
-# Track whether we've configured genai with API key
-_GENAI_CONFIGURED = False
-
-
-def _ensure_genai_configured():
-    """Ensure genai is configured with GEMINI_API_KEY if available.
-
-    This is safe to call multiple times.
-    """
-    global _GENAI_CONFIGURED
-    if _GENAI_CONFIGURED:
-        return
-    if not genai:
-        return
-    key = os.getenv("GEMINI_API_KEY")
-    if not key:
-        logger.info("GEMINI_API_KEY not set; AI disabled")
-        return
-    try:
-        genai.configure(api_key=key, transport='rest')
-        _GENAI_CONFIGURED = True
-        logger.info("genai configured with GEMINI_API_KEY")
-    except Exception as e:
-        logger.warning("genai.configure failed: %s", e)
+# Router handles provider clients and configuration (genai/openai)
 
 
 def _cache_key(role: str, skills: List[str]) -> str:
@@ -116,32 +89,28 @@ def generate_ai_project_ideas(role, skills):
         "Design a Weather Dashboard using Public APIs",
     ]
 
+    # Use centralized router to get AI response (single provider per request)
     with _LOCK:
-        if not AI_AVAILABLE or not genai:
+        if not AI_AVAILABLE:
             return fallback_list
 
-    _ensure_genai_configured()
-    if not _GENAI_CONFIGURED:
-        return fallback_list
-
-    model_name = os.getenv("GEMINI_MODEL", "gemini-1.5-pro")
+    prompt = (
+        "Return EXACTLY 3 short project titles (strings) as a JSON array."
+        " No markdown, no explanation. JSON ONLY."
+        f" Target role: {role}. Current skills: {', '.join(skills) if skills else 'None'}."
+    )
     try:
-        model = genai.GenerativeModel(model_name)
-        prompt = (
-            "Return EXACTLY 3 short project titles (strings) as a JSON array."
-            " No markdown, no explanation. JSON ONLY."
-            f" Target role: {role}. Current skills: {', '.join(skills) if skills else 'None'}."
-        )
-        response = model.generate_content(prompt)
-        raw = getattr(response, "text", "") or ""
+        raw = ai_router.get_ai_response(prompt)
         raw = _strip_markdown(raw)
-        json_str = _extract_json_like(raw)
-        arr = json.loads(json_str)
-        if not isinstance(arr, list):
-            raise ValueError("AI did not return a JSON array")
-        titles = [str(x).strip() for x in arr if isinstance(x, str) and str(x).strip()][:3]
-        if len(titles) == 3:
-            return titles
+        try:
+            json_str = _extract_json_like(raw)
+            arr = json.loads(json_str)
+        except Exception:
+            arr = []
+        if isinstance(arr, list):
+            titles = [str(x).strip() for x in arr if isinstance(x, str) and str(x).strip()][:3]
+            if len(titles) == 3:
+                return titles
         return fallback_list
     except Exception as e:
         logger.warning("generate_ai_project_ideas failed: %s", e)
@@ -149,6 +118,8 @@ def generate_ai_project_ideas(role, skills):
 
 
 def generate_learning_path_for_skill(skill: str):
+    # Single-skill helper that uses the batched `get_learning_paths_for_skills`
+    # to avoid calling Gemini per-skill. If AI is unavailable, return fallback.
     fallback = {
         "summary": f"Learn core concepts of {skill} and build a small project.",
         "steps": [
@@ -157,53 +128,117 @@ def generate_learning_path_for_skill(skill: str):
             "Refine by adding tests and reading official docs",
         ],
     }
-    
+
     if not skill:
         return {"summary": "", "steps": []}
 
-    with _LOCK:
-        if not AI_AVAILABLE or not genai:
-            return fallback
-
-    _ensure_genai_configured()
-    if not _GENAI_CONFIGURED:
-        return fallback
-
-    model_name = os.getenv("GEMINI_MODEL", "gemini-1.5-pro")
     try:
-        model = genai.GenerativeModel(model_name)
-        prompt = (
-            f"Create a concise learning path for the skill: '{skill}'.\n"
-            "Return a JSON object with:\n"
-            "  \"summary\": \"Brief summary of the approach\",\n"
-            "  \"steps\": [\"Step 1\", \"Step 2\", \"Step 3\"]\n"
-            "Return JSON ONLY. No markdown."
-        )
-        response = model.generate_content(prompt)
-        raw = getattr(response, "text", "").strip()
-        # Extract JSON object
-        json_str = _extract_json_like(raw)
-        obj = json.loads(json_str)
-        
-        if not isinstance(obj, dict):
-            raise ValueError("Learning-path JSON is not an object")
-
-        summary = (obj.get("summary") or "").strip()
-        steps = obj.get("steps") or []
-        if not isinstance(steps, list):
-            steps = []
-        steps = [str(s).strip() for s in steps if str(s).strip()]
-
-        return {
-            "summary": summary,
-            "steps": steps,
-        }
-    except Exception as e:
-        logger.warning(f"Learning-path generation failed for '{skill}': {e}")
+        # Use centralized batched call for a single skill to respect single-entrypoint
+        res = get_learning_paths_for_skills([skill])
+        if isinstance(res, dict) and skill in res:
+            return res.get(skill) or fallback
+        return fallback
+    except Exception:
         return fallback
 
 
-def get_unified_analysis(user_skills, target_role):
+def get_learning_paths_for_skills(skills: list):
+    """
+    Batch-generate learning paths for a list of skills using exactly one
+    Gemini call. Returns a dict mapping skill -> {summary, steps}.
+    """
+    global AI_AVAILABLE, AI_CACHE, LAST_AI_SOURCE
+
+    skills = [str(s).strip() for s in (skills or []) if s]
+    if not skills:
+        return {}
+
+    cache_key = _cache_key("learning_paths", skills + ["v1"])  # simple cache key
+    with _LOCK:
+        if cache_key in AI_CACHE:
+            LAST_AI_SOURCE = "cache"
+            return AI_CACHE[cache_key]
+        if not AI_AVAILABLE:
+            LAST_AI_SOURCE = "fallback"
+            raise RuntimeError("AI unavailable")
+
+    # Build exact schema-aware prompt for batched learning paths
+    skills_json = json.dumps(skills)
+    prompt = (
+        "Return ONLY a single JSON object mapping each skill (string) to a learning path object.\n"
+        "If you cannot follow the exact schema, return {}.\n\n"
+        "Schema:\n"
+        "{\n"
+        "  \"<skill>\": {\n"
+        "      \"summary\": \"one-line summary\",\n"
+        "      \"steps\": [\n"
+        "         { \"day_from\": 1, \"day_to\": 3, \"title\": \"...\", \"tasks\": [\"...\"], \"project\": \"short\", \"resources\": [\"link1\"] },\n"
+        "         ...\n"
+        "      ]\n"
+        "  },\n"
+        "  ...\n"
+        "}\n\n"
+        f"Inputs:\n- Skills JSON array: {skills_json}\n\n"
+        "Rules:\n"
+        "1) Provide a learning path for each skill in the input list.\n"
+        "2) Each learning path must include a short one-line 'summary' and an array 'steps'.\n"
+        "3) Each step must be an object with keys: day_from (int), day_to (int), title (str), tasks (array of strings), project (short str), resources (array of strings).\n"
+        "4) Keep steps concise; 3-6 steps per skill is fine.\n"
+        "5) Output JSON only. No extra keys. If uncertain, return {}.\n"
+    )
+
+    try:
+        raw = ai_router.get_ai_response(prompt)
+        raw = _strip_markdown(raw)
+        json_str = _extract_json_like(raw)
+        parsed = json.loads(json_str)
+
+        if not isinstance(parsed, dict):
+            raise ValueError("learning paths response not an object")
+
+        # Validate minimal structure
+        out = {}
+        for sk in skills:
+            val = parsed.get(sk)
+            if not isinstance(val, dict):
+                continue
+            summary = val.get("summary") or ""
+            steps = val.get("steps") or []
+            cleaned_steps = []
+            if isinstance(steps, list):
+                for st in steps:
+                    if not isinstance(st, dict):
+                        continue
+                    day_from = int(st.get("day_from") or 0)
+                    day_to = int(st.get("day_to") or day_from)
+                    title = str(st.get("title") or "").strip()
+                    tasks = [str(t).strip() for t in (st.get("tasks") or []) if str(t).strip()]
+                    project = str(st.get("project") or "").strip()
+                    resources = [str(r).strip() for r in (st.get("resources") or []) if str(r).strip()]
+                    cleaned_steps.append({"day_from": day_from, "day_to": day_to, "title": title, "tasks": tasks, "project": project, "resources": resources})
+            out[sk] = {"summary": str(summary).strip(), "steps": cleaned_steps}
+
+        provider_used = ai_router.get_last_successful_provider() or "local"
+        with _LOCK:
+            AI_CACHE[cache_key] = out
+            LAST_AI_SOURCE = provider_used
+        return out
+
+    except Exception as e:
+        msg = str(e).lower()
+        for token in ("429", "resourceexhausted", "defaultcredentialserror", "permission", "quota", "notfound"):
+            if token in msg:
+                with _LOCK:
+                    AI_AVAILABLE = False
+                logger.warning("Disabling AI_AVAILABLE due to error in learning paths: %s", e)
+                break
+        with _LOCK:
+            LAST_AI_SOURCE = "fallback"
+        logger.exception("get_learning_paths_for_skills failed")
+        raise
+
+
+def get_unified_analysis(user_skills, target_role, requested_provider: str = None):
     """
     Single Gemini request returning a validated JSON object matching the task schema:
       - candidate_required_skills (max 20)
@@ -221,26 +256,8 @@ def get_unified_analysis(user_skills, target_role):
     user_skills = user_skills or []
     target_role = target_role or ""
 
-    cache_key = _cache_key(target_role, user_skills)
-    with _LOCK:
-        if cache_key in AI_CACHE:
-            LAST_AI_SOURCE = "cache"
-            return AI_CACHE[cache_key]
-        if not AI_AVAILABLE:
-            LAST_AI_SOURCE = "fallback"
-            raise RuntimeError("AI unavailable")
-
-    # Ensure genai configured
-    _ensure_genai_configured()
-    if not _GENAI_CONFIGURED or not genai:
-        with _LOCK:
-            LAST_AI_SOURCE = "fallback"
-        raise RuntimeError("AI unavailable or not configured")
-
-    model_name = os.getenv("GEMINI_MODEL", "models/gemini-2.5-flash")
-
     user_skills_list = json.dumps([str(s).strip() for s in (user_skills or [])])
-    # Exact prompt required by system/task — placeholders replaced with actual inputs
+
     prompt = """
 You are an expert technical career coach and data engineer. Return ONLY a single valid JSON object (no markdown, no commentary) that exactly matches the schema described below. If you cannot strictly follow these constraints, return an empty JSON object {} and nothing else.
 
@@ -276,91 +293,48 @@ Rules:
 
 End of prompt.
 """
-    # Substitute placeholders exactly as required
     prompt = prompt.replace("<<TARGET_ROLE>>", str(target_role or "")).replace("<<USER_SKILLS_JSON>>", user_skills_list)
 
-    try:
-        model = genai.GenerativeModel(model_name)
-        response = model.generate_content(prompt)
-        raw = getattr(response, "text", "") or ""
-        raw = _strip_markdown(raw)
-        try:
-            json_str = _extract_json_like(raw)
-            parsed = json.loads(json_str)
-        except Exception as pe:
-            # parsing failure: do not trip circuit-breaker; propagate to caller
-            logger.debug("JSON extraction failed: %s", pe)
-            raise
+    # detect cache hit for the candidate provider before making call
+    provider_candidate = ai_router.select_provider(requested_provider)
+    cache_key = _cache_key(f"{target_role}|{provider_candidate}", user_skills)
+    with _LOCK:
+        if cache_key in AI_CACHE:
+            LAST_AI_SOURCE = "cache"
+            return AI_CACHE[cache_key]
+        if not AI_AVAILABLE:
+            LAST_AI_SOURCE = "fallback"
+            raise RuntimeError("AI unavailable")
 
-        # Validate keys and types per exact schema required by the task
-        required_keys = ["schema_version", "candidate_required_skills", "candidate_missing_skills", "suggested_focus_skills", "job_matches", "ai_projects_sample"]
+    try:
+        raw = ai_router.get_ai_response(prompt, requested_provider)
+        raw = _strip_markdown(raw)
+        json_str = _extract_json_like(raw)
+        parsed = json.loads(json_str)
+
+        # Basic validation and normalization
         if not isinstance(parsed, dict):
             raise ValueError("AI output is not a JSON object")
-        for k in required_keys:
-            if k not in parsed:
-                raise KeyError(f"Missing required key: {k}")
-
-        if not isinstance(parsed.get("candidate_required_skills"), list):
-            raise TypeError("candidate_required_skills must be a list")
-        if not isinstance(parsed.get("candidate_missing_skills"), list):
-            raise TypeError("candidate_missing_skills must be a list")
-        if not isinstance(parsed.get("suggested_focus_skills"), list):
-            raise TypeError("suggested_focus_skills must be a list")
-        if not isinstance(parsed.get("job_matches"), list):
-            raise TypeError("job_matches must be a list")
-        if not isinstance(parsed.get("ai_projects_sample"), list):
-            raise TypeError("ai_projects_sample must be a list")
-
-        # Validate ai_projects_sample (exactly 3 objects with title and short)
-        aps = parsed.get("ai_projects_sample")
-        if len(aps) != 3:
-            raise ValueError("ai_projects_sample must contain exactly 3 items")
-        aps_clean = []
-        for it in aps:
-            if not isinstance(it, dict):
-                raise TypeError("ai_projects_sample items must be objects")
-            title = it.get("title")
-            short = it.get("short")
-            if not title or not short:
-                raise ValueError("ai_projects_sample items must have title and short")
-            aps_clean.append({"title": str(title).strip(), "short": str(short).strip()})
-
-        # Validate job_matches
-        jm_valid = []
-        for jm in parsed.get("job_matches"):
-            if not isinstance(jm, dict):
-                continue
-            role = jm.get("role")
-            pct = jm.get("match_percent")
-            if role is None or pct is None:
-                continue
-            try:
-                pct = int(pct)
-            except Exception:
-                raise TypeError("job_matches.match_percent must be an integer")
-            if pct < 0 or pct > 100:
-                raise ValueError("job_matches.match_percent must be 0-100")
-            jm_valid.append({"role": str(role), "match_percent": int(pct)})
-        if not (3 <= len(jm_valid) <= 5):
-            raise ValueError("job_matches must contain 3 to 5 valid entries")
 
         result = {
             "schema_version": parsed.get("schema_version"),
-            "candidate_required_skills": [str(s).strip() for s in parsed.get("candidate_required_skills")][:20],
+            "candidate_required_skills": [str(s).strip() for s in parsed.get("candidate_required_skills")][:20] if parsed.get("candidate_required_skills") else [],
             "candidate_missing_skills": [str(s).strip() for s in parsed.get("candidate_missing_skills")],
             "suggested_focus_skills": [str(s).strip() for s in parsed.get("suggested_focus_skills")][:5],
-            "job_matches": jm_valid,
-            "ai_projects_sample": aps_clean,
+            "job_matches": parsed.get("job_matches") or [],
+            "ai_projects_sample": parsed.get("ai_projects_sample") or [],
         }
 
+        provider_used = ai_router.get_last_successful_provider() or provider_candidate or "local"
+        cache_key_used = _cache_key(f"{target_role}|{provider_used}", user_skills)
         with _LOCK:
-            AI_CACHE[cache_key] = result
-            LAST_AI_SOURCE = "gemini"
+            AI_CACHE[cache_key_used] = result
+            LAST_AI_SOURCE = provider_used
+        # ensure router state updated (router sets last successful provider on success)
         return result
 
     except Exception as e:
         msg = str(e).lower()
-        # Only trigger circuit-breaker for quota/auth/resource errors
         for token in ("429", "resourceexhausted", "defaultcredentialserror", "permission", "quota", "notfound"):
             if token in msg:
                 with _LOCK:

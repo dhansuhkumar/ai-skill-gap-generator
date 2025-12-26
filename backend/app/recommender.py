@@ -76,6 +76,20 @@ def generate_micro_projects(missing_skills, include_videos=False, max_results_pe
     if max_results_per_skill > 10:
         max_results_per_skill = 10
 
+    # Batch-request learning paths for skills not in cache to ensure a single
+    # Gemini call per request (centralized in ai_generator.get_learning_paths_for_skills).
+    skills_to_fetch = [s for s in missing_skills if s not in LEARNING_PATH_CACHE]
+    if skills_to_fetch:
+        try:
+            from app.ai_generator import get_learning_paths_for_skills
+            fetched = get_learning_paths_for_skills(skills_to_fetch)
+            if isinstance(fetched, dict):
+                for k, v in fetched.items():
+                    LEARNING_PATH_CACHE[k] = v
+        except Exception as e:
+            # If AI fails, leave cache missing; per-skill fallbacks will be applied below
+            print(f"⚠️ Batched learning path fetch failed: {e}")
+
     for skill in missing_skills:
         # learning path caching to avoid repeated AI calls
         lp = LEARNING_PATH_CACHE.get(skill)
