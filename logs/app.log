@@ -1,35 +1,8 @@
-2025-11-02 17:27:14,580 [INFO] in __init__: App startup
-2025-11-02 17:27:27,850 [INFO] in __init__: App startup
-2025-11-02 17:37:40,031 [INFO] in __init__: App startup
-2025-11-02 18:17:18,241 [INFO] in __init__: App startup
-2025-11-02 18:17:37,892 [INFO] in __init__: App startup
-2025-11-02 18:20:13,687 [INFO] in __init__: App startup
-2025-11-02 18:20:30,676 [INFO] in __init__: App startup
-2025-11-02 18:48:00,943 [INFO] in __init__: App startup
-2025-11-02 18:49:53,901 [INFO] in __init__: App startup
-2025-11-02 18:55:33,323 [INFO] in __init__: App startup
-2025-11-02 16:30:03,320 [INFO] in __init__: App startup
-2025-11-03 17:19:09,391 [INFO] in __init__: App startup
-2025-11-03 17:19:31,153 [INFO] in __init__: App startup
-2025-11-03 17:32:47,361 [INFO] in __init__: App startup
-2025-11-03 19:47:36,801 [INFO] in __init__: App startup
-2025-11-04 16:50:09,216 [INFO] in __init__: App startup
-2025-11-04 16:50:38,387 [INFO] in __init__: App startup
-2025-11-04 17:41:20,920 [INFO] in __init__: App startup
-2025-11-06 18:23:59,383 [INFO] in __init__: App startup
-2025-11-06 18:24:00,070 [INFO] in __init__: App startup
-2025-11-06 18:24:33,710 [INFO] in __init__: App startup
-2025-11-06 18:48:03,139 [INFO] in __init__: App startup
-2025-11-06 18:48:03,831 [INFO] in __init__: App startup
-2025-11-06 18:48:10,994 [INFO] in __init__: App startup
-2025-11-11 20:35:14,829 [INFO] in __init__: App startup
-2025-11-11 20:35:23,980 [INFO] in __init__: App startup
-2025-11-11 20:44:58,177 [INFO] in __init__: App startup
-2025-11-11 20:45:07,490 [INFO] in __init__: App startup
-2025-11-11 21:02:50,600 [INFO] in __init__: App startup
-2025-11-11 21:03:02,837 [INFO] in __init__: App startup
-2025-11-11 21:05:48,157 [INFO] in __init__: App startup
-2025-11-11 21:07:52,313 [INFO] in __init__: App startup
-2025-11-11 21:10:38,386 [INFO] in __init__: App startup
-2025-11-11 21:11:28,525 [INFO] in __init__: App startup
-2025-11-11 21:11:37,137 [INFO] in __init__: App startup
+2025-12-27 19:14:39,172 INFO: Application startup... [in C:\Users\Dhanush Kumar\ai-skill-gap-generator\backend\app\__init__.py:57]
+2025-12-27 19:14:39,173 WARNING: CORS_ALLOWED_ORIGINS is set to '*' - This is insecure for production! [in C:\Users\Dhanush Kumar\ai-skill-gap-generator\backend\app\__init__.py:64]
+2025-12-27 19:14:40,744 INFO: Application startup... [in C:\Users\Dhanush Kumar\ai-skill-gap-generator\backend\app\__init__.py:57]
+2025-12-27 19:14:40,745 WARNING: CORS_ALLOWED_ORIGINS is set to '*' - This is insecure for production! [in C:\Users\Dhanush Kumar\ai-skill-gap-generator\backend\app\__init__.py:64]
+2025-12-27 19:30:14,411 INFO: Application startup... [in C:\Users\Dhanush Kumar\ai-skill-gap-generator\backend\app\__init__.py:57]
+2025-12-27 19:30:14,411 WARNING: CORS_ALLOWED_ORIGINS is set to '*' - This is insecure for production! [in C:\Users\Dhanush Kumar\ai-skill-gap-generator\backend\app\__init__.py:64]
+2025-12-27 19:30:36,959 INFO: Application startup... [in C:\Users\Dhanush Kumar\ai-skill-gap-generator\backend\app\__init__.py:57]
+2025-12-27 19:30:36,959 WARNING: CORS_ALLOWED_ORIGINS is set to '*' - This is insecure for production! [in C:\Users\Dhanush Kumar\ai-skill-gap-generator\backend\app\__init__.py:64]

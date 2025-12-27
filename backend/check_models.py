@@ -6,9 +6,15 @@ load_dotenv()
 
 def main():
     try:
-        import google.generativeai as genai
-    except Exception as e:
-        print("⚠️ google.generativeai import failed:", e)
+        import google.genai as genai
+    except ImportError:
+        try:
+            import google.generativeai as genai
+        except ImportError:
+            genai = None
+
+    if genai is None:
+        print("❌ Error: Neither google.genai nor google.generativeai is available")
         return
 
     api_key = os.getenv("GEMINI_API_KEY")

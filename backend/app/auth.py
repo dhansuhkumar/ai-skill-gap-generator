@@ -4,9 +4,14 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token
 from werkzeug.security import generate_password_hash, check_password_hash
 
-from database import DB_NAME
+from backend.database import DB_NAME
 
-auth = Blueprint('auth_routes', __name__)
+auth = Blueprint('auth', __name__)
+
+# Minimal health check endpoint
+@auth.route('/ping', methods=['GET'])
+def ping():
+    return jsonify({"status": "auth service ok", "timestamp": datetime.utcnow().isoformat()}), 200
 
 
 def _get_db_connection():

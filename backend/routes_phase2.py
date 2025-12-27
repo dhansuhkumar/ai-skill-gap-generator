@@ -6,6 +6,7 @@ from flask import Blueprint, request, jsonify, current_app
 from dotenv import load_dotenv
 import openai
 from datetime import datetime
+import asyncio
 
 load_dotenv()
 openai.api_key = os.getenv("OPENAI_API_KEY")
@@ -37,21 +38,17 @@ def ensure_skill_exists(conn, skill_name):
 # ---------------------------
 def verify_jwt_token(authorization_header):
     """
-    Replace this stub with your JWT verification logic.
-    Expected to return user_id (string) if token valid, else None.
+    Verify JWT token and return user_id if valid, else None.
     """
-    if not authorization_header:
+    if not authorization_header or not authorization_header.startswith("Bearer "):
         return None
-    # header like "Bearer <token>"
     try:
+        from flask_jwt_extended import decode_token
         token = authorization_header.split()[1]
+        decoded = decode_token(token)
+        return decoded.get("sub")  # Assuming 'sub' is the user_id
     except Exception:
         return None
-    # ---- REPLACE BELOW with actual JWT verification ----
-    # For now we just return a fake user id for testing
-    # In production, decode signature & return subject
-    return "test_user_id"
-    # ---------------------------------------------------
 
 # ---------------------------
 # Endpoint: save confirmed skills for a profile
@@ -109,7 +106,7 @@ def confirm_skills():
 # Header: Authorization: Bearer <jwt>
 # ---------------------------
 @bp.route("/generate_learning_path", methods=["POST"])
-def generate_learning_path():
+async def generate_learning_path():
     user_id = verify_jwt_token(request.headers.get("Authorization"))
     if not user_id:
         return jsonify({"error": "Unauthorized"}), 401
@@ -178,7 +175,7 @@ def generate_learning_path():
     # Call OpenAI Chat API (Chat completion)
     try:
         # Use ChatCompletion with gpt-4o-mini or gpt-4 if available; adjust model name per your access
-        response = openai.ChatCompletion.create(
+        response = await openai.ChatCompletion.acreate(
             model="gpt-4o-mini",  # change if not available. Use "gpt-4o-mini" or "gpt-4" per your account
             messages=[
                 {"role": "system", "content": system_prompt},
