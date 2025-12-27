@@ -6,3 +6,4 @@ __pycache__/
 backend/projects/
 .idea/
 .vscode/
+node_modules/

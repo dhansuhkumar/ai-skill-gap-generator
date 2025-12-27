@@ -1,8 +1,9 @@
 
 import os
 from functools import wraps
+from datetime import datetime
 import jwt
-from flask import request, g, jsonify
+from flask import request, g, jsonify, Blueprint
 import requests
 
 # Security: Fetch the Supabase URL from environment variables to avoid hardcoding secrets.
@@ -10,6 +11,13 @@ SUPABASE_URL = os.getenv("SUPABASE_URL")
 # Note: The SUPABASE_KEY here is the anon key, which is public and safe to use in a browser.
 # For server-to-server interactions, you would use the service_role key.
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+
+auth = Blueprint('auth', __name__)
+
+# Minimal health check endpoint
+@auth.route('/ping', methods=['GET'])
+def ping():
+    return jsonify({"status": "auth service ok", "timestamp": datetime.utcnow().isoformat()}), 200
 
 # In-memory cache for Supabase public keys (JWKS)
 # Caching keys prevents fetching them on every request, reducing latency.

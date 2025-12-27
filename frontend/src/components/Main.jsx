@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 function Main() {
   const [resume, setResume] = useState(null);
@@ -6,6 +6,24 @@ function Main() {
   const [analysisResult, setAnalysisResult] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [backendStatus, setBackendStatus] = useState('Checking...');
+
+  useEffect(() => {
+    const checkBackend = async () => {
+      try {
+        const response = await fetch('http://127.0.0.1:8080/status');
+        if (response.ok) {
+          setBackendStatus('Backend Connected');
+        } else {
+          setBackendStatus('Backend Offline');
+        }
+      } catch (error) {
+        console.error('Backend check failed:', error);
+        setBackendStatus('Backend Offline');
+      }
+    };
+    checkBackend();
+  }, []);
 
   const handleResumeChange = (e) => {
     setResume(e.target.files[0]);
@@ -70,6 +88,9 @@ function Main() {
 
   return (
     <main>
+      <div>
+        <p>{backendStatus}</p>
+      </div>
       <form onSubmit={handleSubmit}>
         <div>
           <label htmlFor="resume">Upload Resume:</label>

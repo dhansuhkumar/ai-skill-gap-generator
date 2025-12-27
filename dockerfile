@@ -24,7 +24,6 @@ COPY . .
 # Expose the port Render expects
 EXPOSE 5000
 
-# ---- Optimization 1: Limit Gunicorn Workers ----
-# Each worker duplicates your app (and ML model if loaded globally).
-# Use 1 worker and 1 thread for low-RAM environments.
-CMD ["gunicorn", "--workers=1", "--threads=1", "--timeout=0", "--bind", "0.0.0.0:5000", "backend.run:app"]
+# ---- Optimization 1: Use Uvicorn Workers for Async Support ----
+# Use uvicorn workers to support async Flask routes
+CMD ["gunicorn", "--workers=1", "--worker-class", "uvicorn.workers.UvicornWorker", "--timeout=0", "--bind", "0.0.0.0:5000", "backend.run:app"]
