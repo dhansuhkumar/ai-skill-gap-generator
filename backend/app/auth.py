@@ -12,6 +12,7 @@ SUPABASE_URL = os.getenv("SUPABASE_URL")
 # For server-to-server interactions, you would use the service_role key.
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
+# Initialize the Blueprint
 auth = Blueprint('auth', __name__)
 
 # Minimal health check endpoint

@@ -4,7 +4,7 @@ import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from flask import Blueprint, request, jsonify, send_file, abort, current_app, g
 from user_profile import get_user_profile, save_user_profile
-from app.auth import token_required
+from .auth import token_required
 
 # Optional AI/ML-powered modules: import lazily or provide safe fallbacks
 try:
