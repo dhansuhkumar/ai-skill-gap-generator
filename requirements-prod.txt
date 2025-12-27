@@ -15,7 +15,7 @@ confection==0.1.5
 cryptography==46.0.3
 cymem==2.0.11
 distro==1.9.0
-en_core_web_sm
+https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl
 filelock==3.20.0
 Flask==3.1.2
 flask-cors==6.0.1
