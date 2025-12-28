@@ -39,7 +39,7 @@ RUN pip install --no-cache-dir /wheels/*
 COPY backend/ ./backend/
 
 # Expose the port Render expects
-EXPOSE 8080
+EXPOSE 5000
 
 # Run the application with Gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "1", "--timeout", "120", "backend.run:app"]
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "1", "--timeout", "120", "backend.run:app"]
