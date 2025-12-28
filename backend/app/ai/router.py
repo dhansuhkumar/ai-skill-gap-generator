@@ -5,6 +5,7 @@ and to persist the last successful provider in-memory.
 """
 import os
 import asyncio
+import concurrent.futures
 import time
 from threading import Lock
 import logging
@@ -15,12 +16,9 @@ from functools import lru_cache
 logger = logging.getLogger(__name__)
 
 try:
-    import google.generativeai as genai
+    from google import genai
 except ImportError:
-    try:
-        import google.genai as genai
-    except ImportError:
-        genai = None
+    genai = None
 
 if genai is None:
     logger.warning("Neither google.genai nor google.generativeai is available")
@@ -98,7 +96,8 @@ def _ensure_genai_configured():
             return
 
         try:
-            genai.configure(api_key=api_key)
+            # Client initialization for Google Gen AI SDK (v1)
+            client = genai.Client(api_key=api_key)
             _GENAI_CONFIGURED = True
             logger.info("GenAI configured successfully")
         except Exception as e:
@@ -150,7 +149,7 @@ def _provider_available(name: str) -> bool:
     return False
 
 
-async def get_ai_response(prompt: str, requested_provider: Optional[str] = None) -> str:
+def get_ai_response(prompt: str, requested_provider: Optional[str] = None) -> str:
     """Try providers in configured order and return the raw text response.
 
     - Reads `AI_PROVIDER_ORDER` env var (comma-separated) or defaults to
@@ -204,14 +203,15 @@ async def get_ai_response(prompt: str, requested_provider: Optional[str] = None)
             # Add timeout protection
             if provider == "gemini":
                 _ensure_genai_configured()
-                model_name = os.getenv("GEMINI_MODEL", "models/gemini-1.5-flash")
-                model = genai.GenerativeModel(model_name)
+                api_key = os.getenv("GEMINI_API_KEY")
+                client = genai.Client(api_key=api_key)
+                model_name = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
 
-                # Use asyncio.wait_for for timeout
-                resp = await asyncio.wait_for(
-                    model.generate_content_async(prompt),
-                    timeout=timeout
-                )
+                # Use ThreadPoolExecutor for timeout on sync call
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                    future = executor.submit(client.models.generate_content, model=model_name, contents=prompt)
+                    resp = future.result(timeout=timeout)
+
                 raw = getattr(resp, "text", "") or ""
                 if raw and _is_valid_response(raw):
                     last_success = "gemini"
@@ -220,25 +220,13 @@ async def get_ai_response(prompt: str, requested_provider: Optional[str] = None)
                     return raw
 
             elif provider == "openai":
-                # OpenAI doesn't have async in this version, wrap in thread
-                import concurrent.futures
-                import threading
-
-                def openai_call():
-                    openai.api_key = os.getenv("OPENAI_API_KEY")
-                    return openai.ChatCompletion.create(
-                        model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
-                        messages=[{"role": "user", "content": prompt}],
-                        max_tokens=1200,
-                        timeout=timeout
-                    )
-
-                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                    future = executor.submit(openai_call)
-                    resp = await asyncio.wait_for(
-                        asyncio.wrap_future(future),
-                        timeout=timeout + 2  # Extra time for thread overhead
-                    )
+                openai.api_key = os.getenv("OPENAI_API_KEY")
+                resp = openai.ChatCompletion.create(
+                    model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
+                    messages=[{"role": "user", "content": prompt}],
+                    max_tokens=1200,
+                    timeout=timeout
+                )
 
                 raw = resp.choices[0].message.content if resp and getattr(resp, 'choices', None) else ""
                 if raw and _is_valid_response(raw):
@@ -257,7 +245,6 @@ async def get_ai_response(prompt: str, requested_provider: Optional[str] = None)
                         raw = groq.generate(prompt, api_key=api_key)  # type: ignore
                         if raw and _is_valid_response(raw):
                             last_success = "groq"
-                            global LAST_SUCCESSFUL_PROVIDER
                             with _LOCK:
                                 LAST_SUCCESSFUL_PROVIDER = last_success
                             return raw
@@ -268,7 +255,7 @@ async def get_ai_response(prompt: str, requested_provider: Optional[str] = None)
                 # Return a minimal valid JSON object as a string
                 return _get_fallback_response()
 
-        except asyncio.TimeoutError:
+        except (concurrent.futures.TimeoutError, asyncio.TimeoutError):
             logger.warning("Provider %s timed out after %d seconds", provider, timeout)
             _record_failure()
         except Exception as e:

@@ -1,38 +1,27 @@
-# backend/check_models.py
 import os
 from dotenv import load_dotenv
+from google import genai
 
 load_dotenv()
 
 def main():
-    try:
-        import google.genai as genai
-    except ImportError:
-        try:
-            import google.generativeai as genai
-        except ImportError:
-            genai = None
-
-    if genai is None:
-        print("❌ Error: Neither google.genai nor google.generativeai is available")
-        return
-
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
-        print("❌ Error: API Key not found in .env")
+        print("❌ Error: GEMINI_API_KEY not found in .env")
         return
 
     try:
-        genai.configure(api_key=api_key)
+        client = genai.Client(api_key=api_key)
         print(f"✅ Key found: {api_key[:5]}... Testing connection...")
-        print("\n--- AVAILABLE MODELS ---")
-        for m in genai.list_models():
-            if 'generateContent' in getattr(m, 'supported_generation_methods', []):
-                print(f"- {getattr(m, 'name', '<unknown>')}")
-        print("------------------------\n")
+        
+        # Test a simple generation to confirm it's NOT a 404
+        model_id = 'gemini-2.5-flash'
+        print(f"Testing model: {model_id}")
+        response = client.models.generate_content(model=model_id, contents="Hello")
+        print(f"✅ Connection test successful! Response: {response.text[:10]}...")
+
     except Exception as e:
         print(f"❌ Connection Failed: {e}")
-
 
 if __name__ == '__main__':
     main()

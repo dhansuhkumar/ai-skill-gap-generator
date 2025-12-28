@@ -11,7 +11,10 @@ from pathlib import Path
 
 load_dotenv()
 
-from backend.app.ai import router as ai_router
+from google import genai
+
+# Initialize the client for Google Gen AI SDK (v1)
+client = genai.Client(api_key=os.getenv('GEMINI_API_KEY'))
 
 logger = logging.getLogger(__name__)
 if not logger.handlers:
@@ -369,7 +372,7 @@ def generate_ai_project_ideas(role, skills):
             if len(prompt) > 100000:
                 logger.warning("Prompt too long in generate_ai_project_ideas: %d characters", len(prompt))
             else:
-                raw = ai_router.get_ai_response(prompt)
+                raw = client.models.generate_content(model='gemini-2.5-flash', contents=prompt).text
                 if raw and isinstance(raw, str):
                     raw = _strip_markdown(raw)
                     if raw.strip():
@@ -385,10 +388,9 @@ def generate_ai_project_ideas(role, skills):
                                         if len(titles) >= 3:
                                             break
                                     if len(titles) == 3:
-                                        provider_used = ai_router.get_last_successful_provider() or "ai"
                                         with _LOCK:
                                             _set_cache(cache_key, titles)
-                                            LAST_AI_SOURCE = provider_used
+                                            LAST_AI_SOURCE = "gemini"
                                             _manage_cache_size()
                                         return titles
                         except Exception as e:
@@ -480,7 +482,7 @@ def get_learning_paths_for_skills(skills: list):
             if len(prompt) > 100000:
                 logger.warning("Prompt too long in get_learning_paths_for_skills: %d characters", len(prompt))
             else:
-                raw = ai_router.get_ai_response(prompt)
+                raw = client.models.generate_content(model='gemini-2.5-flash', contents=prompt).text
                 if raw and isinstance(raw, str):
                     raw = _strip_markdown(raw)
                     if raw.strip():
@@ -513,10 +515,9 @@ def get_learning_paths_for_skills(skills: list):
                                         out[sk] = {"summary": str(summary).strip(), "steps": cleaned_steps}
 
                                 if out:  # Only cache if we got valid results
-                                    provider_used = ai_router.get_last_successful_provider() or "ai"
                                     with _LOCK:
                                         _set_cache(cache_key, out)
-                                        LAST_AI_SOURCE = provider_used
+                                        LAST_AI_SOURCE = "gemini"
                                         _manage_cache_size()
                                     return out
         except Exception as e:
@@ -562,7 +563,7 @@ def get_unified_analysis(user_skills, target_role, requested_provider: str = Non
 
     # Input validation
     if not isinstance(user_skills, list):
-        user_skills = []
+        raise RuntimeError("Invalid user skills format")
     user_skills = [str(s).strip() for s in user_skills if s and isinstance(s, (str, int, float))]
     target_role = str(target_role or "").strip()
 
@@ -585,7 +586,7 @@ def get_unified_analysis(user_skills, target_role, requested_provider: str = Non
             if len(prompt) > 100000:
                 logger.warning("Prompt too long in get_unified_analysis: %d characters", len(prompt))
             else:
-                raw = ai_router.get_ai_response(prompt, requested_provider)
+                raw = client.models.generate_content(model='gemini-2.5-flash', contents=prompt).text
                 if raw and isinstance(raw, str):
                     raw = _strip_markdown(raw)
                     if raw.strip():
@@ -601,10 +602,9 @@ def get_unified_analysis(user_skills, target_role, requested_provider: str = Non
                                 }
 
                                 if result["missing_skills"] or result["roadmap"] or result["matching_score"]:  # Only cache if we got meaningful results
-                                    provider_used = ai_router.get_last_successful_provider() or "ai"
                                     with _LOCK:
                                         _set_cache(cache_key, result)
-                                        LAST_AI_SOURCE = provider_used
+                                        LAST_AI_SOURCE = "gemini"
                                         _manage_cache_size()
                                     return result
         except Exception as e:
