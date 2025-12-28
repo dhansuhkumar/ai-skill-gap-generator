@@ -10,6 +10,8 @@ load_dotenv()
 # This module no longer imports or configures Gemini directly; use
 # `ai_generator.get_unified_analysis` for AI-driven analysis.
 
+from . import ai_generator
+
 
 def _normalize_skill_name(name: str) -> str:
     """

@@ -15,10 +15,10 @@ from functools import lru_cache
 logger = logging.getLogger(__name__)
 
 try:
-    import google.genai as genai
+    import google.generativeai as genai
 except ImportError:
     try:
-        import google.generativeai as genai
+        import google.genai as genai
     except ImportError:
         genai = None
 
@@ -160,6 +160,8 @@ async def get_ai_response(prompt: str, requested_provider: Optional[str] = None)
     - Returns a string (should be valid JSON for our callers); on local
       fallback it returns a minimal valid JSON string.
     """
+    global LAST_SUCCESSFUL_PROVIDER
+
     # Validate input
     if not isinstance(prompt, str) or not prompt.strip():
         logger.warning("Invalid prompt provided to get_ai_response")
@@ -202,7 +204,7 @@ async def get_ai_response(prompt: str, requested_provider: Optional[str] = None)
             # Add timeout protection
             if provider == "gemini":
                 _ensure_genai_configured()
-                model_name = os.getenv("GEMINI_MODEL", "models/gemini-2.5-flash")
+                model_name = os.getenv("GEMINI_MODEL", "models/gemini-1.5-flash")
                 model = genai.GenerativeModel(model_name)
 
                 # Use asyncio.wait_for for timeout
@@ -214,7 +216,6 @@ async def get_ai_response(prompt: str, requested_provider: Optional[str] = None)
                 if raw and _is_valid_response(raw):
                     last_success = "gemini"
                     with _LOCK:
-                        global LAST_SUCCESSFUL_PROVIDER
                         LAST_SUCCESSFUL_PROVIDER = last_success
                     return raw
 
@@ -242,7 +243,6 @@ async def get_ai_response(prompt: str, requested_provider: Optional[str] = None)
                 raw = resp.choices[0].message.content if resp and getattr(resp, 'choices', None) else ""
                 if raw and _is_valid_response(raw):
                     last_success = "openai"
-                    global LAST_SUCCESSFUL_PROVIDER
                     with _LOCK:
                         LAST_SUCCESSFUL_PROVIDER = last_success
                     return raw

@@ -262,20 +262,13 @@ def _get_heuristic_unified_analysis(user_skills: List[str], target_role: str) ->
     """Generate unified analysis using skill relationships."""
     if not _SKILL_DATA:
         return {
-            "schema_version": "v1",
-            "candidate_required_skills": ["JavaScript", "Python", "SQL", "Git", "Problem Solving"],
-            "candidate_missing_skills": ["JavaScript", "SQL"],
-            "suggested_focus_skills": ["JavaScript", "SQL"],
-            "job_matches": [
-                {"role": "Software Developer", "match_percent": 65},
-                {"role": "Web Developer", "match_percent": 70},
-                {"role": "Data Analyst", "match_percent": 60}
+            "missing_skills": ["JavaScript", "SQL"],
+            "roadmap": [
+                {"title": "Learn JavaScript Basics", "description": "Master fundamental JavaScript concepts and syntax."},
+                {"title": "Practice SQL Queries", "description": "Understand database querying and manipulation."},
+                {"title": "Build a Simple Web App", "description": "Combine skills to create a basic application."}
             ],
-            "ai_projects_sample": [
-                {"title": "Build a Web Application", "short": "Create a full-stack web app"},
-                {"title": "Data Analysis Tool", "short": "Build a tool for data processing"},
-                {"title": "API Development", "short": "Develop RESTful APIs"}
-            ]
+            "matching_score": 65
         }
 
     # Normalize user skills
@@ -313,32 +306,28 @@ def _get_heuristic_unified_analysis(user_skills: List[str], target_role: str) ->
     # Calculate missing skills
     missing_skills = [skill for skill in required_skills if skill.lower() not in user_skills_set]
 
-    # Suggest focus skills (top missing skills by importance)
-    suggested_focus = missing_skills[:5]
-
-    # Generate job matches based on skill overlap
+    # Calculate matching score based on skill overlap
     base_match = len(user_skills_set & set(s.lower() for s in required_skills)) / len(required_skills) * 100
-    job_matches = [
-        {"role": f"{target_role} Specialist", "match_percent": min(100, int(base_match + 10))},
-        {"role": f"Senior {target_role}", "match_percent": min(100, int(base_match - 5))},
-        {"role": f"Junior {target_role}", "match_percent": min(100, int(base_match + 15))},
-        {"role": f"{target_role} Intern", "match_percent": min(100, int(base_match + 20))}
-    ]
+    matching_score = min(100, int(base_match))
 
-    # Generate project ideas
-    projects = _get_heuristic_project_ideas(target_role, user_skills)
-    ai_projects_sample = [
-        {"title": project, "short": f"Hands-on project to practice {target_role.lower()} skills"}
-        for project in projects
-    ]
+    # Generate roadmap as a list of steps
+    roadmap = []
+    for i, skill in enumerate(missing_skills[:5], 1):
+        roadmap.append({
+            "title": f"Learn {skill}",
+            "description": f"Focus on mastering {skill} to improve your fit for {target_role}."
+        })
+    if not roadmap:
+        roadmap = [
+            {"title": "Review Core Skills", "description": "Ensure proficiency in basic skills for the role."},
+            {"title": "Practice Projects", "description": "Build projects to apply your knowledge."},
+            {"title": "Seek Feedback", "description": "Get feedback on your skills and progress."}
+        ]
 
     return {
-        "schema_version": "v1",
-        "candidate_required_skills": required_skills,
-        "candidate_missing_skills": missing_skills,
-        "suggested_focus_skills": suggested_focus,
-        "job_matches": job_matches,
-        "ai_projects_sample": ai_projects_sample
+        "missing_skills": missing_skills,
+        "roadmap": roadmap,
+        "matching_score": matching_score
     }
 
 
@@ -591,7 +580,7 @@ def get_unified_analysis(user_skills, target_role, requested_provider: str = Non
     if AI_AVAILABLE:
         try:
             user_skills_list = json.dumps(limited_user_skills)
-            prompt = f"Return JSON: {{schema_version:v1, candidate_required_skills:[str], candidate_missing_skills:[str], suggested_focus_skills:[str], job_matches:[{{role:str, match_percent:int}} exactly 3], ai_projects_sample:[{{title:str, short:str}} exactly 3]}} for role {target_role} and skills {user_skills_list}. Output JSON only."
+            prompt = f"Return JSON: {{missing_skills:[str], roadmap:[{{title:str, description:str}}], matching_score:int}} for target role {target_role} and user skills {user_skills_list}. Output JSON only."
 
             if len(prompt) > 100000:
                 logger.warning("Prompt too long in get_unified_analysis: %d characters", len(prompt))
@@ -606,15 +595,12 @@ def get_unified_analysis(user_skills, target_role, requested_provider: str = Non
                             if isinstance(parsed, dict) and parsed:
                                 # Basic validation and normalization
                                 result = {
-                                    "schema_version": parsed.get("schema_version") or "v1",
-                                    "candidate_required_skills": [str(s).strip() for s in (parsed.get("candidate_required_skills") or [])][:20],
-                                    "candidate_missing_skills": [str(s).strip() for s in (parsed.get("candidate_missing_skills") or [])],
-                                    "suggested_focus_skills": [str(s).strip() for s in (parsed.get("suggested_focus_skills") or [])][:5],
-                                    "job_matches": parsed.get("job_matches") or [],
-                                    "ai_projects_sample": parsed.get("ai_projects_sample") or [],
+                                    "missing_skills": [str(s).strip() for s in (parsed.get("missing_skills") or [])],
+                                    "roadmap": parsed.get("roadmap") or [],
+                                    "matching_score": int(parsed.get("matching_score") or 0),
                                 }
 
-                                if result["candidate_required_skills"] or result["job_matches"] or result["ai_projects_sample"]:  # Only cache if we got meaningful results
+                                if result["missing_skills"] or result["roadmap"] or result["matching_score"]:  # Only cache if we got meaningful results
                                     provider_used = ai_router.get_last_successful_provider() or "ai"
                                     with _LOCK:
                                         _set_cache(cache_key, result)
@@ -638,20 +624,13 @@ def get_unified_analysis(user_skills, target_role, requested_provider: str = Non
 
     # Static fallback
     static_result = {
-        "schema_version": "v1",
-        "candidate_required_skills": ["JavaScript", "Python", "SQL", "Git", "Problem Solving"],
-        "candidate_missing_skills": ["JavaScript", "SQL"],
-        "suggested_focus_skills": ["JavaScript", "SQL"],
-        "job_matches": [
-            {"role": "Software Developer", "match_percent": 65},
-            {"role": "Web Developer", "match_percent": 70},
-            {"role": "Data Analyst", "match_percent": 60}
+        "missing_skills": ["JavaScript", "SQL"],
+        "roadmap": [
+            {"title": "Learn JavaScript Basics", "description": "Master fundamental JavaScript concepts and syntax."},
+            {"title": "Practice SQL Queries", "description": "Understand database querying and manipulation."},
+            {"title": "Build a Simple Web App", "description": "Combine skills to create a basic application."}
         ],
-        "ai_projects_sample": [
-            {"title": "Build a Web Application", "short": "Create a full-stack web app"},
-            {"title": "Data Analysis Tool", "short": "Build a tool for data processing"},
-            {"title": "API Development", "short": "Develop RESTful APIs"}
-        ]
+        "matching_score": 65
     }
 
     with _LOCK:
