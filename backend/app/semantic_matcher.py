@@ -1,18 +1,19 @@
 import json
 
-
 def load_known_skills():
     with open("backend/app/skill_data.json") as f:
         data = json.load(f)
     return list(data.keys())
 
-
 def match_input_to_skill(user_input):
-    """Simple heuristic matcher: prefers exact or substring matches to known skills.
+    """
+    Matches user input to a known skill using a simple keyword-based heuristic match.
+    """
+    return simple_keyword_match(user_input)
 
-    This avoids importing heavy ML libraries at module import time. If you want
-    embed-based matching, consider adding a separate service or enabling it
-    explicitly (not enabled by default).
+def simple_keyword_match(user_input):
+    """
+    Simple heuristic matcher: prefers exact or substring matches to known skills.
     """
     known_skills = load_known_skills()
     ui = (user_input or "").strip().lower()

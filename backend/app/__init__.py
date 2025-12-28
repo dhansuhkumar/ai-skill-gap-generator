@@ -21,19 +21,13 @@ except ImportError: # Use ImportError here
 UPLOAD_FOLDER = os.path.join(os.getcwd(), 'uploads')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# Load SentenceTransformer model once at application startup
-# _embedding_model = None
-# try:
-#     from sentence_transformers import SentenceTransformer
-#     _embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
-#     logging.info("SentenceTransformer model loaded successfully at app startup for /api/embed.")
-# except ImportError:
-#     logging.warning("SentenceTransformer not installed. /api/embed will not function.")
-# except Exception as e:
-#     logging.error(f"Error loading SentenceTransformer model at app startup: {e}")
+_embedding_model = None
 
 def create_app():
     app = Flask(__name__)
+
+    # Allow requests specifically from your frontend dev server
+    CORS(app, resources={r"/*": {"origins": "http://localhost:5173"}}, supports_credentials=True)
 
     # Configure logging
     log_file_path = os.path.join(os.getcwd(), 'logs', 'app.log')
