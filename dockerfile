@@ -39,7 +39,7 @@ RUN pip install --no-cache-dir /wheels/*
 COPY backend/ ./backend/
 
 # Expose the port Render expects
-EXPOSE 5000
+EXPOSE 8080
 
-# Use uvicorn workers to support async Flask routes
-CMD ["gunicorn", "--workers=1", "--worker-class", "uvicorn.workers.UvicornWorker", "--timeout=0", "--bind", "0.0.0.0:5000", "backend.run:app"]
+# Run the application with Gunicorn
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "1", "--timeout", "120", "backend.run:app"]
