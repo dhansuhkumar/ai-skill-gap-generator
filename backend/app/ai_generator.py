@@ -5,16 +5,21 @@ import hashlib
 import logging
 import threading
 import time
-from typing import List
+from typing import List, Any
 from dotenv import load_dotenv
 from pathlib import Path
 
 load_dotenv()
 
-from google import genai
+try:
+    from google import genai
+except ImportError:
+    genai = None
 
-# Initialize the client for Google Gen AI SDK (v1)
-client = genai.Client(api_key=os.getenv('GEMINI_API_KEY'))
+try:
+    import openai
+except ImportError:
+    openai = None
 
 logger = logging.getLogger(__name__)
 if not logger.handlers:
@@ -36,7 +41,115 @@ _MAX_CACHE_SIZE = 1000  # Maximum number of cache entries
 # Cache TTL in seconds (24 hours)
 _CACHE_TTL = 86400
 
-# Router handles provider clients and configuration (genai/openai)
+# Provider availability flags (set on startup)
+GEMINI_AVAILABLE = False
+OPENAI_AVAILABLE = False
+
+# Validate API keys on startup
+def _validate_api_keys():
+    """Validate API keys and set availability flags."""
+    global GEMINI_AVAILABLE, OPENAI_AVAILABLE, AI_AVAILABLE
+
+    # Check Gemini
+    gemini_key = os.getenv('GEMINI_API_KEY')
+    if gemini_key:
+        try:
+            # Test client creation
+            test_client = genai.Client(api_key=gemini_key)
+            GEMINI_AVAILABLE = True
+            logger.info("Gemini API key validated successfully")
+        except Exception as e:
+            logger.warning("Gemini API key validation failed: %s", e)
+            GEMINI_AVAILABLE = False
+    else:
+        logger.warning("GEMINI_API_KEY not set")
+        GEMINI_AVAILABLE = False
+
+    # Check OpenAI
+    openai_key = os.getenv('OPENAI_API_KEY')
+    if openai_key:
+        try:
+            # Test client creation
+            import openai
+            openai.api_key = openai_key
+            OPENAI_AVAILABLE = True
+            logger.info("OpenAI API key validated successfully")
+        except Exception as e:
+            logger.warning("OpenAI API key validation failed: %s", e)
+            OPENAI_AVAILABLE = False
+    else:
+        logger.warning("OPENAI_API_KEY not set")
+        OPENAI_AVAILABLE = False
+
+    # Set overall AI availability
+    AI_AVAILABLE = GEMINI_AVAILABLE or OPENAI_AVAILABLE
+    if not AI_AVAILABLE:
+        logger.warning("No AI providers available - falling back to heuristic/static responses")
+
+# Initialize provider validation
+_validate_api_keys()
+
+def _select_provider(requested_provider: str = None) -> str:
+    """Select AI provider based on request and availability.
+
+    Priority: requested_provider > Gemini > OpenAI > heuristic
+    """
+    if requested_provider:
+        requested_provider = requested_provider.lower()
+        if requested_provider == "gemini" and GEMINI_AVAILABLE:
+            return "gemini"
+        elif requested_provider == "openai" and OPENAI_AVAILABLE:
+            return "openai"
+        elif requested_provider == "local":
+            return "heuristic"
+
+    # Default priority: Gemini -> OpenAI -> heuristic
+    if GEMINI_AVAILABLE:
+        return "gemini"
+    elif OPENAI_AVAILABLE:
+        return "openai"
+    else:
+        return "heuristic"
+
+def _call_ai_provider(provider: str, prompt: str) -> str:
+    """Call the specified AI provider with error handling."""
+    global AI_AVAILABLE, GEMINI_AVAILABLE, OPENAI_AVAILABLE
+
+    try:
+        if provider == "gemini":
+            if not GEMINI_AVAILABLE:
+                raise RuntimeError("Gemini not available")
+            client = genai.Client(api_key=os.getenv('GEMINI_API_KEY'))
+            response = client.models.generate_content(model='gemini-2.0-flash', contents=prompt)
+            return response.text if response and hasattr(response, 'text') else ""
+
+        elif provider == "openai":
+            if not OPENAI_AVAILABLE:
+                raise RuntimeError("OpenAI not available")
+            import openai
+            openai.api_key = os.getenv('OPENAI_API_KEY')
+            response = openai.ChatCompletion.create(
+                model="gpt-4o-mini",
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=1200
+            )
+            return response.choices[0].message.content if response and response.choices else ""
+
+        else:
+            raise ValueError(f"Unknown provider: {provider}")
+
+    except Exception as e:
+        error_msg = str(e).lower()
+        if "api_key_invalid" in error_msg or "invalid api key" in error_msg:
+            logger.error("API key invalid for provider %s: %s", provider, e)
+            if provider == "gemini":
+                GEMINI_AVAILABLE = False
+            elif provider == "openai":
+                OPENAI_AVAILABLE = False
+            AI_AVAILABLE = GEMINI_AVAILABLE or OPENAI_AVAILABLE
+        else:
+            logger.warning("AI provider %s failed: %s", provider, e)
+        raise
 
 # Load skill data for heuristic fallbacks
 _SKILL_DATA = {}
@@ -334,12 +447,12 @@ def _get_heuristic_unified_analysis(user_skills: List[str], target_role: str) ->
     }
 
 
-def generate_ai_project_ideas(role, skills):
+def generate_ai_project_ideas(role, skills, requested_provider: str = None):
     """
     Generate project ideas using AI → Cache → Heuristic → Static hierarchy.
     Returns list[str] of 3 project titles.
     """
-    global AI_AVAILABLE, AI_CACHE, LAST_AI_SOURCE
+    global AI_CACHE, LAST_AI_SOURCE
 
     # Input validation
     if not isinstance(role, str) or not role.strip():
@@ -360,8 +473,12 @@ def generate_ai_project_ideas(role, skills):
             LAST_AI_SOURCE = "cache"
             return cached
 
-    # Try AI first
-    if AI_AVAILABLE:
+    # Select provider
+    provider = _select_provider(requested_provider)
+    logger.info("AI_PROVIDER_USED=%s for generate_ai_project_ideas", provider)
+
+    # Try AI first if provider is available
+    if provider in ["gemini", "openai"]:
         try:
             prompt = (
                 "Return EXACTLY 3 short project titles (strings) as a JSON array."
@@ -372,7 +489,7 @@ def generate_ai_project_ideas(role, skills):
             if len(prompt) > 100000:
                 logger.warning("Prompt too long in generate_ai_project_ideas: %d characters", len(prompt))
             else:
-                raw = client.models.generate_content(model='gemini-2.5-flash', contents=prompt).text
+                raw = _call_ai_provider(provider, prompt)
                 if raw and isinstance(raw, str):
                     raw = _strip_markdown(raw)
                     if raw.strip():
@@ -390,7 +507,7 @@ def generate_ai_project_ideas(role, skills):
                                     if len(titles) == 3:
                                         with _LOCK:
                                             _set_cache(cache_key, titles)
-                                            LAST_AI_SOURCE = "gemini"
+                                            LAST_AI_SOURCE = provider
                                             _manage_cache_size()
                                         return titles
                         except Exception as e:
@@ -424,7 +541,7 @@ def generate_ai_project_ideas(role, skills):
     return static_result
 
 
-def generate_learning_path_for_skill(skill: str):
+def generate_learning_path_for_skill(skill: str, requested_provider: str = None):
     # Single-skill helper that uses the batched `get_learning_paths_for_skills`
     # to avoid calling Gemini per-skill. If AI is unavailable, return fallback.
     fallback = {
@@ -441,7 +558,7 @@ def generate_learning_path_for_skill(skill: str):
 
     try:
         # Use centralized batched call for a single skill to respect single-entrypoint
-        res = get_learning_paths_for_skills([skill])
+        res = get_learning_paths_for_skills([skill], requested_provider)
         if isinstance(res, dict) and skill in res:
             return res.get(skill) or fallback
         return fallback
@@ -449,12 +566,12 @@ def generate_learning_path_for_skill(skill: str):
         return fallback
 
 
-def get_learning_paths_for_skills(skills: list):
+def get_learning_paths_for_skills(skills: list, requested_provider: str = None):
     """
     Batch-generate learning paths for a list of skills using AI → Cache → Heuristic → Static hierarchy.
     Returns a dict mapping skill -> {summary, steps}.
     """
-    global AI_AVAILABLE, AI_CACHE, LAST_AI_SOURCE
+    global AI_CACHE, LAST_AI_SOURCE
 
     # Input validation
     if not isinstance(skills, list):
@@ -470,19 +587,23 @@ def get_learning_paths_for_skills(skills: list):
             LAST_AI_SOURCE = "cache"
             return cached
 
+    # Select provider
+    provider = _select_provider(requested_provider)
+    logger.info("AI_PROVIDER_USED=%s for get_learning_paths_for_skills", provider)
+
     # Limit skills to top 10 for token efficiency
     limited_skills = skills[:10]
     skills_json = json.dumps(limited_skills)
 
-    # Try AI first
-    if AI_AVAILABLE:
+    # Try AI first if provider is available
+    if provider in ["gemini", "openai"]:
         try:
             prompt = f"Return JSON: {{skill: {{summary: str, steps: [{{day_from:int, day_to:int, title:str, tasks:[str], project:str, resources:[str]}} exactly 3 per skill]}}}} for skills {skills_json}. Output JSON only."
 
             if len(prompt) > 100000:
                 logger.warning("Prompt too long in get_learning_paths_for_skills: %d characters", len(prompt))
             else:
-                raw = client.models.generate_content(model='gemini-2.5-flash', contents=prompt).text
+                raw = _call_ai_provider(provider, prompt)
                 if raw and isinstance(raw, str):
                     raw = _strip_markdown(raw)
                     if raw.strip():
@@ -517,7 +638,7 @@ def get_learning_paths_for_skills(skills: list):
                                 if out:  # Only cache if we got valid results
                                     with _LOCK:
                                         _set_cache(cache_key, out)
-                                        LAST_AI_SOURCE = "gemini"
+                                        LAST_AI_SOURCE = provider
                                         _manage_cache_size()
                                     return out
         except Exception as e:
@@ -559,7 +680,7 @@ def get_unified_analysis(user_skills, target_role, requested_provider: str = Non
     Generate unified analysis using AI → Cache → Heuristic → Static hierarchy.
     Returns a validated JSON object matching the task schema.
     """
-    global AI_AVAILABLE, AI_CACHE, LAST_AI_SOURCE
+    global AI_CACHE, LAST_AI_SOURCE
 
     # Input validation
     if not isinstance(user_skills, list):
@@ -577,8 +698,12 @@ def get_unified_analysis(user_skills, target_role, requested_provider: str = Non
             LAST_AI_SOURCE = "cache"
             return cached
 
-    # Try AI first
-    if AI_AVAILABLE:
+    # Select provider
+    provider = _select_provider(requested_provider)
+    logger.info("AI_PROVIDER_USED=%s for get_unified_analysis", provider)
+
+    # Try AI first if provider is available
+    if provider in ["gemini", "openai"]:
         try:
             user_skills_list = json.dumps(limited_user_skills)
             prompt = f"Return JSON: {{missing_skills:[str], roadmap:[{{title:str, description:str}}], matching_score:int}} for target role {target_role} and user skills {user_skills_list}. Output JSON only."
@@ -586,7 +711,7 @@ def get_unified_analysis(user_skills, target_role, requested_provider: str = Non
             if len(prompt) > 100000:
                 logger.warning("Prompt too long in get_unified_analysis: %d characters", len(prompt))
             else:
-                raw = client.models.generate_content(model='gemini-2.5-flash', contents=prompt).text
+                raw = _call_ai_provider(provider, prompt)
                 if raw and isinstance(raw, str):
                     raw = _strip_markdown(raw)
                     if raw.strip():
@@ -604,7 +729,7 @@ def get_unified_analysis(user_skills, target_role, requested_provider: str = Non
                                 if result["missing_skills"] or result["roadmap"] or result["matching_score"]:  # Only cache if we got meaningful results
                                     with _LOCK:
                                         _set_cache(cache_key, result)
-                                        LAST_AI_SOURCE = "gemini"
+                                        LAST_AI_SOURCE = provider
                                         _manage_cache_size()
                                     return result
         except Exception as e:

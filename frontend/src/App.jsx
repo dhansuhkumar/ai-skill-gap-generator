@@ -4,38 +4,39 @@ import Main from './components/Main';
 import Footer from './components/Footer';
 import './App.css';
 import { createClient } from '@supabase/supabase-js';
+import { API_BASE_URL } from './config';
 
 const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_KEY);
 
 function App() {
   useEffect(() => {
-    const getSession = async () => {
-      const { data, error } = await supabase.auth.getSession();
-      if (error || !data.session) {
-        window.location.href = 'login.html';
-      } else {
-        // Add the JWT to all subsequent requests
-        const a = document.createElement("a");
-        a.href = "/api";
-        const apiUrl = a.href;
+    const checkAuth = async () => {
+      // Check local JWT - this is what we get from login.html
+      const jwtToken = localStorage.getItem("jwtToken");
 
-        const originalFetch = fetch;
-        window.fetch = async (url, options) => {
-          if (url.startsWith(apiUrl)) {
-            const headers = new Headers(options ? options.headers : {})
-            headers.set('Authorization', `Bearer ${data.session.access_token}`);
-            
-            const newOptions = {
-              ...options,
-              headers,
-            };
-            return originalFetch(url, newOptions);
-          }
-          return originalFetch(url, options);
-        };
+      if (!jwtToken) {
+        console.warn("Authentication missing. Redirecting to login.");
+        window.location.href = 'login.html';
+        return;
       }
+
+      // 3. Setup Fetch Interceptor
+      const originalFetch = window.fetch;
+      window.fetch = async (url, options = {}) => {
+        const token = localStorage.getItem("jwtToken");
+
+        // Inject Authorization header for requests to our Backend API
+        if (url.toString().startsWith(API_BASE_URL) && token) {
+          options.headers = {
+            ...options.headers,
+            'Authorization': `Bearer ${token}`
+          };
+        }
+        return originalFetch(url, options);
+      };
     };
-    getSession();
+
+    checkAuth();
   }, []);
 
   return (
@@ -48,3 +49,4 @@ function App() {
 }
 
 export default App;
+

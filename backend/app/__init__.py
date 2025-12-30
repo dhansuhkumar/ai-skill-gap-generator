@@ -26,42 +26,24 @@ _embedding_model = None
 def create_app():
     app = Flask(__name__)
 
-    # Allow requests specifically from your frontend dev server
-    CORS(app, resources={r"/*": {"origins": "http://localhost:5173"}}, supports_credentials=True)
+    # Configure CORS - Use environment variable or default to local dev ports
+    raw_origins = os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:5174,http://localhost:5173,http://127.0.0.1:5174,http://127.0.0.1:5173")
 
-    # Configure logging
-    log_file_path = os.path.join(os.getcwd(), 'logs', 'app.log')
-    os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
-    file_handler = RotatingFileHandler(log_file_path, maxBytes=10240, backupCount=10)
-    file_handler.setFormatter(logging.Formatter(
-        '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
-    ))
-    file_handler.setLevel(logging.INFO)
+    allowed_origins = [origin.strip() for origin in raw_origins.split(',')] if raw_origins != "*" else "*"
 
-    # Add console handler for stdout in production/container environments
-    console_handler = logging.StreamHandler()
-    console_handler.setFormatter(logging.Formatter(
-        '%(asctime)s %(levelname)s: %(message)s'
-    ))
-    console_handler.setLevel(logging.INFO)
+    CORS(
+        app,
+        resources={
+            r"/*": {
+                "origins": "*",
+                "supports_credentials": True,
+                "allow_headers": ["Content-Type", "Authorization", "Access-Control-Allow-Origin"],
+                "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+            },
+        },
+    )
 
-    app.logger.addHandler(file_handler)
-    app.logger.addHandler(console_handler)
-    app.logger.setLevel(logging.INFO)
-    app.logger.info('Application startup...')
 
-    app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-
-    # Configure CORS - Production Hardening
-    allowed_origins_str = os.getenv("CORS_ALLOWED_ORIGINS", "*")
-    if allowed_origins_str == "*":
-        app.logger.warning("CORS_ALLOWED_ORIGINS is set to '*' - This is insecure for production!")
-        allowed_origins = ["*"]
-    else:
-        allowed_origins = [origin.strip() for origin in allowed_origins_str.split(',')]
-        app.logger.info(f"CORS_ALLOWED_ORIGINS set to: {allowed_origins}")
-
-    CORS(app, resources={r"/*": {"origins": allowed_origins}}, supports_credentials=True)
     # ✅ SECURE: Read secret from .env
     jwt_secret_key = os.getenv("JWT_SECRET_KEY")
     if not jwt_secret_key:

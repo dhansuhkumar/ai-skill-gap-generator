@@ -7,13 +7,14 @@ import pytest
 # This is needed so that the test can find the `backend` module
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from app.ai_generator import generate_learning_path_for_skill, _ensure_genai_configured
+from app.ai_generator import generate_learning_path_for_skill
+from backend.app.ai.router import _ensure_genai_configured
 
 @pytest.fixture(autouse=True)
 def ensure_genai_configured_for_tests():
     # Reset the configuration flag to ensure it runs for tests
-    from backend.app import ai_generator
-    ai_generator._GENAI_CONFIGURED = False
+    from backend.app.ai import router
+    router._GENAI_CONFIGURED = False
     # The user must have GEMINI_API_KEY set in their environment
     _ensure_genai_configured()
 

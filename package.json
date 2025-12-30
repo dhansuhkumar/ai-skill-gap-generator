@@ -7,8 +7,8 @@
     "test": "tests"
   },
   "scripts": {
-    "start": "node index.js",
-    "dev": "node --watch index.js",
+    "start": "npm run start --prefix frontend",
+    "dev": "npm run dev --prefix frontend",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {

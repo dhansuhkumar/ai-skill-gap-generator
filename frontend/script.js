@@ -7,7 +7,7 @@ const isLocal =
   window.location.protocol === "file:";
 
 const BASE_URL = isLocal
-  ? "http://localhost:5000"
+  ? "http://localhost:8080"
   : "https://your-production-backend.com";
 let skillChartInstance = null;
 function updateUIWithRecommendations(data, role, userSkills) {
