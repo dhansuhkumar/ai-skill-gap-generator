@@ -12,7 +12,7 @@ try:
 except Exception as _e:
     def find_missing_skills(user_skills, role):
         return []
-    def generate_micro_projects(missing_skills, include_videos=False, max_results=3):
+    def generate_micro_projects(missing_skills, include_videos=False, max_results_per_skill=3):
         return []
 
 try:
@@ -99,7 +99,7 @@ def recommend():
             "required_skills_ai": required_skills_ai
         }), 200
         
-    projects = generate_micro_projects(missing, include_videos=fetch_videos, max_results=max_videos)
+    projects = generate_micro_projects(missing, include_videos=fetch_videos, max_results_per_skill=max_videos)
     starter_projects = [str(create_zip(skill)) for skill in missing]
     
     return jsonify({

@@ -47,7 +47,7 @@ if _get_supabase_func:
 
 if not supabase_client:
     from backend.database import init_db
-    init_db()
+    init_db() # Module-level call for Gunicorn
 else:
     print("Using Supabase for persistence — local SQLite init skipped.")
 
@@ -71,5 +71,8 @@ def set_response_headers(response):
 #     return response
 
 if __name__ == "__main__":
+    if not supabase_client:
+        from backend.database import init_db
+        init_db()
     app.run(host="0.0.0.0", port=8080, debug=True)
 

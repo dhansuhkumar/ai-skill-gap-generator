@@ -136,7 +136,7 @@ def _call_ai_provider(provider: str, prompt: str) -> str:
             if not GEMINI_AVAILABLE:
                 raise RuntimeError("Gemini not available")
             client = genai.Client(api_key=os.getenv('GEMINI_API_KEY'))
-            response = client.models.generate_content(model='gemini-2.0-flash', contents=prompt)
+            response = client.models.generate_content(model='gemini-2.5-flash-lite', contents=prompt)
             return response.text if response and hasattr(response, 'text') else ""
 
         elif provider == "openai":

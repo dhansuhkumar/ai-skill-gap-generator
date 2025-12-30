@@ -15,7 +15,7 @@ def main():
         print(f"✅ Key found: {api_key[:5]}... Testing connection...")
         
         # Test a simple generation to confirm it's NOT a 404
-        model_id = 'gemini-2.5-flash'
+        model_id = 'gemini-2.5-flash-lite'
         print(f"Testing model: {model_id}")
         response = client.models.generate_content(model=model_id, contents="Hello")
         print(f"✅ Connection test successful! Response: {response.text[:10]}...")
