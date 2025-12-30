@@ -1,6 +1,7 @@
 # backend/app/ai_generator.py
 import os
 import json
+import re
 import hashlib
 import logging
 import threading

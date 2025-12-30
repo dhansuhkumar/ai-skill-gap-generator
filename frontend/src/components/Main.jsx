@@ -152,8 +152,8 @@ function Main() {
                       type="button"
                       onClick={() => setAiProvider(option.id)}
                       className={`py-2 px-1 text-[10px] font-bold rounded-lg border transition-all ${aiProvider === option.id
-                          ? 'bg-cyan-500/20 border-cyan-500 text-cyan-400'
-                          : 'bg-slate-950 border-slate-800 text-slate-500 hover:border-slate-700 hover:text-slate-400'
+                        ? 'bg-cyan-500/20 border-cyan-500 text-cyan-400'
+                        : 'bg-slate-950 border-slate-800 text-slate-500 hover:border-slate-700 hover:text-slate-400'
                         }`}
                     >
                       {option.label}
@@ -242,7 +242,7 @@ function Main() {
                           <ul className="text-xs space-y-2 text-slate-400">
                             {proj.learning_path_steps.slice(0, 3).map((step, si) => (
                               <li key={si} className="flex items-start gap-2">
-                                <span className="text-cyan-500 mt-0.5 text-[8px]">●</span> {step}
+                                <span className="text-cyan-500 mt-0.5 text-[8px]">●</span> {typeof step === 'string' ? step : step.title}
                               </li>
                             ))}
                           </ul>
