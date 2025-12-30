@@ -1,4 +1,5 @@
 import os
+import re
 from pathlib import Path
 import zipfile
 
@@ -11,8 +12,12 @@ BASE_DIR.mkdir(exist_ok=True)
 
 def create_project(skill):
     """Creates a small starter project folder with a README"""
-    skill_dir = BASE_DIR / skill.replace(" ", "_")
-    skill_dir.mkdir(exist_ok=True)
+    # Sanitize skill name for filesystem compatibility
+    safe_skill = re.sub(r'[\\/*?:"<>|]', '_', skill)
+    skill_dir = BASE_DIR / safe_skill
+    
+    # Ensure parent directory exists
+    os.makedirs(skill_dir, exist_ok=True)
     
     # Create README file with instructions
     readme_path = skill_dir / "README.txt"
@@ -24,8 +29,10 @@ def create_project(skill):
 
 def create_zip(skill):
     """Generate a zip file of the starter project"""
+    # Sanitize skill name for filesystem compatibility
+    safe_skill = re.sub(r'[\\/*?:"<>|]', '_', skill)
     skill_dir = create_project(skill)
-    zip_path = BASE_DIR / f"{skill.replace(' ', '_')}.zip"
+    zip_path = BASE_DIR / f"{safe_skill}.zip"
     
     with zipfile.ZipFile(zip_path, "w") as zipf:
         for file in skill_dir.rglob("*"):

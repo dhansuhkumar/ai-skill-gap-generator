@@ -243,8 +243,17 @@ def _extract_json_like(text: str):
     """
     if not isinstance(text, str):
         raise ValueError("No text to parse")
+    
     s = text.strip()
-    # find first { or [ and matching closing
+    
+    # Use regex to find JSON object or array, handling multiline content
+    # This will match from first { to last } or first [ to last ]
+    match = re.search(r'(\{.*\}|\[.*\])', s, re.DOTALL)
+    
+    if match:
+        return match.group(0)
+    
+    # Fallback to original logic if regex doesn't match
     first_obj = min([idx for idx in [s.find('{'), s.find('[')] if idx != -1], default=-1)
     if first_obj == -1:
         raise ValueError("No JSON start found")

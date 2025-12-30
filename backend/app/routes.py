@@ -99,8 +99,19 @@ def recommend():
             "required_skills_ai": required_skills_ai
         }), 200
         
+        
     projects = generate_micro_projects(missing, include_videos=fetch_videos, max_results_per_skill=max_videos)
-    starter_projects = [str(create_zip(skill)) for skill in missing]
+    
+    # Create starter projects with error handling
+    starter_projects = []
+    for skill in missing:
+        try:
+            zip_path = create_zip(skill)
+            starter_projects.append(str(zip_path))
+        except Exception as e:
+            print(f"⚠️ Failed to create zip for skill '{skill}': {e}")
+            # Continue processing other skills instead of failing completely
+            continue
     
     return jsonify({
         "missing_skills": missing,
