@@ -7,3 +7,5 @@ backend/projects/
 .idea/
 .vscode/
 node_modules/
+backend/app/.cache/
+logs/
