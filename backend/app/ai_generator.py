@@ -714,21 +714,21 @@ def get_learning_paths_for_skills(skills: list, requested_provider: str = None):
 
 def get_unified_analysis(user_skills, target_role, requested_provider: str = None):
     """
-    Generate unified analysis using AI → Cache → Heuristic → Static hierarchy.
-    Returns a validated JSON object matching the task schema.
+    Master Analyzer: Generates deep insights (gaps, role fit, projects) using AI.
+    Does NOT access YouTube.
     """
     global AI_CACHE, LAST_AI_SOURCE
 
     # Input validation
     if not isinstance(user_skills, list):
-        raise RuntimeError("Invalid user skills format")
+        user_skills = []
     user_skills = [str(s).strip() for s in user_skills if s and isinstance(s, (str, int, float))]
     target_role = str(target_role or "").strip()
 
-    # Limit skills to top 10 for token efficiency
-    limited_user_skills = user_skills[:10]
+    # Limit skills to top 20 for context
+    limited_user_skills = user_skills[:20]
 
-    cache_key = _cache_key(f"{target_role}|unified", limited_user_skills)
+    cache_key = _cache_key(f"{target_role}|unified_v2", limited_user_skills)
     with _LOCK:
         cached = _get_from_cache(cache_key)
         if cached is not None:
@@ -746,13 +746,18 @@ def get_unified_analysis(user_skills, target_role, requested_provider: str = Non
         try:
             user_skills_list = json.dumps(limited_user_skills)
             prompt = (
-                f"Return JSON: {{'required_skills':[str], 'missing_skills':[str], 'roadmap':[{{'title':str, 'description':str}}], 'matching_score':int}} "
-                f"for target role '{target_role}' and user skills {user_skills_list}. "
-                f"Include 5-10 core required skills for the role. Output JSON only."
+                f"Analyze the fit between these skills: {user_skills_list} and the role: '{target_role}'. "
+                "Return a JSON object with EXACTLY these keys: "
+                "match_percentage (int 0-100), "
+                "missing_skills (list of specific technical skills missing), "
+                "learning_path (list of strings, specific actionable steps/milestones), "
+                "project_ideas (list of 3 specific project titles to bridge the gap), "
+                "alternative_roles (list of 2-3 other job titles the user is qualified for). "
+                "Do NOT include YouTube links. Output JSON only."
             )
 
             if len(prompt) > 100000:
-                logger.warning("Prompt too long in get_unified_analysis: %d characters", len(prompt))
+                logger.warning("Prompt too long in get_unified_analysis")
                 continue
                 
             raw = _call_ai_provider(provider, prompt)
@@ -763,15 +768,17 @@ def get_unified_analysis(user_skills, target_role, requested_provider: str = Non
                     if json_str:
                         parsed = json.loads(json_str)
                         if isinstance(parsed, dict) and parsed:
-                            # Basic validation and normalization
+                            # Basic validation/normalization
                             result = {
-                                "required_skills": [str(s).strip() for s in (parsed.get("required_skills") or [])],
+                                "match_percentage": int(parsed.get("match_percentage") or 0),
                                 "missing_skills": [str(s).strip() for s in (parsed.get("missing_skills") or [])],
-                                "roadmap": parsed.get("roadmap") or [],
-                                "matching_score": int(parsed.get("matching_score") or 0),
+                                "learning_path": [str(s).strip() for s in (parsed.get("learning_path") or [])],
+                                "project_ideas": [str(s).strip() for s in (parsed.get("project_ideas") or [])],
+                                "alternative_roles": [str(s).strip() for s in (parsed.get("alternative_roles") or [])],
+                                "required_skills": [] # Legacy field, can be inferred or left empty
                             }
 
-                            if result["missing_skills"] or result["roadmap"] or result["matching_score"]:  # Only cache if we got meaningful results
+                            if result["missing_skills"] or result["project_ideas"]:
                                 with _LOCK:
                                     _set_cache(cache_key, result)
                                     LAST_AI_SOURCE = provider
@@ -779,36 +786,35 @@ def get_unified_analysis(user_skills, target_role, requested_provider: str = Non
                                 return result
         except Exception as e:
             logger.warning("AI %s failed in get_unified_analysis: %s", provider, e)
-            continue # Try next provider
+            continue 
 
     # Try heuristic fallback
     try:
-        heuristic_result = _get_heuristic_unified_analysis(user_skills, target_role)
-        if heuristic_result:
-            with _LOCK:
-                _set_cache(cache_key, heuristic_result)
-                LAST_AI_SOURCE = "heuristic"
-                _manage_cache_size()
-            return heuristic_result
+        # Fallback to older heuristic method if AI fails, but adapt structure
+        heuristic = _get_heuristic_unified_analysis(user_skills, target_role)
+        fallback_result = {
+             "match_percentage": heuristic.get("matching_score", 0),
+             "missing_skills": heuristic.get("missing_skills", []),
+             "learning_path": [h["title"] + ": " + h["description"] for h in heuristic.get("roadmap", [])],
+             "project_ideas": _get_heuristic_project_ideas(target_role, user_skills),
+             "alternative_roles": ["Frontend Developer", "Backend Developer"] # Generic fallback
+        }
+        with _LOCK:
+            _set_cache(cache_key, fallback_result)
+            LAST_AI_SOURCE = "heuristic"
+            _manage_cache_size()
+        return fallback_result
     except Exception as e:
-        logger.warning("Heuristic fallback failed in get_unified_analysis: %s", e)
+        logger.warning("Heuristic fallback failed: %s", e)
 
-    # Static fallback
+    # Absolute static fallback
     static_result = {
-        "required_skills": ["HTML", "CSS", "JavaScript", "Python", "SQL"],
-        "missing_skills": ["JavaScript", "SQL"],
-        "roadmap": [
-            {"title": "Learn JavaScript Basics", "description": "Master fundamental JavaScript concepts and syntax."},
-            {"title": "Practice SQL Queries", "description": "Understand database querying and manipulation."},
-            {"title": "Build a Simple Web App", "description": "Combine skills to create a basic application."}
-        ],
-        "matching_score": 65
+        "match_percentage": 50,
+        "missing_skills": ["Python", "SQL"],
+        "learning_path": ["Learn Python basics", "Build a small project"],
+        "project_ideas": ["Portfolio Website", "Task Tracker", "Weather App"],
+        "alternative_roles": ["Web Developer"]
     }
-
-    with _LOCK:
-        _set_cache(cache_key, static_result)
-        LAST_AI_SOURCE = "static"
-        _manage_cache_size()
     return static_result
 
 
