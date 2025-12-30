@@ -9,6 +9,7 @@ function Main() {
   const [error, setError] = useState('');
   const [backendStatus, setBackendStatus] = useState('Checking...');
   const [extractedSkills, setExtractedSkills] = useState([]);
+  const [aiProvider, setAiProvider] = useState('auto'); // 'auto', 'gemini', 'openai'
 
   useEffect(() => {
     const checkBackend = async () => {
@@ -66,6 +67,7 @@ function Main() {
         body: JSON.stringify({
           role: jobDescription,
           skills: extractedSkills,
+          provider: aiProvider === 'auto' ? null : aiProvider
         }),
       });
 
@@ -135,6 +137,29 @@ function Main() {
                   placeholder="e.g. Senior Machine Learning Engineer..."
                   className="w-full h-32 bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-400 transition-all outline-none"
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-2 uppercase tracking-wider">AI Model Selection</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { id: 'auto', label: 'Auto (Best)' },
+                    { id: 'gemini', label: 'Gemini' },
+                    { id: 'openai', label: 'GPT-4o' }
+                  ].map(option => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => setAiProvider(option.id)}
+                      className={`py-2 px-1 text-[10px] font-bold rounded-lg border transition-all ${aiProvider === option.id
+                          ? 'bg-cyan-500/20 border-cyan-500 text-cyan-400'
+                          : 'bg-slate-950 border-slate-800 text-slate-500 hover:border-slate-700 hover:text-slate-400'
+                        }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <button

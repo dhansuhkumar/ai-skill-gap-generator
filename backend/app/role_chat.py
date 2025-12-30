@@ -13,7 +13,7 @@ load_dotenv()
 def _build_role_chat_prompt(role: str, messages: List[Dict[str, Any]]) -> str:
     """
     Build a prompt for the role-aware chat conversation.
-    Messages format: [{\"sender\": \"user\"|\"ai\", \"text\": \"...\"}, ...]
+    Messages format: [{"sender": "user"|"ai", "text": "..."}]
     """
     role = (role or "").strip()
 
@@ -38,7 +38,7 @@ Conversation so far:
 
 Your job now:
 - Ask focused, practical questions to clearly understand the user's background
-  for this specific role: skills, tools, years of experience, real projects, and current learning progress.
+for this specific role: skills, tools, years of experience, real projects, and current learning progress.
 - When the user already provided details, reflect them briefly and ask for the
   next most important missing info.
 - Use short paragraphs or bullet-like sentences (1–4 lines).
@@ -50,16 +50,13 @@ Respond with a single conversational message only.
     return prompt
 
 
-def generate_role_chat_reply(role: str, messages: List[Dict[str, Any]]) -> str:
+def generate_role_chat_reply(role: str, messages: List[Dict[str, Any]], requested_provider: str = None) -> str:
     """
-    Call Gemini to generate the next chat reply for the role conversation.
+    Call central AI generator to generate the next chat reply for the role conversation.
     """
-    # Currently deterministic fallback. Integrate with `ai_generator` for
-    # production AI chat while keeping a single, centralized Gemini usage.
-    return (
-        "AI chat is not available in this runtime. Please describe your skills, "
-        "recent projects, and goals for this role. Focus on concrete technologies and years of experience."
-    )
-
-
-
+    from . import ai_generator
+    prompt = _build_role_chat_prompt(role, messages)
+    try:
+        return ai_generator.generate_chat_response(prompt, requested_provider=requested_provider)
+    except Exception as e:
+        return "I'm having trouble connecting to my AI brain. Please try again in a moment."

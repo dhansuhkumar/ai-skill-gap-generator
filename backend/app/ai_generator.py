@@ -45,6 +45,11 @@ _CACHE_TTL = 86400
 GEMINI_AVAILABLE = False
 OPENAI_AVAILABLE = False
 
+# Exhausted flags (temporary lockout)
+GEMINI_EXHAUSTED_UNTIL = 0
+OPENAI_EXHAUSTED_UNTIL = 0
+EXHAUST_DURATION = 300  # 5 minutes lockout for 429
+
 # Validate API keys on startup
 def _validate_api_keys():
     """Validate API keys and set availability flags."""
@@ -70,8 +75,9 @@ def _validate_api_keys():
     if openai_key:
         try:
             # Test client creation
-            import openai
-            openai.api_key = openai_key
+            from openai import OpenAI
+            client = OpenAI(api_key=openai_key)
+            # Minimal test call could be here, but just validating key presence for now
             OPENAI_AVAILABLE = True
             logger.info("OpenAI API key validated successfully")
         except Exception as e:
@@ -89,31 +95,41 @@ def _validate_api_keys():
 # Initialize provider validation
 _validate_api_keys()
 
-def _select_provider(requested_provider: str = None) -> str:
-    """Select AI provider based on request and availability.
-
-    Priority: requested_provider > Gemini > OpenAI > heuristic
+def _get_available_providers(requested_provider: str = None) -> List[str]:
+    """Get a list of available providers in priority order.
+    
+    If a provider is requested specifically, it comes first (even if exhausted, 
+    we try and let error handling lockout if it fails).
     """
+    providers = []
+    now = time.time()
+
     if requested_provider:
         requested_provider = requested_provider.lower()
-        if requested_provider == "gemini" and GEMINI_AVAILABLE:
-            return "gemini"
-        elif requested_provider == "openai" and OPENAI_AVAILABLE:
-            return "openai"
+        if requested_provider in ["gemini", "openai"]:
+            providers.append(requested_provider)
         elif requested_provider == "local":
-            return "heuristic"
+            return ["heuristic"]
 
-    # Default priority: Gemini -> OpenAI -> heuristic
-    if GEMINI_AVAILABLE:
-        return "gemini"
-    elif OPENAI_AVAILABLE:
-        return "openai"
-    else:
-        return "heuristic"
+    # Add other variants for 'auto' or as backup
+    # Priority: Gemini -> OpenAI
+    if GEMINI_AVAILABLE and now > GEMINI_EXHAUSTED_UNTIL:
+        if "gemini" not in providers:
+            providers.append("gemini")
+    
+    if OPENAI_AVAILABLE and now > OPENAI_EXHAUSTED_UNTIL:
+        if "openai" not in providers:
+            providers.append("openai")
+            
+    # Heuristic always available
+    if "heuristic" not in providers:
+        providers.append("heuristic")
+        
+    return providers
 
 def _call_ai_provider(provider: str, prompt: str) -> str:
     """Call the specified AI provider with error handling."""
-    global AI_AVAILABLE, GEMINI_AVAILABLE, OPENAI_AVAILABLE
+    global AI_AVAILABLE, GEMINI_AVAILABLE, OPENAI_AVAILABLE, GEMINI_EXHAUSTED_UNTIL, OPENAI_EXHAUSTED_UNTIL
 
     try:
         if provider == "gemini":
@@ -126,9 +142,9 @@ def _call_ai_provider(provider: str, prompt: str) -> str:
         elif provider == "openai":
             if not OPENAI_AVAILABLE:
                 raise RuntimeError("OpenAI not available")
-            import openai
-            openai.api_key = os.getenv('OPENAI_API_KEY')
-            response = openai.ChatCompletion.create(
+            from openai import OpenAI
+            client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+            response = client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=1200
@@ -140,7 +156,13 @@ def _call_ai_provider(provider: str, prompt: str) -> str:
 
     except Exception as e:
         error_msg = str(e).lower()
-        if "api_key_invalid" in error_msg or "invalid api key" in error_msg:
+        if "429" in error_msg or "resource_exhausted" in error_msg or "quota" in error_msg:
+            logger.warning("AI provider %s exhausted: %s. Locking out for %d seconds.", provider, e, EXHAUST_DURATION)
+            if provider == "gemini":
+                GEMINI_EXHAUSTED_UNTIL = time.time() + EXHAUST_DURATION
+            elif provider == "openai":
+                OPENAI_EXHAUSTED_UNTIL = time.time() + EXHAUST_DURATION
+        elif "api_key_invalid" in error_msg or "invalid api key" in error_msg:
             logger.error("API key invalid for provider %s: %s", provider, e)
             if provider == "gemini":
                 GEMINI_AVAILABLE = False
@@ -441,6 +463,7 @@ def _get_heuristic_unified_analysis(user_skills: List[str], target_role: str) ->
         ]
 
     return {
+        "required_skills": required_skills,
         "missing_skills": missing_skills,
         "roadmap": roadmap,
         "matching_score": matching_score
@@ -473,12 +496,14 @@ def generate_ai_project_ideas(role, skills, requested_provider: str = None):
             LAST_AI_SOURCE = "cache"
             return cached
 
-    # Select provider
-    provider = _select_provider(requested_provider)
-    logger.info("AI_PROVIDER_USED=%s for generate_ai_project_ideas", provider)
-
-    # Try AI first if provider is available
-    if provider in ["gemini", "openai"]:
+    # Try AI providers in order
+    providers_to_try = _get_available_providers(requested_provider)
+    
+    for provider in providers_to_try:
+        if provider == "heuristic":
+            break
+            
+        logger.info("AI_PROVIDER_TRYING=%s for generate_ai_project_ideas", provider)
         try:
             prompt = (
                 "Return EXACTLY 3 short project titles (strings) as a JSON array."
@@ -488,32 +513,34 @@ def generate_ai_project_ideas(role, skills, requested_provider: str = None):
 
             if len(prompt) > 100000:
                 logger.warning("Prompt too long in generate_ai_project_ideas: %d characters", len(prompt))
-            else:
-                raw = _call_ai_provider(provider, prompt)
-                if raw and isinstance(raw, str):
-                    raw = _strip_markdown(raw)
-                    if raw.strip():
-                        try:
-                            json_str = _extract_json_like(raw)
-                            if json_str:
-                                arr = json.loads(json_str)
-                                if isinstance(arr, list):
-                                    titles = []
-                                    for x in arr:
-                                        if isinstance(x, str) and str(x).strip():
-                                            titles.append(str(x).strip())
-                                        if len(titles) >= 3:
-                                            break
-                                    if len(titles) == 3:
-                                        with _LOCK:
-                                            _set_cache(cache_key, titles)
-                                            LAST_AI_SOURCE = provider
-                                            _manage_cache_size()
-                                        return titles
-                        except Exception as e:
-                            logger.warning("JSON parsing failed in generate_ai_project_ideas: %s", e)
+                continue
+                
+            raw = _call_ai_provider(provider, prompt)
+            if raw and isinstance(raw, str):
+                raw = _strip_markdown(raw)
+                if raw.strip():
+                    try:
+                        json_str = _extract_json_like(raw)
+                        if json_str:
+                            arr = json.loads(json_str)
+                            if isinstance(arr, list):
+                                titles = []
+                                for x in arr:
+                                    if isinstance(x, str) and str(x).strip():
+                                        titles.append(str(x).strip())
+                                    if len(titles) >= 3:
+                                        break
+                                if len(titles) == 3:
+                                    with _LOCK:
+                                        _set_cache(cache_key, titles)
+                                        LAST_AI_SOURCE = provider
+                                        _manage_cache_size()
+                                    return titles
+                    except Exception as e:
+                        logger.warning("JSON parsing failed in generate_ai_project_ideas from %s: %s", provider, e)
         except Exception as e:
-            logger.warning("AI failed in generate_ai_project_ideas: %s", e)
+            logger.warning("AI %s failed in generate_ai_project_ideas: %s", provider, e)
+            continue # Try next provider
 
     # Try heuristic fallback
     try:
@@ -587,16 +614,16 @@ def get_learning_paths_for_skills(skills: list, requested_provider: str = None):
             LAST_AI_SOURCE = "cache"
             return cached
 
-    # Select provider
-    provider = _select_provider(requested_provider)
-    logger.info("AI_PROVIDER_USED=%s for get_learning_paths_for_skills", provider)
+    # Try AI providers in order
+    providers_to_try = _get_available_providers(requested_provider)
 
     # Limit skills to top 10 for token efficiency
     limited_skills = skills[:10]
     skills_json = json.dumps(limited_skills)
 
-    # Try AI first if provider is available
-    if provider in ["gemini", "openai"]:
+    for provider in providers_to_try:
+        if provider == "heuristic":
+            break
         try:
             prompt = f"Return JSON: {{skill: {{summary: str, steps: [{{day_from:int, day_to:int, title:str, tasks:[str], project:str, resources:[str]}} exactly 3 per skill]}}}} for skills {skills_json}. Output JSON only."
 
@@ -698,42 +725,51 @@ def get_unified_analysis(user_skills, target_role, requested_provider: str = Non
             LAST_AI_SOURCE = "cache"
             return cached
 
-    # Select provider
-    provider = _select_provider(requested_provider)
-    logger.info("AI_PROVIDER_USED=%s for get_unified_analysis", provider)
+    # Try AI providers in order
+    providers_to_try = _get_available_providers(requested_provider)
 
-    # Try AI first if provider is available
-    if provider in ["gemini", "openai"]:
+    for provider in providers_to_try:
+        if provider == "heuristic":
+            break
+
+        logger.info("AI_PROVIDER_TRYING=%s for get_unified_analysis", provider)
         try:
             user_skills_list = json.dumps(limited_user_skills)
-            prompt = f"Return JSON: {{missing_skills:[str], roadmap:[{{title:str, description:str}}], matching_score:int}} for target role {target_role} and user skills {user_skills_list}. Output JSON only."
+            prompt = (
+                f"Return JSON: {{'required_skills':[str], 'missing_skills':[str], 'roadmap':[{{'title':str, 'description':str}}], 'matching_score':int}} "
+                f"for target role '{target_role}' and user skills {user_skills_list}. "
+                f"Include 5-10 core required skills for the role. Output JSON only."
+            )
 
             if len(prompt) > 100000:
                 logger.warning("Prompt too long in get_unified_analysis: %d characters", len(prompt))
-            else:
-                raw = _call_ai_provider(provider, prompt)
-                if raw and isinstance(raw, str):
-                    raw = _strip_markdown(raw)
-                    if raw.strip():
-                        json_str = _extract_json_like(raw)
-                        if json_str:
-                            parsed = json.loads(json_str)
-                            if isinstance(parsed, dict) and parsed:
-                                # Basic validation and normalization
-                                result = {
-                                    "missing_skills": [str(s).strip() for s in (parsed.get("missing_skills") or [])],
-                                    "roadmap": parsed.get("roadmap") or [],
-                                    "matching_score": int(parsed.get("matching_score") or 0),
-                                }
+                continue
+                
+            raw = _call_ai_provider(provider, prompt)
+            if raw and isinstance(raw, str):
+                raw = _strip_markdown(raw)
+                if raw.strip():
+                    json_str = _extract_json_like(raw)
+                    if json_str:
+                        parsed = json.loads(json_str)
+                        if isinstance(parsed, dict) and parsed:
+                            # Basic validation and normalization
+                            result = {
+                                "required_skills": [str(s).strip() for s in (parsed.get("required_skills") or [])],
+                                "missing_skills": [str(s).strip() for s in (parsed.get("missing_skills") or [])],
+                                "roadmap": parsed.get("roadmap") or [],
+                                "matching_score": int(parsed.get("matching_score") or 0),
+                            }
 
-                                if result["missing_skills"] or result["roadmap"] or result["matching_score"]:  # Only cache if we got meaningful results
-                                    with _LOCK:
-                                        _set_cache(cache_key, result)
-                                        LAST_AI_SOURCE = provider
-                                        _manage_cache_size()
-                                    return result
+                            if result["missing_skills"] or result["roadmap"] or result["matching_score"]:  # Only cache if we got meaningful results
+                                with _LOCK:
+                                    _set_cache(cache_key, result)
+                                    LAST_AI_SOURCE = provider
+                                    _manage_cache_size()
+                                return result
         except Exception as e:
-            logger.warning("AI failed in get_unified_analysis: %s", e)
+            logger.warning("AI %s failed in get_unified_analysis: %s", provider, e)
+            continue # Try next provider
 
     # Try heuristic fallback
     try:
@@ -749,6 +785,7 @@ def get_unified_analysis(user_skills, target_role, requested_provider: str = Non
 
     # Static fallback
     static_result = {
+        "required_skills": ["HTML", "CSS", "JavaScript", "Python", "SQL"],
         "missing_skills": ["JavaScript", "SQL"],
         "roadmap": [
             {"title": "Learn JavaScript Basics", "description": "Master fundamental JavaScript concepts and syntax."},
@@ -763,3 +800,29 @@ def get_unified_analysis(user_skills, target_role, requested_provider: str = Non
         LAST_AI_SOURCE = "static"
         _manage_cache_size()
     return static_result
+
+
+def generate_chat_response(prompt: str, requested_provider: str = None) -> str:
+    """
+    Generate a chat response using AI → Heuristic hierarchy.
+    """
+    global LAST_AI_SOURCE
+
+    # Try AI providers in order
+    providers_to_try = _get_available_providers(requested_provider)
+
+    for provider in providers_to_try:
+        if provider == "heuristic":
+            break
+
+        logger.info("AI_PROVIDER_TRYING=%s for generate_chat_response", provider)
+        try:
+            res = _call_ai_provider(provider, prompt)
+            if res and isinstance(res, str) and res.strip():
+                LAST_AI_SOURCE = provider
+                return res.strip()
+        except Exception as e:
+            logger.warning("AI %s failed in generate_chat_response: %s", provider, e)
+            continue
+
+    return "AI chat is currently unavailable. Please try again later."

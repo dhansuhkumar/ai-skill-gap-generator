@@ -62,21 +62,22 @@ def recommend():
     
     role = data.get('role')
     user_skills = data.get('skills', [])
+    requested_provider = data.get('provider')
     
     fetch_videos = bool(data.get("include_youtube", False))
     max_videos = int(data.get("max_video_results", 3))
 
-    print(f"LOG: /recommend hit via routes.py. Role: {role}, Fetch Videos: {fetch_videos}")
+    print(f"LOG: /recommend hit via routes.py. Role: {role}, Fetch Videos: {fetch_videos}, Provider: {requested_provider}")
 
     # --- START OF AI PROJECTS SECTION ---
-    ai_projects = generate_ai_project_ideas(role, user_skills)
+    ai_projects = generate_ai_project_ideas(role, user_skills, requested_provider=requested_provider)
     if not isinstance(ai_projects, list):
         ai_projects = ["Error generating AI project ideas."]
     # --- END OF AI PROJECTS SECTION ---
 
     # --- AI required + missing skills with fallback ---
     try:
-        ai_skill_analysis = find_required_and_missing_ai(user_skills, role)
+        ai_skill_analysis = find_required_and_missing_ai(user_skills, role, requested_provider=requested_provider)
         required_skills_ai = ai_skill_analysis.get("required_skills", []) or []
         missing = ai_skill_analysis.get("missing_skills", [])
         
@@ -114,12 +115,13 @@ def role_chat():
     data = request.get_json() or {}
     role = (data.get("role") or "").strip()
     messages = data.get("messages") or []
+    requested_provider = data.get("provider")
 
     if not isinstance(messages, list):
         return jsonify({"error": "messages must be a list"}), 400
 
     try:
-        reply = generate_role_chat_reply(role, messages)
+        reply = generate_role_chat_reply(role, messages, requested_provider=requested_provider)
     except Exception as e:
         print("❌ Role chat generation failed:", e)
         reply = "I had trouble generating a response. Please try again."

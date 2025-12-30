@@ -63,25 +63,17 @@ def _compute_missing(user_skills, required_skills):
     return result
 
 
-def find_required_and_missing_ai(user_skills, target_role):
+def find_required_and_missing_ai(user_skills, target_role, requested_provider=None):
     """
     🔹 AI-based required + missing skill analyzer.
-
-    Input:
-        user_skills : list[str]
-        target_role : str
-
-    Output (dict):
-        {
-          "required_skills": [...],  # AI-generated core skills for the role
-          "missing_skills": [...]    # computed by comparing required vs user skills
-        }
-
-    If anything goes wrong, the caller should catch the exception
-    and fall back to the classic find_missing_skills().
+    Uses central `ai_generator.get_unified_analysis` with support for fallbacks.
     """
-
-    # This function no longer makes direct Gemini calls. Use the central
-    # `ai_generator.get_unified_analysis(user_skills, target_role)` which runs a
-    # single, controlled Gemini request and returns the required/missing skills.
-    raise RuntimeError("Use ai_generator.get_unified_analysis(user_skills, target_role) instead of direct AI calls.")
+    try:
+        analysis = ai_generator.get_unified_analysis(user_skills, target_role, requested_provider=requested_provider)
+        return {
+            "required_skills": analysis.get("required_skills", []),
+            "missing_skills": analysis.get("missing_skills", [])
+        }
+    except Exception as e:
+        # Fallback will be handled by the caller (routes.py)
+        raise e
