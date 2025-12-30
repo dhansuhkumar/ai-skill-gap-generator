@@ -27,7 +27,7 @@ def create_app():
     app = Flask(__name__)
 
     # Allow requests specifically from your frontend dev server
-    CORS(app, resources={r"/*": {"origins": "http://localhost:5173"}}, supports_credentials=True)
+    CORS(app, resources={r"/*": {"origins": ["http://localhost:5173", "http://localhost:5000"]}}, supports_credentials=True)
 
     # Configure logging
     log_file_path = os.path.join(os.getcwd(), 'logs', 'app.log')

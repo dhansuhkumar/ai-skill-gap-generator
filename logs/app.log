@@ -22,3 +22,38 @@
 2025-12-28 12:26:51,068 WARNING: CORS_ALLOWED_ORIGINS is set to '*' - This is insecure for production! [in C:\Users\Dhanush Kumar\ai-skill-gap-generator\backend\app\__init__.py:58]
 2025-12-28 12:27:05,658 INFO: Application startup... [in C:\Users\Dhanush Kumar\ai-skill-gap-generator\backend\app\__init__.py:51]
 2025-12-28 12:27:05,658 WARNING: CORS_ALLOWED_ORIGINS is set to '*' - This is insecure for production! [in C:\Users\Dhanush Kumar\ai-skill-gap-generator\backend\app\__init__.py:58]
+2025-12-30 04:38:30,122 INFO: Application startup... [in /app/backend/app/__init__.py:51]
+2025-12-30 04:38:30,122 WARNING: CORS_ALLOWED_ORIGINS is set to '*' - This is insecure for production! [in /app/backend/app/__init__.py:58]
+2025-12-30 04:38:41,832 INFO: Application startup... [in /app/backend/app/__init__.py:51]
+2025-12-30 04:38:41,833 WARNING: CORS_ALLOWED_ORIGINS is set to '*' - This is insecure for production! [in /app/backend/app/__init__.py:58]
+2025-12-30 04:39:04,723 INFO: Application startup... [in /app/backend/app/__init__.py:51]
+2025-12-30 04:39:04,723 WARNING: CORS_ALLOWED_ORIGINS is set to '*' - This is insecure for production! [in /app/backend/app/__init__.py:58]
+2025-12-30 04:39:10,661 ERROR: Exception on /api/recommend [POST] [in /home/jules/.pyenv/versions/3.12.12/lib/python3.12/site-packages/flask/app.py:875]
+Traceback (most recent call last):
+  File "/home/jules/.pyenv/versions/3.12.12/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.12/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.12/lib/python3.12/site-packages/flask_cors/extension.py", line 176, in wrapped_function
+    return cors_after_request(app.make_response(f(*args, **kwargs)))
+                                                ^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.12/lib/python3.12/site-packages/flask_cors/extension.py", line 176, in wrapped_function
+    return cors_after_request(app.make_response(f(*args, **kwargs)))
+                                                ^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.12/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.12/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/backend/app/routes.py", line 101, in recommend
+    projects = generate_micro_projects(missing, include_videos=fetch_videos, max_results=max_videos)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: generate_micro_projects() got an unexpected keyword argument 'max_results'
+2025-12-30 04:39:10,663 ERROR: Server Error: 500 Internal Server Error: The server encountered an internal error and was unable to complete your request. Either the server is overloaded or there is an error in the application. [in /app/backend/app/routes.py:197]
+2025-12-30 04:39:35,253 INFO: Application startup... [in /app/backend/app/__init__.py:51]
+2025-12-30 04:39:35,253 WARNING: CORS_ALLOWED_ORIGINS is set to '*' - This is insecure for production! [in /app/backend/app/__init__.py:58]
+2025-12-30 04:39:57,388 INFO: Application startup... [in /app/backend/app/__init__.py:51]
+2025-12-30 04:39:57,388 WARNING: CORS_ALLOWED_ORIGINS is set to '*' - This is insecure for production! [in /app/backend/app/__init__.py:58]

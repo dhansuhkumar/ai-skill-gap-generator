@@ -16,9 +16,9 @@ except Exception as _e:
         return []
 
 try:
-    from app.ai_skill_analyzer import find_required_and_missing_ai
+    from app.ai_generator import get_unified_analysis
 except Exception as _e:
-    def find_required_and_missing_ai(user_skills, role):
+    def get_unified_analysis(user_skills, role):
         # Fallback: return empty required list so caller can handle
         return {"required_skills": [], "missing_skills": []}
 
@@ -76,7 +76,7 @@ def recommend():
 
     # --- AI required + missing skills with fallback ---
     try:
-        ai_skill_analysis = find_required_and_missing_ai(user_skills, role)
+        ai_skill_analysis = get_unified_analysis(user_skills, role)
         required_skills_ai = ai_skill_analysis.get("required_skills", []) or []
         missing = ai_skill_analysis.get("missing_skills", [])
         
@@ -98,7 +98,7 @@ def recommend():
             "required_skills_ai": required_skills_ai
         }), 200
         
-    projects = generate_micro_projects(missing, include_videos=fetch_videos, max_results=max_videos)
+    projects = generate_micro_projects(missing, include_videos=fetch_videos, max_results_per_skill=max_videos)
     starter_projects = [str(create_zip(skill)) for skill in missing]
     
     return jsonify({

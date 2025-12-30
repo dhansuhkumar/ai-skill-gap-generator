@@ -11,10 +11,10 @@ from pathlib import Path
 
 load_dotenv()
 
-from google import genai
+import google.generativeai as genai
 
 # Initialize the client for Google Gen AI SDK (v1)
-client = genai.Client(api_key=os.getenv('GEMINI_API_KEY'))
+genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
 
 logger = logging.getLogger(__name__)
 if not logger.handlers:
@@ -25,14 +25,13 @@ if not logger.handlers:
     logger.addHandler(handler)
     logger.setLevel(logging.INFO)
 
-# Circuit breaker flag and simple in-memory cache (thread-safe)
+# Circuit breaker flag and persistent file-based cache
 _LOCK = threading.Lock()
 AI_AVAILABLE = True
-AI_CACHE = {}  # key -> (timestamp, data)
+CACHE_DIR = Path(__file__).parent / ".cache"
+CACHE_DIR.mkdir(exist_ok=True)
 # Last source used for observability (set per call)
 LAST_AI_SOURCE = None
-# Cache size management
-_MAX_CACHE_SIZE = 1000  # Maximum number of cache entries
 # Cache TTL in seconds (24 hours)
 _CACHE_TTL = 86400
 
@@ -54,34 +53,32 @@ def _cache_key(role: str, skills: List[str], version: str = "v1") -> str:
 
 
 def _get_from_cache(cache_key):
-    """Get data from cache if not expired, else None."""
-    global AI_CACHE
-    if cache_key in AI_CACHE:
-        timestamp, data = AI_CACHE[cache_key]
-        if time.time() - timestamp < _CACHE_TTL:
-            return data
-        else:
-            del AI_CACHE[cache_key]  # Remove expired entry
+    """Get data from file cache if not expired, else None."""
+    cache_file = CACHE_DIR / f"{cache_key}.json"
+    if cache_file.exists():
+        try:
+            with open(cache_file, 'r', encoding='utf-8') as f:
+                cached_data = json.load(f)
+                timestamp = cached_data.get("timestamp", 0)
+                if time.time() - timestamp < _CACHE_TTL:
+                    return cached_data.get("data")
+        except (json.JSONDecodeError, IOError) as e:
+            logger.warning(f"Failed to read from cache file {cache_file}: {e}")
+            try:
+                cache_file.unlink()  # Corrupted file, remove it
+            except OSError:
+                pass
     return None
 
 
 def _set_cache(cache_key, data):
-    """Set data in cache with current timestamp."""
-    global AI_CACHE
-    AI_CACHE[cache_key] = (time.time(), data)
-
-
-def _manage_cache_size():
-    """Manage cache size by removing oldest entries if cache exceeds max size."""
-    global AI_CACHE
-    if len(AI_CACHE) > _MAX_CACHE_SIZE:
-        # Sort by timestamp (oldest first) and remove oldest entries
-        sorted_entries = sorted(AI_CACHE.items(), key=lambda x: x[1][0])
-        items_to_remove = len(AI_CACHE) - _MAX_CACHE_SIZE + int(_MAX_CACHE_SIZE * 0.1)
-        keys_to_remove = [key for key, _ in sorted_entries[:items_to_remove]]
-        for key in keys_to_remove:
-            del AI_CACHE[key]
-        logger.info("Cache size managed: removed %d entries, current size: %d", len(keys_to_remove), len(AI_CACHE))
+    """Set data in file cache with current timestamp."""
+    cache_file = CACHE_DIR / f"{cache_key}.json"
+    try:
+        with open(cache_file, 'w', encoding='utf-8') as f:
+            json.dump({"timestamp": time.time(), "data": data}, f)
+    except IOError as e:
+        logger.warning(f"Failed to write to cache file {cache_file}: {e}")
 
 
 def _strip_markdown(text: str) -> str:
@@ -372,7 +369,9 @@ def generate_ai_project_ideas(role, skills):
             if len(prompt) > 100000:
                 logger.warning("Prompt too long in generate_ai_project_ideas: %d characters", len(prompt))
             else:
-                raw = client.models.generate_content(model='gemini-2.5-flash', contents=prompt).text
+                model = genai.GenerativeModel('gemini-1.5-flash')
+                response = model.generate_content(prompt)
+                raw = response.text
                 if raw and isinstance(raw, str):
                     raw = _strip_markdown(raw)
                     if raw.strip():
@@ -391,7 +390,6 @@ def generate_ai_project_ideas(role, skills):
                                         with _LOCK:
                                             _set_cache(cache_key, titles)
                                             LAST_AI_SOURCE = "gemini"
-                                            _manage_cache_size()
                                         return titles
                         except Exception as e:
                             logger.warning("JSON parsing failed in generate_ai_project_ideas: %s", e)
@@ -405,7 +403,6 @@ def generate_ai_project_ideas(role, skills):
             with _LOCK:
                 _set_cache(cache_key, heuristic_result)
                 LAST_AI_SOURCE = "heuristic"
-                _manage_cache_size()
             return heuristic_result
     except Exception as e:
         logger.warning("Heuristic fallback failed in generate_ai_project_ideas: %s", e)
@@ -420,7 +417,6 @@ def generate_ai_project_ideas(role, skills):
     with _LOCK:
         _set_cache(cache_key, static_result)
         LAST_AI_SOURCE = "static"
-        _manage_cache_size()
     return static_result
 
 
@@ -482,7 +478,9 @@ def get_learning_paths_for_skills(skills: list):
             if len(prompt) > 100000:
                 logger.warning("Prompt too long in get_learning_paths_for_skills: %d characters", len(prompt))
             else:
-                raw = client.models.generate_content(model='gemini-2.5-flash', contents=prompt).text
+                model = genai.GenerativeModel('gemini-1.5-flash')
+                response = model.generate_content(prompt)
+                raw = response.text
                 if raw and isinstance(raw, str):
                     raw = _strip_markdown(raw)
                     if raw.strip():
@@ -518,7 +516,6 @@ def get_learning_paths_for_skills(skills: list):
                                     with _LOCK:
                                         _set_cache(cache_key, out)
                                         LAST_AI_SOURCE = "gemini"
-                                        _manage_cache_size()
                                     return out
         except Exception as e:
             logger.warning("AI failed in get_learning_paths_for_skills: %s", e)
@@ -530,7 +527,6 @@ def get_learning_paths_for_skills(skills: list):
             with _LOCK:
                 _set_cache(cache_key, heuristic_result)
                 LAST_AI_SOURCE = "heuristic"
-                _manage_cache_size()
             return heuristic_result
     except Exception as e:
         logger.warning("Heuristic fallback failed in get_learning_paths_for_skills: %s", e)
@@ -550,7 +546,6 @@ def get_learning_paths_for_skills(skills: list):
     with _LOCK:
         _set_cache(cache_key, static_result)
         LAST_AI_SOURCE = "static"
-        _manage_cache_size()
     return static_result
 
 
@@ -586,7 +581,9 @@ def get_unified_analysis(user_skills, target_role, requested_provider: str = Non
             if len(prompt) > 100000:
                 logger.warning("Prompt too long in get_unified_analysis: %d characters", len(prompt))
             else:
-                raw = client.models.generate_content(model='gemini-2.5-flash', contents=prompt).text
+                model = genai.GenerativeModel('gemini-1.5-flash')
+                response = model.generate_content(prompt)
+                raw = response.text
                 if raw and isinstance(raw, str):
                     raw = _strip_markdown(raw)
                     if raw.strip():
@@ -605,7 +602,6 @@ def get_unified_analysis(user_skills, target_role, requested_provider: str = Non
                                     with _LOCK:
                                         _set_cache(cache_key, result)
                                         LAST_AI_SOURCE = "gemini"
-                                        _manage_cache_size()
                                     return result
         except Exception as e:
             logger.warning("AI failed in get_unified_analysis: %s", e)
@@ -617,7 +613,6 @@ def get_unified_analysis(user_skills, target_role, requested_provider: str = Non
             with _LOCK:
                 _set_cache(cache_key, heuristic_result)
                 LAST_AI_SOURCE = "heuristic"
-                _manage_cache_size()
             return heuristic_result
     except Exception as e:
         logger.warning("Heuristic fallback failed in get_unified_analysis: %s", e)
@@ -636,5 +631,4 @@ def get_unified_analysis(user_skills, target_role, requested_provider: str = Non
     with _LOCK:
         _set_cache(cache_key, static_result)
         LAST_AI_SOURCE = "static"
-        _manage_cache_size()
     return static_result
