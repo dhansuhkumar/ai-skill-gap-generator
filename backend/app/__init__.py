@@ -12,10 +12,11 @@ load_dotenv()
 phase2_bp = None
 try:
     from backend.routes_phase2 import bp as phase2_bp
-except ImportError: # Use ImportError here
+except ImportError as e:
     try:
         from routes_phase2 import bp as phase2_bp
-    except ImportError: # Use ImportError here
+    except ImportError as e2:
+        logging.warning(f"Phase 2 routes could not be imported: {e} / {e2}")
         phase2_bp = None
 
 UPLOAD_FOLDER = os.path.join(os.getcwd(), 'uploads')

@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { Loader2, LogIn, Sparkles } from 'lucide-react';
 
 const Login = () => {
-    const [username, setUsername] = useState('');
+    const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
@@ -17,7 +17,7 @@ const Login = () => {
         setLoading(true);
 
         try {
-            await authService.login(username, password);
+            await authService.login(email, password);
             navigate('/');
         } catch (err) {
             setError(typeof err === 'string' ? err : 'Login failed. Please check your credentials.');
@@ -64,14 +64,14 @@ const Login = () => {
 
                 <form onSubmit={handleSubmit}>
                     <div style={{ marginBottom: '1.25rem' }}>
-                        <label htmlFor="username">Username</label>
+                        <label htmlFor="email">Email</label>
                         <input
-                            id="username"
-                            type="text"
+                            id="email"
+                            type="email"
                             className="input-field"
-                            value={username}
-                            onChange={(e) => setUsername(e.target.value)}
-                            placeholder="Enter your username"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            placeholder="Enter your email"
                             required
                         />
                     </div>

@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { Loader2, UserPlus, Sparkles } from 'lucide-react';
 
 const Register = () => {
-    const [username, setUsername] = useState('');
+    const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [error, setError] = useState('');
@@ -21,17 +21,21 @@ const Register = () => {
             return;
         }
 
-        if (password.length < 4) {
-            setError("Password must be at least 4 characters");
+        if (password.length < 6) {
+            setError("Password must be at least 6 characters");
             return;
         }
 
         setLoading(true);
 
         try {
-            await authService.register(username, password);
-            // Optional: Auto login or redirect to login
-            navigate('/login');
+            await authService.register(email, password);
+            // If session is available, auto-login; otherwise redirect to login
+            if (localStorage.getItem('jwtToken')) {
+                navigate('/');
+            } else {
+                navigate('/login');
+            }
         } catch (err) {
             setError(typeof err === 'string' ? err : 'Registration failed. Please try again.');
         } finally {
@@ -75,14 +79,14 @@ const Register = () => {
 
                 <form onSubmit={handleSubmit}>
                     <div style={{ marginBottom: '1.25rem' }}>
-                        <label htmlFor="username">Username</label>
+                        <label htmlFor="email">Email</label>
                         <input
-                            id="username"
-                            type="text"
+                            id="email"
+                            type="email"
                             className="input-field"
-                            value={username}
-                            onChange={(e) => setUsername(e.target.value)}
-                            placeholder="Choose a username"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            placeholder="Enter your email"
                             required
                         />
                     </div>

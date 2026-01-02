@@ -3,49 +3,69 @@ import { Bot, Sparkles, Cpu } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const providers = [
-    { id: 'auto', name: 'Auto', icon: Bot, desc: 'Smartest available model' },
-    { id: 'gemini', name: 'Gemini', icon: Sparkles, desc: 'Google DeepMind' },
-    { id: 'openai', name: 'OpenAI', icon: Cpu, desc: 'GPT-4 Models' },
+    { id: 'auto', name: 'Auto', icon: Bot },
+    { id: 'gemini', name: 'Gemini', icon: Sparkles },
+    { id: 'openai', name: 'OpenAI', icon: Cpu },
+    { id: 'local', name: 'Local', icon: Cpu },
 ];
 
 const ProviderSelector = ({ selected, onSelect }) => {
     return (
-        <div className="glass-panel" style={{ padding: '1.5rem', marginBottom: '1.5rem' }}>
-            <h3 style={{ marginBottom: '1rem', fontSize: '1rem' }}>AI Model Selection</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: '0.75rem' }}>
-                {providers.map((p) => {
-                    const isSelected = selected === p.id;
-                    const Icon = p.icon;
+        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+            {providers.map((p) => {
+                const isSelected = selected === p.id;
+                const Icon = p.icon;
 
-                    return (
-                        <motion.button
-                            key={p.id}
-                            onClick={() => onSelect(p.id)}
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                            style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                flexDirection: 'column',
-                                gap: '0.5rem',
-                                padding: '1rem',
-                                borderRadius: 'var(--radius-md)',
-                                border: isSelected ? '1px solid var(--color-primary)' : '1px solid var(--color-border)',
-                                background: isSelected ? 'rgba(139, 92, 246, 0.1)' : 'rgba(255, 255, 255, 0.02)',
-                                cursor: 'pointer',
-                                color: isSelected ? 'white' : 'var(--color-text-muted)',
-                                transition: 'all 0.2s'
-                            }}
-                        >
-                            <Icon size={24} color={isSelected ? '#8b5cf6' : 'currentColor'} />
-                            <div style={{ textAlign: 'center' }}>
-                                <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{p.name}</div>
-                                <div style={{ fontSize: '0.7rem', opacity: 0.7 }}>{p.desc}</div>
-                            </div>
-                        </motion.button>
-                    );
-                })}
-            </div>
+                return (
+                    <motion.button
+                        key={p.id}
+                        onClick={() => onSelect(p.id)}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '0.5rem',
+                            padding: '1rem',
+                            minWidth: '100px',
+                            borderRadius: '0.5rem',
+                            border: isSelected ? '2px solid var(--color-primary)' : '1px solid var(--color-border)',
+                            background: isSelected ? 'rgba(139, 92, 246, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                            cursor: 'pointer',
+                            color: isSelected ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                            transition: 'all 0.2s',
+                            position: 'relative'
+                        }}
+                    >
+                        <Icon size={24} />
+                        <span style={{ fontSize: '0.85rem', fontWeight: isSelected ? 600 : 400 }}>{p.name}</span>
+                        {isSelected && (
+                            <motion.div
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                style={{
+                                    position: 'absolute',
+                                    top: '0.5rem',
+                                    right: '0.5rem',
+                                    width: '20px',
+                                    height: '20px',
+                                    borderRadius: '50%',
+                                    background: 'var(--color-primary)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: 'white',
+                                    fontSize: '0.7rem'
+                                }}
+                            >
+                                ✓
+                            </motion.div>
+                        )}
+                    </motion.button>
+                );
+            })}
         </div>
     );
 };

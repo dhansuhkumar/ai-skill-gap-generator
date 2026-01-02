@@ -25,33 +25,31 @@ const SkillInput = ({ skills, onSkillsChange }) => {
     };
 
     return (
-        <div className="glass-panel" style={{ padding: '1.5rem' }}>
-            <h3 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                Current Skills
-                <span style={{ fontSize: '0.8rem', background: 'var(--color-border)', padding: '2px 8px', borderRadius: '12px', color: 'var(--color-text-muted)' }}>{skills.length}</span>
-            </h3>
-
-            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem' }}>
+        <div>
+            {/* Input Row */}
+            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
                 <input
                     type="text"
                     className="input-field"
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="Type a skill (e.g., Python, React)..."
+                    placeholder="Type a skill (e.g., Python, React)... or adding manual skills"
                     style={{ flex: 1 }}
                 />
                 <button
                     onClick={handleAddSkill}
-                    className="btn btn-primary"
+                    className="btn btn-secondary"
                     style={{ padding: '0.75rem' }}
                     disabled={!inputValue.trim()}
+                    type="button"
                 >
                     <Plus size={20} />
                 </button>
             </div>
 
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', minHeight: '60px' }}>
+            {/* Chips Container */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', minHeight: '40px' }}>
                 <AnimatePresence>
                     {skills.map((skill, index) => (
                         <motion.div
@@ -60,14 +58,15 @@ const SkillInput = ({ skills, onSkillsChange }) => {
                             animate={{ opacity: 1, scale: 1 }}
                             exit={{ opacity: 0, scale: 0.8 }}
                             style={{
-                                background: 'rgba(255, 255, 255, 0.05)',
-                                border: '1px solid var(--color-border)',
+                                background: 'rgba(139, 92, 246, 0.15)',
+                                border: '1px solid rgba(139, 92, 246, 0.3)',
                                 padding: '0.4rem 0.8rem',
                                 borderRadius: '2rem',
                                 display: 'flex',
                                 alignItems: 'center',
                                 gap: '0.5rem',
-                                fontSize: '0.9rem'
+                                fontSize: '0.9rem',
+                                color: 'var(--color-primary)'
                             }}
                         >
                             {skill}
@@ -78,7 +77,8 @@ const SkillInput = ({ skills, onSkillsChange }) => {
                                     border: 'none',
                                     cursor: 'pointer',
                                     display: 'flex',
-                                    color: 'var(--color-text-muted)'
+                                    color: 'inherit',
+                                    opacity: 0.7
                                 }}
                             >
                                 <X size={14} />
@@ -86,8 +86,8 @@ const SkillInput = ({ skills, onSkillsChange }) => {
                         </motion.div>
                     ))}
                     {skills.length === 0 && (
-                        <div style={{ width: '100%', textAlign: 'center', color: 'var(--color-text-muted)', padding: '1rem', fontStyle: 'italic' }}>
-                            No skills added yet. Type above or upload your resume.
+                        <div style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem', fontStyle: 'italic', paddingLeft: '0.5rem' }}>
+                            Added skills will appear here...
                         </div>
                     )}
                 </AnimatePresence>

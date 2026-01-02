@@ -24,7 +24,9 @@ const ResumeUpload = ({ onSkillsExtracted }) => {
 
         try {
             const response = await api.uploadResume(formData);
-            const extractedSkills = response.data.extracted_skills || [];
+            // Handle new structured response format
+            const parsed = response.data.parsed || {};
+            const extractedSkills = parsed.skills || response.data.extracted_skills || [];
 
             onSkillsExtracted(extractedSkills);
             setSuccess(`Successfully extracted ${extractedSkills.length} skills!`);
@@ -54,17 +56,17 @@ const ResumeUpload = ({ onSkillsExtracted }) => {
 
     return (
         <div
-            className="glass-panel"
             style={{
                 padding: '2rem',
                 textAlign: 'center',
                 borderStyle: 'dashed',
                 borderWidth: '2px',
                 borderColor: isDragging ? 'var(--color-primary)' : 'var(--color-border)',
-                background: isDragging ? 'rgba(139, 92, 246, 0.05)' : 'var(--color-bg-surface-glass)',
+                background: isDragging ? 'rgba(139, 92, 246, 0.05)' : 'rgba(255, 255, 255, 0.02)',
+                borderRadius: 'var(--radius-lg)',
                 cursor: 'pointer',
                 transition: 'all 0.2s',
-                marginBottom: '1.5rem'
+                marginBottom: '0'
             }}
             onDragOver={onDragOver}
             onDragLeave={onDragLeave}
