@@ -46,37 +46,37 @@ def upload_resume():
         current_app.logger.error(f"Resume parsing failed: {e}")
         return jsonify({"error": str(e)}), 500
 
-@main.route('/api/confirm_skills', methods=['POST'])
-@token_required
-def confirm_skills():
-    """Step 1b: User confirms skills. Save to profile."""
-    data = request.get_json()
-    user_id = g.user['id']
-    
-    skills = data.get('skills', [])
-    if not isinstance(skills, list):
-        return jsonify({"error": "Skills must be a list"}), 400
-        
-    # We might want to save these to the user profile immediately
-    # Assuming save_user_profile handles this. passing partial data.
-    # existing profile fetch -> update -> save
-    # For now, we'll just acknowledge receipt as the frontend holds state too.
-    # Ideally, we should persist.
-    
-    try:
-        # A simple "save skills" logic if your DB supports it, or full profile save
-        # Re-using save_user_profile but we might need existing role?
-        # Let's assume frontend calls save_profile later or we just return "ok".
-        # The prompt says "Purpose: persist the user-verified skills".
-        
-        # NOTE: If we don't have a specific `update_skills` function, we might skip saving 
-        # distinctively here if the `save_profile` endpoint exists. 
-        # But to satisfy the contract:
-        return jsonify({"status": "ok", "saved": skills})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+# @main.route('/confirm_skills', methods=['POST'])
+# @token_required
+# def confirm_skills():
+#     """Step 1b: User confirms skills. Save to profile."""
+#     data = request.get_json()
+#     user_id = g.user['id']
+#     
+#     skills = data.get('skills', [])
+#     if not isinstance(skills, list):
+#         return jsonify({"error": "Skills must be a list"}), 400
+#         
+#     # We might want to save these to the user profile immediately
+#     # Assuming save_user_profile handles this. passing partial data.
+#     # existing profile fetch -> update -> save
+#     # For now, we'll just acknowledge receipt as the frontend holds state too.
+#     # Ideally, we should persist.
+#     
+#     try:
+#         # A simple "save skills" logic if your DB supports it, or full profile save
+#         # Re-using save_user_profile but we might need existing role?
+#         # Let's assume frontend calls save_profile later or we just return "ok".
+#         # The prompt says "Purpose: persist the user-verified skills".
+#         
+#         # NOTE: If we don't have a specific `update_skills` function, we might skip saving 
+#         # distinctively here if the `save_profile` endpoint exists. 
+#         # But to satisfy the contract:
+#         return jsonify({"status": "ok", "saved": skills})
+#     except Exception as e:
+#         return jsonify({"error": str(e)}), 500
 
-@main.route('/api/analyze_gaps', methods=['POST'])
+@main.route('/analyze_gaps', methods=['POST'])
 @token_required
 def analyze_gaps():
     """Step 2->3 Transition: Get Missing Skills based on Role."""
@@ -94,7 +94,7 @@ def analyze_gaps():
         current_app.logger.error(f"Gap analysis failed: {e}")
         return jsonify({"error": "AI analysis failed"}), 500
 
-@main.route('/api/recommend', methods=['POST', 'OPTIONS'])
+@main.route('/recommend', methods=['POST', 'OPTIONS'])
 def recommend():
     """Legacy endpoint for gap analysis - returns missing skills and recommended projects."""
     if request.method == 'OPTIONS':
@@ -124,36 +124,36 @@ def recommend():
         current_app.logger.error(f"Recommendation failed: {e}")
         return jsonify({"error": "Analysis failed", "details": str(e)}), 500
 
-@main.route('/api/generate_learning_path', methods=['POST'])
-@token_required
-def generate_path():
-    """Step 3: Generate detailed path based on constraints."""
-    data = request.get_json()
-    
-    # Extract params
-    role = data.get('target_role')
-    selected_skills = data.get('selected_skills', []) # The intersection of missing + what user wants
-    days = data.get('days', 30)
-    hours = data.get('daily_hours', 1.5)
-    project_type = data.get('project_type', 'portfolio')
-    context = data.get('additional_context', '')
-    
-    if not role or not selected_skills:
-        return jsonify({"error": "Role and selected skills are required"}), 400
-
-    try:
-        learn_plan = generate_learning_plan(
-            selected_skills=selected_skills,
-            role=role,
-            days=days,
-            hours=hours,
-            project_type=project_type,
-            context=context
-        )
-        return jsonify(learn_plan)
-    except Exception as e:
-        current_app.logger.error(f"Path generation failed: {e}")
-        return jsonify({"error": "Failed to generate learning path"}), 500
+# @main.route('/generate_learning_path', methods=['POST'])
+# @token_required
+# def generate_path():
+#     """Step 3: Generate detailed path based on constraints."""
+#     data = request.get_json()
+#     
+#     # Extract params
+#     role = data.get('target_role')
+#     selected_skills = data.get('selected_skills', []) # The intersection of missing + what user wants
+#     days = data.get('days', 30)
+#     hours = data.get('daily_hours', 1.5)
+#     project_type = data.get('project_type', 'portfolio')
+#     context = data.get('additional_context', '')
+#     
+#     if not role or not selected_skills:
+#         return jsonify({"error": "Role and selected skills are required"}), 400
+# 
+#     try:
+#         learn_plan = generate_learning_plan(
+#             selected_skills=selected_skills,
+#             role=role,
+#             days=days,
+#             hours=hours,
+#             project_type=project_type,
+#             context=context
+#         )
+#         return jsonify(learn_plan)
+#     except Exception as e:
+#         current_app.logger.error(f"Path generation failed: {e}")
+#         return jsonify({"error": "Failed to generate learning path"}), 500
 
 # Keep legacy save_profile for full profile updates if needed
 @main.route('/save_profile', methods=['POST'])

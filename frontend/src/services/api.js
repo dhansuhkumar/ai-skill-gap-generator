@@ -57,15 +57,15 @@ export const api = {
 
     // Legacy / Other
     recommend: (role, skills, provider, includeYoutube) =>
-        apiClient.post('/recommend', { role, skills, provider, include_youtube: includeYoutube }),
+        apiClient.post('/api/recommend', { role, skills, provider, include_youtube: includeYoutube }),
 
     roleChat: (role, messages, provider) =>
         apiClient.post('/api/role-chat', { role, messages, provider }),
 
     // Profile
-    getProfile: () => apiClient.get('/profile'),
+    getProfile: () => apiClient.get('/api/profile'),
     saveProfile: (role, skills, recommendations) =>
-        apiClient.post('/save_profile', { role, skills, recommendations }),
+        apiClient.post('/api/save_profile', { role, skills, recommendations }),
 
     // Starter Project Download URL helper
     getStarterProjectUrl: (skillName) => `${API_URL}/api/starter/${encodeURIComponent(skillName)}`
