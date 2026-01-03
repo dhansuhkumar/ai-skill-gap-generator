@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import Navbar from '../components/Navbar';
-import ResumeUpload from '../components/ResumeUpload';
-import SkillInput from '../components/SkillInput';
-import AnalysisConfiguration from '../components/AnalysisConfiguration';
-import RecommendationsDisplay from '../components/RecommendationsDisplay';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, ArrowRight, CheckCircle2, Loader2, ChevronRight, User, Target, BrainCircuit } from 'lucide-react';
+import { AnimatePresence } from 'framer-motion';
+import { CheckCircle2, User, Target, BrainCircuit } from 'lucide-react';
 import api from '../services/api';
+
+// Sub-components
+import StepSkills from '../components/dashboard/StepSkills';
+import StepRole from '../components/dashboard/StepRole';
+import StepConfig from '../components/dashboard/StepConfig';
+import StepResults from '../components/dashboard/StepResults';
 
 const Dashboard = () => {
     const [step, setStep] = useState(1);
@@ -26,7 +28,7 @@ const Dashboard = () => {
             return;
         }
         setError('');
-        
+
         // Format skills as objects with name, confidence, source
         const formattedSkills = skills.map(skill => ({
             name: typeof skill === 'string' ? skill : skill.name || skill,
@@ -37,7 +39,7 @@ const Dashboard = () => {
         // Optimistic UI: mark as saved immediately
         setSkillsSaved(true);
         setLoading(true);
-        
+
         try {
             const response = await api.confirmSkills(formattedSkills);
             // Store profile_id if returned, or we'll resolve it later
@@ -103,9 +105,9 @@ const Dashboard = () => {
                 additional_context: config.additional_context || '',
                 provider: config.provider || 'auto'
             };
-            
+
             const res = await api.generateLearningPath(params);
-            
+
             // Handle response - should match contract format
             if (res.data && res.data.status === 'ok') {
                 setResults(res.data);
@@ -125,7 +127,7 @@ const Dashboard = () => {
         } catch (err) {
             const status = err.response?.status;
             const errorMsg = err.response?.data?.error || 'Analysis generation failed. Please try again.';
-            
+
             if (status === 401) {
                 // Redirect to login handled by interceptor, but show message
                 setError('Session expired. Please login again.');
@@ -184,125 +186,42 @@ const Dashboard = () => {
                 {renderProgress()}
 
                 <AnimatePresence mode="wait">
-                    {/* Step 1: Skills */}
                     {step === 1 && (
-                        <motion.div
-                            key="step1"
-                            initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
-                            className="glass-panel"
-                            style={{ maxWidth: '800px', margin: '0 auto', padding: '2.5rem' }}
-                        >
-                            <h2 style={{ marginBottom: '0.5rem' }}>What skills do you have?</h2>
-                            <p style={{ color: 'var(--color-text-muted)', marginBottom: '2rem' }}>Add your technical skills or upload your resume</p>
-
-                            <div style={{ marginBottom: '2rem' }}>
-                                <SkillInput skills={skills} onSkillsChange={setSkills} />
-                            </div>
-
-                            <p style={{ textAlign: 'center', margin: '1rem 0', fontSize: '0.9rem', color: 'var(--color-text-muted)' }}>or upload resume</p>
-
-                            <ResumeUpload onSkillsExtracted={(newSkills) => setSkills(prev => [...new Set([...prev, ...newSkills])])} />
-
-                            <div style={{ marginTop: '2rem', textAlign: 'right' }}>
-                                <button
-                                    className="btn btn-primary"
-                                    onClick={handleConfirmSkills}
-                                    disabled={loading || skillsSaved}
-                                    style={{ padding: '0.75rem 2rem', opacity: skillsSaved ? 0.7 : 1 }}
-                                >
-                                    {loading ? <Loader2 className="animate-spin" /> : skillsSaved ? <>Saved <CheckCircle2 size={18} /></> : <>Next <ArrowRight size={18} /></>}
-                                </button>
-                            </div>
-                            {error && <p style={{ color: 'var(--color-error)', marginTop: '1rem' }}>{error}</p>}
-                            {skillsSaved && !error && <p style={{ color: 'var(--color-success)', marginTop: '1rem', fontSize: '0.9rem' }}>✓ Skills saved successfully</p>}
-                        </motion.div>
+                        <StepSkills
+                            skills={skills}
+                            setSkills={setSkills}
+                            onConfirm={handleConfirmSkills}
+                            loading={loading}
+                            skillsSaved={skillsSaved}
+                            error={error}
+                        />
                     )}
 
-                    {/* Step 2: Role */}
                     {step === 2 && (
-                        <motion.div
-                            key="step2"
-                            initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
-                            className="glass-panel"
-                            style={{ maxWidth: '800px', margin: '0 auto', padding: '2.5rem' }}
-                        >
-                            <button onClick={() => setStep(1)} style={{ background: 'none', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer', marginBottom: '1rem' }}>← Back</button>
-                            <h2 style={{ marginBottom: '0.5rem' }}>What's your target role?</h2>
-                            <p style={{ color: 'var(--color-text-muted)', marginBottom: '2rem' }}>Select the role you want to pursue</p>
-
-                            <input
-                                type="text"
-                                className="input-field"
-                                value={role}
-                                onChange={(e) => setRole(e.target.value)}
-                                placeholder="e.g. Full Stack Developer"
-                                style={{ fontSize: '1.2rem', padding: '1rem', width: '100%', marginBottom: '2rem' }}
-                            />
-
-                            {/* Role Chips */}
-                            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '2rem' }}>
-                                {['Software Engineer', 'Data Scientist', 'ML Engineer', 'DevOps Engineer', 'Frontend Developer', 'Full Stack Developer'].map(r => (
-                                    <button
-                                        key={r}
-                                        onClick={() => setRole(r)}
-                                        style={{
-                                            background: role === r ? 'var(--color-primary)' : 'rgba(255,255,255,0.05)',
-                                            border: role === r ? 'none' : '1px solid var(--color-border)',
-                                            padding: '0.75rem 1.5rem',
-                                            borderRadius: '2rem',
-                                            color: 'white',
-                                            cursor: 'pointer',
-                                            transition: 'all 0.2s'
-                                        }}
-                                    >
-                                        {r}
-                                    </button>
-                                ))}
-                            </div>
-
-                            <div style={{ textAlign: 'right' }}>
-                                <button
-                                    className="btn btn-primary"
-                                    onClick={handleConfirmRole}
-                                    disabled={loading || !role.trim()}
-                                    style={{ padding: '0.75rem 2rem' }}
-                                >
-                                    {loading ? <Loader2 className="animate-spin" /> : <>Next <ArrowRight size={18} /></>}
-                                </button>
-                            </div>
-                            {error && <p style={{ color: 'var(--color-error)', marginTop: '1rem' }}>{error}</p>}
-                        </motion.div>
+                        <StepRole
+                            role={role}
+                            setRole={setRole}
+                            onConfirm={handleConfirmRole}
+                            onBack={() => setStep(1)}
+                            loading={loading}
+                            error={error}
+                        />
                     )}
 
-                    {/* Step 3: Analysis Config (Prompt Box) */}
                     {step === 3 && (
-                        <motion.div
-                            key="step3"
-                            initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-                        >
-                            <div style={{ maxWidth: '800px', margin: '0 auto', marginBottom: '1rem' }}>
-                                <button onClick={() => setStep(2)} style={{ background: 'none', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer' }}>← Back</button>
-                            </div>
-                            <h2 style={{ textAlign: 'center', marginBottom: '2rem' }}>Ready to analyze!</h2>
-                            <AnalysisConfiguration
-                                missingSkills={missingSkills || []}
-                                onComplete={handleAnalysisComplete}
-                            />
-                            {error && <p style={{ color: 'var(--color-error)', textAlign: 'center', marginTop: '1rem' }}>{error}</p>}
-                        </motion.div>
+                        <StepConfig
+                            missingSkills={missingSkills}
+                            onComplete={handleAnalysisComplete}
+                            onBack={() => setStep(2)}
+                            error={error}
+                        />
                     )}
 
-                    {/* Step 4: Results */}
                     {step === 4 && results && (
-                        <motion.div
-                            key="step4"
-                            initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }}
-                        >
-                            <div style={{ maxWidth: '1200px', margin: '0 auto', marginBottom: '1rem' }}>
-                                <button onClick={() => setStep(3)} style={{ background: 'none', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer' }}>← Start Over</button>
-                            </div>
-                            <RecommendationsDisplay results={results} />
-                        </motion.div>
+                        <StepResults
+                            results={results}
+                            onReset={() => setStep(3)}
+                        />
                     )}
                 </AnimatePresence>
             </div>

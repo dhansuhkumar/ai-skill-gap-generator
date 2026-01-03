@@ -36,8 +36,8 @@ def verify_jwt_token(authorization_header):
     token = authorization_header.split()[1]
     
     # Try Supabase token verification first if configured
-    supabase_url = os.getenv("SUPABASE_URL")
-    supabase_key = os.getenv("SUPABASE_KEY")
+    supabase_url = os.getenv("VITE_SUPABASE_URL")
+    supabase_key = os.getenv("VITE_SUPABASE_KEY")
     
     if supabase_url and supabase_key:
         try:

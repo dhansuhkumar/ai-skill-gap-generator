@@ -7,7 +7,9 @@ DB_NAME = os.path.join(os.path.dirname(__file__), "..", "users.db") # fallback t
 
 def init_db():
     # If Supabase is configured, skip local SQLite initialization
-    if os.getenv("SUPABASE_URL") and os.getenv("SUPABASE_KEY"):
+    supabase_url = os.getenv("VITE_SUPABASE_URL")
+    supabase_key = os.getenv("VITE_SUPABASE_KEY")
+    if supabase_url and supabase_key:
         print("Supabase detected via env vars — skipping local SQLite init.")
         return
 

@@ -28,14 +28,18 @@ except ImportError:
 
 # If get_supabase function was imported, try to initialize client
 if _get_supabase_func:
-    supabase_url = os.getenv("SUPABASE_URL")
-    supabase_key = os.getenv("SUPABASE_KEY")
+    # If using Supabase, ensure DB_PATH matches or is not used directly
+    supabase_url = os.getenv("VITE_SUPABASE_URL")
+    supabase_key = os.getenv("VITE_SUPABASE_KEY")
 
     if supabase_url and supabase_key: # Supabase is configured
         print("Attempting to initialize Supabase client...")
         try:
             supabase_client = _get_supabase_func()
-            print("Supabase client initialized successfully.")
+            if supabase_client:
+                print("Supabase client initialized successfully.")
+            else:
+                print("Failed to initialize Supabase client (returned None).")
         except Exception as e:
             print(f"❌ Error initializing Supabase client: {e}")
             print("Ensure SUPABASE_URL and SUPABASE_KEY are correct.")
