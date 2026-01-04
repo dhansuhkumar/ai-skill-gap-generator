@@ -173,5 +173,5 @@ def profile():
 
 @main.app_errorhandler(500)
 def internal_error(error):
-    current_app.logger.error(f"Server Error: {error}")
+    current_app.logger.exception(f"Server Error: {error}")
     return jsonify({"error": "Internal server error"}), 500
