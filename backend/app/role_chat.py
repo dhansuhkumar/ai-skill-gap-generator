@@ -19,11 +19,17 @@ def _build_role_chat_prompt(role: str, messages: List[Dict[str, Any]]) -> str:
 
     history_lines = []
     for msg in messages or []:
-        sender = (msg.get("sender") or "").lower()
-        text = (msg.get("text") or "").strip()
+        # Support both formats: {role, content} (standard) and {sender, text} (legacy)
+        sender = msg.get("role") or msg.get("sender") or ""
+        text = msg.get("content") or msg.get("text") or ""
+        
+        sender = sender.lower()
+        text = text.strip()
+        
         if not text:
             continue
-        tag = "User" if sender == "user" else "Assistant"
+        
+        tag = "User" if sender in ["user", "human"] else "Assistant"
         history_lines.append(f"{tag}: {text}")
 
     history_block = "\n".join(history_lines[-12:]) if history_lines else "User: (no previous conversation)"

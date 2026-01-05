@@ -25,24 +25,24 @@ def register():
         return jsonify({"status": "ok"}), 200
     
     data = request.get_json()
-    username = data.get('username')
+    email = data.get('email')
     password = data.get('password')
 
-    if not username or not password:
-        return jsonify({"error": "Username and password required"}), 400
+    if not email or not password:
+        return jsonify({"error": "Email and password required"}), 400
 
     conn = get_db()
     cur = conn.cursor()
     try:
         password_hash = generate_password_hash(password)
         cur.execute(
-            "INSERT INTO auth_users (username, password_hash, created_at) VALUES (?, ?, ?)",
-            (username, password_hash, datetime.datetime.utcnow().isoformat())
+            "INSERT INTO auth_users (email, password_hash, created_at) VALUES (?, ?, ?)",
+            (email, password_hash, datetime.datetime.utcnow().isoformat())
         )
         conn.commit()
         return jsonify({"message": "User registered successfully"}), 201
     except sqlite3.IntegrityError:
-        return jsonify({"error": "Username already exists"}), 409
+        return jsonify({"error": "Email already exists"}), 409
     finally:
         conn.close()
 
@@ -53,24 +53,24 @@ def login():
         return jsonify({"status": "ok"}), 200
 
     data = request.get_json()
-    username = data.get('username')
+    email = data.get('email')
     password = data.get('password')
 
-    if not username or not password:
-        return jsonify({"error": "Username and password required"}), 400
+    if not email or not password:
+        return jsonify({"error": "Email and password required"}), 400
 
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("SELECT * FROM auth_users WHERE username = ?", (username,))
+    cur.execute("SELECT * FROM auth_users WHERE email = ?", (email,))
     user = cur.fetchone()
     conn.close()
 
     if user and check_password_hash(user['password_hash'], password):
         # Create a local JWT token
         access_token = create_access_token(identity=str(user['id']), expires_delta=datetime.timedelta(days=1))
-        return jsonify({"access_token": access_token, "username": username}), 200
+        return jsonify({"access_token": access_token, "email": email}), 200
     
-    return jsonify({"error": "Invalid username or password"}), 401
+    return jsonify({"error": "Invalid email or password"}), 401
 
 # Minimal health check endpoint
 @auth.route('/ping', methods=['GET'])

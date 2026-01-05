@@ -23,10 +23,7 @@ except ImportError:
 if genai is None:
     logger.warning("Neither google.genai nor google.generativeai is available")
 
-try:
-    import openai
-except Exception:
-    openai = None
+# openai = None (Imported lazily)
 
 try:
     import groq
@@ -141,7 +138,11 @@ def _provider_available(name: str) -> bool:
         except Exception:
             return False
     if name == "openai":
-        return bool(openai and os.getenv("OPENAI_API_KEY"))
+        try:
+            import openai
+            return bool(openai and os.getenv("OPENAI_API_KEY"))
+        except ImportError:
+            return False
     if name == "groq":
         return bool(os.getenv("GROQ_API_KEY") and groq)
     if name == "local":
@@ -220,6 +221,7 @@ def get_ai_response(prompt: str, requested_provider: Optional[str] = None) -> st
                     return raw
 
             elif provider == "openai":
+                import openai
                 openai.api_key = os.getenv("OPENAI_API_KEY")
                 resp = openai.ChatCompletion.create(
                     model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),

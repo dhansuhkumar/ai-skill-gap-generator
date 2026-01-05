@@ -60,10 +60,40 @@ def verify_jwt_token(authorization_header):
     except Exception:
         return None
 
+from flask_cors import cross_origin
+from app.role_manager import role_manager
+
+@bp.route("/analyze_role_gaps", methods=["POST"])
+@cross_origin(supports_credentials=True)
+def analyze_role_gaps():
+    """
+    Deterministic gap analysis (Step 1).
+    NO AI calls here.
+    """
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "Invalid JSON"}), 400
+        
+    role = data.get("role", "")
+    user_skills = data.get("skills", [])
+    
+    if not role:
+        return jsonify({"error": "Role is required"}), 400
+        
+    # Use deterministic manager
+    missing = role_manager.compute_missing_skills(user_skills, role)
+    
+    return jsonify({
+        "status": "ok",
+        "missing_skills": missing,
+        "source": "deterministic"
+    })
+
 @bp.route("/confirm_skills", methods=["POST", "OPTIONS"])
+@cross_origin(supports_credentials=True)
 def confirm_skills():
-    if request.method == "OPTIONS":
-        return jsonify({"status": "ok"}), 200
+    # if request.method == "OPTIONS":
+    #     return jsonify({"status": "ok"}), 200
 
     user_id = verify_jwt_token(request.headers.get("Authorization"))
     if not user_id:
@@ -116,6 +146,7 @@ def confirm_skills():
         conn.close()
 
 @bp.route("/generate_learning_path", methods=["POST"])
+@cross_origin(supports_credentials=True)
 def generate_learning_path():
     user_id = verify_jwt_token(request.headers.get("Authorization"))
     if not user_id:
@@ -127,8 +158,36 @@ def generate_learning_path():
 
     target_role = req.get("target_role")
     selected_skills = req.get("selected_skills", [])
-    days = int(req.get("days", 30))
-    daily_hours = float(req.get("daily_hours", 1.5))
+    
+    # New params
+    learning_pace = req.get("learning_pace", "Balanced")
+    time_commitment = req.get("time_commitment", "1 hour")
+    duration_pref = req.get("duration", "1 month") # e.g. "1 month", "2 weeks"
+    
+    # Map duration string to days (approximate) if raw days not provided
+    raw_days = req.get("days")
+    if not raw_days:
+        if "week" in str(duration_pref).lower():
+            if "2" in str(duration_pref): days = 14
+            else: days = 7
+        elif "month" in str(duration_pref).lower():
+            if "2" in str(duration_pref): days = 60
+            elif "3" in str(duration_pref): days = 90
+            else: days = 30
+        else:
+            days = 30
+    else:
+        days = int(raw_days)
+
+    # Use time_commitment to parse hours if not explicitly provided
+    raw_hours = req.get("daily_hours")
+    if not raw_hours:
+        if "30" in str(time_commitment): daily_hours = 0.5
+        elif "2" in str(time_commitment): daily_hours = 2.0
+        else: daily_hours = 1.0
+    else:
+        daily_hours = float(raw_hours)
+
     project_type = req.get("project_type", "portfolio")
     include_youtube = req.get("include_youtube", False)
     additional_context = req.get("additional_context", "")
@@ -167,7 +226,7 @@ def generate_learning_path():
         conn.close()
 
     # Import AI generator functions
-    from app.ai_generator import generate_learning_plan, analyze_skill_gaps
+    from app.ai_generator import generate_learning_plan
     from app.youtube_search import search_youtube_videos
 
     # Generate learning plan using AI generator
@@ -178,6 +237,8 @@ def generate_learning_path():
             days=days,
             hours=daily_hours,
             project_type=project_type,
+            learning_pace=learning_pace,     # NEW
+            time_commitment=time_commitment, # NEW
             context=additional_context,
             requested_provider=provider if provider != "auto" else None
         )
@@ -286,3 +347,22 @@ def generate_learning_path():
         import traceback
         traceback.print_exc()
         return jsonify({"error": "Failed to generate learning path", "details": str(e)}), 500
+
+@bp.route("/role-chat", methods=["POST"])
+@cross_origin(supports_credentials=True)
+def role_chat_endpoint():
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "Invalid JSON"}), 400
+            
+        role = data.get("role")
+        messages = data.get("messages", [])
+        provider = data.get("provider", "auto")
+        
+        from app.role_chat import generate_role_chat_reply
+        reply = generate_role_chat_reply(role, messages, requested_provider=provider)
+        
+        return jsonify({"reply": reply, "status": "ok"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500

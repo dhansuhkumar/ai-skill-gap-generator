@@ -45,12 +45,12 @@ export const authService = {
                 const response = await fetch('http://localhost:8080/auth/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username: email, password })
+                    body: JSON.stringify({ email, password })
                 });
                 const data = await response.json();
                 if (response.ok && data.access_token) {
                     localStorage.setItem('jwtToken', data.access_token);
-                    localStorage.setItem('username', data.username || email);
+                    localStorage.setItem('username', data.email || email);
                     return data;
                 }
                 throw new Error(data.error || 'Login failed');
@@ -94,7 +94,7 @@ export const authService = {
                 const response = await fetch('http://localhost:8080/auth/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username: email, password })
+                    body: JSON.stringify({ email, password })
                 });
                 const data = await response.json();
                 if (response.ok) {

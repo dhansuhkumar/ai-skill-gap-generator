@@ -49,11 +49,15 @@ if _get_supabase_func:
         print("Supabase client module found, but SUPABASE_URL or SUPABASE_KEY not set. Falling back to SQLite.")
 
 
+# Always initialize local DB for hybrid support (profiles/skills tables)
+from backend.database import init_db
+init_db() 
+
 if not supabase_client:
-    from backend.database import init_db
-    init_db() # Module-level call for Gunicorn
+    # Any other local-only setup if needed
+    pass
 else:
-    print("Using Supabase for persistence — local SQLite init skipped.")
+    print("Supabase client initialized.")
 
 # Use explicit package imports to avoid "No module named 'app'" when running as a module
 from backend.app import create_app
@@ -75,8 +79,8 @@ def set_response_headers(response):
 #     return response
 
 if __name__ == "__main__":
-    if not supabase_client:
-        from backend.database import init_db
-        init_db()
+    # Always init db
+    from backend.database import init_db
+    init_db()
     app.run(host="0.0.0.0", port=8080, debug=True)
 

@@ -53,6 +53,8 @@ export const api = {
 
     analyzeGaps: (skills, target_role) => apiClient.post('/api/recommend', { role: target_role, skills }),
 
+    analyzeRoleGaps: (skills, target_role) => apiClient.post('/api/analyze_role_gaps', { role: target_role, skills }),
+
     generateLearningPath: (params) => apiClient.post('/api/generate_learning_path', params),
 
     // Legacy / Other

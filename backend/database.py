@@ -7,12 +7,9 @@ DB_NAME = os.path.join(os.path.dirname(__file__), "..", "users.db") # fallback t
 
 def init_db():
     # If Supabase is configured, skip local SQLite initialization
-    supabase_url = os.getenv("VITE_SUPABASE_URL")
-    supabase_key = os.getenv("VITE_SUPABASE_KEY")
-    if supabase_url and supabase_key:
-        print("Supabase detected via env vars — skipping local SQLite init.")
-        return
-
+    # If Supabase is configured, we might still need local DB for other tables (hybrid mode)
+    # So we do NOT skip local SQLite init anymore.
+    
     print("Trying to open DB at:", DB_NAME)
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
@@ -55,7 +52,7 @@ def init_db():
     c.execute('''
         CREATE TABLE IF NOT EXISTS auth_users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE,
+            email TEXT UNIQUE,
             password_hash TEXT,
             created_at TEXT
         )
