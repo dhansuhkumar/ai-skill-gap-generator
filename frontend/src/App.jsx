@@ -13,7 +13,7 @@ const NotFound = () => <div className="container" style={{ paddingTop: '4rem', t
 
 function App() {
     return (
-        <BrowserRouter>
+        <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
             <div className="app-layout">
                 <Routes>
                     <Route path="/login" element={<Login />} />
