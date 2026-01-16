@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: ai-skill-gap-generator-backend
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: pip install -r requirements-prod.txt
+    startCommand: gunicorn backend.run:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: JWT_SECRET_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        value: https://ai-skill-gap-generator.vercel.app
+    healthCheckPath: /health

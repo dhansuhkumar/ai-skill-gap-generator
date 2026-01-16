@@ -76,13 +76,13 @@ def create_app():
 
     app.supabase = None # Default to None
     
-    # Supabase config
-    app.config["VITE_SUPABASE_URL"] = os.getenv("VITE_SUPABASE_URL")
-    app.config["VITE_SUPABASE_KEY"] = os.getenv("VITE_SUPABASE_KEY")
+    # Supabase config - Backend uses SUPABASE_URL/KEY (no VITE_ prefix)
+    app.config["SUPABASE_URL"] = os.getenv("SUPABASE_URL")
+    app.config["SUPABASE_KEY"] = os.getenv("SUPABASE_KEY")
 
     if _get_supabase_func_app:
-        supabase_url = app.config["VITE_SUPABASE_URL"]
-        supabase_key = app.config["VITE_SUPABASE_KEY"]
+        supabase_url = app.config["SUPABASE_URL"]
+        supabase_key = app.config["SUPABASE_KEY"]
         if supabase_url and supabase_key:
             try:
                 app.supabase = _get_supabase_func_app()
