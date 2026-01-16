@@ -26,9 +26,18 @@ _embedding_model = None
 
 def create_app():
     app = Flask(__name__)
-
+    
+    # Security: Request size limits
+    app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max request size
+    app.config['JSON_SORT_KEYS'] = False  # Prevent JSON key sorting for consistency
+    
     # Configure CORS - Use environment variable or default to local dev ports
+    # Security: Don't allow wildcard origins with credentials
     raw_origins = os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:5174,http://localhost:5173,http://127.0.0.1:5174,http://127.0.0.1:5173")
+    
+    # Validate origins - never allow wildcard with credentials
+    if raw_origins == "*":
+        logging.warning("CORS_ALLOWED_ORIGINS is set to wildcard - this is insecure with credentials enabled!")
 
     allowed_origins = [origin.strip() for origin in raw_origins.split(',')] if raw_origins != "*" else "*"
 

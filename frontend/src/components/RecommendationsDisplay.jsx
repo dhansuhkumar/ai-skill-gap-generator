@@ -57,6 +57,8 @@ const RecommendationsDisplay = ({ results }) => {
             <div style={{ display: 'grid', gap: '2rem', marginBottom: '3rem' }}>
                 {selectedSkills.map(skill => {
                     const path = learningPaths[skill];
+                    const skillVideos = path?.youtube_videos || [];
+
                     return (
                         <motion.div
                             key={skill}
@@ -65,10 +67,16 @@ const RecommendationsDisplay = ({ results }) => {
                             initial={{ opacity: 0, x: -10 }}
                             animate={{ opacity: 1, x: 0 }}
                         >
+                            {/* Skill Header */}
                             <div style={{ padding: '1.5rem', background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid var(--color-border)' }}>
-                                <h4 style={{ fontSize: '1.25rem', color: 'var(--color-primary)' }}>{skill}</h4>
+                                <h4 style={{ fontSize: '1.25rem', color: 'var(--color-primary)', marginBottom: '0.5rem' }}>{skill}</h4>
+                                {path?.summary && (
+                                    <p style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)', margin: 0 }}>{path.summary}</p>
+                                )}
                             </div>
-                            <div style={{ padding: '1.5rem' }}>
+
+                            {/* Learning Steps */}
+                            <div style={{ padding: '1.5rem', borderBottom: skillVideos.length > 0 ? '1px solid var(--color-border)' : 'none' }}>
                                 <div style={{ display: 'grid', gap: '1.5rem' }}>
                                     {path.steps && path.steps.map((step, idx) => (
                                         <div key={idx} style={{ display: 'flex', gap: '1rem' }}>
@@ -97,6 +105,61 @@ const RecommendationsDisplay = ({ results }) => {
                                     ))}
                                 </div>
                             </div>
+
+                            {/* YouTube Learning Resources for this skill */}
+                            {skillVideos.length > 0 && (
+                                <div style={{ padding: '1.5rem', background: 'rgba(239, 68, 68, 0.05)' }}>
+                                    <h5 style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        <PlayCircle size={18} color="#ef4444" />
+                                        <span>Video Tutorials for {skill}</span>
+                                    </h5>
+                                    <div style={{ display: 'grid', gap: '0.75rem' }}>
+                                        {skillVideos.map((vid, vidIdx) => (
+                                            <a
+                                                key={vidIdx}
+                                                href={vid.url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '0.75rem',
+                                                    padding: '0.75rem',
+                                                    background: 'rgba(255,255,255,0.05)',
+                                                    borderRadius: '0.5rem',
+                                                    textDecoration: 'none',
+                                                    color: 'inherit',
+                                                    transition: 'all 0.2s',
+                                                    border: '1px solid transparent'
+                                                }}
+                                                onMouseEnter={(e) => {
+                                                    e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
+                                                    e.currentTarget.style.borderColor = 'var(--color-primary)';
+                                                    e.currentTarget.style.transform = 'translateX(4px)';
+                                                }}
+                                                onMouseLeave={(e) => {
+                                                    e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
+                                                    e.currentTarget.style.borderColor = 'transparent';
+                                                    e.currentTarget.style.transform = 'translateX(0)';
+                                                }}
+                                            >
+                                                <PlayCircle size={20} color="#ef4444" style={{ flexShrink: 0 }} />
+                                                <div style={{ flex: 1, minWidth: 0 }}>
+                                                    <div style={{ fontSize: '0.9rem', fontWeight: 500, marginBottom: '0.25rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                        {vid.title}
+                                                    </div>
+                                                    {vid.channel && (
+                                                        <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                                                            {vid.channel}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <ExternalLink size={14} style={{ opacity: 0.5, flexShrink: 0 }} />
+                                            </a>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </motion.div>
                     );
                 })}

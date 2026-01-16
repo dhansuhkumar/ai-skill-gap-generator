@@ -3,8 +3,8 @@ import sys
 
 # Lazy import to avoid hard dependency at startup when env vars are not set
 def get_supabase():
-    SUPABASE_URL = os.getenv("VITE_SUPABASE_URL")
-    SUPABASE_KEY = os.getenv("VITE_SUPABASE_KEY")
+    SUPABASE_URL = os.getenv("SUPABASE_URL")
+    SUPABASE_KEY = os.getenv("SUPABASE_KEY")
     if not SUPABASE_URL or not SUPABASE_KEY:
         return None
 

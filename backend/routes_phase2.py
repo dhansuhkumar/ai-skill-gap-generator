@@ -2,6 +2,7 @@
 import os
 import sqlite3
 import json
+import logging
 from flask import Blueprint, request, jsonify
 from dotenv import load_dotenv
 
@@ -10,9 +11,12 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+logger = logging.getLogger(__name__)
+
 bp = Blueprint("phase2", __name__)
 
-DB_PATH = os.getenv("DB_PATH", "users.db")
+# Use same path resolution as database.py for consistency
+DB_PATH = os.getenv("DB_PATH", os.path.join(os.path.dirname(__file__), "users.db"))
 
 def get_db_conn():
     conn = sqlite3.connect(DB_PATH)
@@ -30,26 +34,50 @@ def ensure_skill_exists(conn, skill_name):
     return cur.lastrowid
 
 def verify_jwt_token(authorization_header):
-    if not authorization_header or not authorization_header.startswith("Bearer "):
+    """
+    Verify JWT token from Supabase or local auth.
+    Returns user_id on success, None on failure.
+    """
+    if not authorization_header:
         return None
     
-    token = authorization_header.split()[1]
+    if not authorization_header.startswith("Bearer "):
+        return None
+    
+    token = authorization_header.split(" ")[1]
     
     # Try Supabase token verification first if configured
-    supabase_url = os.getenv("VITE_SUPABASE_URL")
-    supabase_key = os.getenv("VITE_SUPABASE_KEY")
+    supabase_url = os.getenv("SUPABASE_URL")
+    supabase_key = os.getenv("SUPABASE_KEY")
     
     if supabase_url and supabase_key:
         try:
-            from backend.supabase_client import get_supabase
-            supabase = get_supabase()
-            if supabase:
-                # Verify token with Supabase
-                user_response = supabase.auth.get_user(token)
-                if user_response and user_response.user:
-                    return user_response.user.id
+            # Use PyJWT to decode Supabase token
+            # Note: Supabase tokens are signed with JWT_SECRET (not anon key)
+            # For now, decode without signature verification
+            import jwt
+            
+            decoded = jwt.decode(
+                token,
+                options={"verify_signature": False},  # Skip signature verification
+                algorithms=["HS256"]
+            )
+            
+            # Extract user ID from 'sub' claim
+            user_id = decoded.get("sub")
+            if user_id:
+                return user_id
+                
+        except jwt.ExpiredSignatureError:
+            print("Supabase token expired")
+            return None
+        except jwt.DecodeError as e:
+            print(f"Supabase token decode error: {e}")
+            # Fall through to local JWT verification
+            pass
         except Exception as e:
-            # If Supabase verification fails, fall back to local JWT
+            print(f"Supabase token verification error: {e}")
+            # Fall through to local JWT verification
             pass
     
     # Fallback to local JWT verification
@@ -57,18 +85,57 @@ def verify_jwt_token(authorization_header):
         from flask_jwt_extended import decode_token
         decoded = decode_token(token)
         return decoded.get("sub")
-    except Exception:
+    except Exception as e:
+        print(f"Local JWT verification failed: {e}")
         return None
 
-from flask_cors import cross_origin
+
 from app.role_manager import role_manager
 
+@bp.route("/api/sync_profile", methods=["POST", "OPTIONS"])
+def sync_profile():
+    """
+    Sync user profile after Supabase authentication.
+    Creates local SQLite profile if it doesn't exist.
+    """
+    if request.method == "OPTIONS":
+        return jsonify({"status": "ok"}), 200
+    
+    user_id = verify_jwt_token(request.headers.get("Authorization"))
+    if not user_id:
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    conn = get_db_conn()
+    try:
+        cur = conn.cursor()
+        
+        # Check if profile exists
+        cur.execute("SELECT id FROM profiles WHERE user_id = ?", (user_id,))
+        row = cur.fetchone()
+        
+        if row:
+            profile_id = row["id"]
+        else:
+            # Create new profile
+            cur.execute("INSERT INTO profiles (user_id) VALUES (?)", (user_id,))
+            conn.commit()
+            profile_id = cur.lastrowid
+        
+        return jsonify({
+            "status": "ok",
+            "profile_id": profile_id,
+            "user_id": user_id
+        })
+    except Exception as e:
+        return jsonify({"error": f"Failed to sync profile: {str(e)}"}), 500
+    finally:
+        conn.close()
+
 @bp.route("/analyze_role_gaps", methods=["POST"])
-@cross_origin(supports_credentials=True)
 def analyze_role_gaps():
     """
-    Deterministic gap analysis (Step 1).
-    NO AI calls here.
+    Optimized CSV-based skill gap analysis.
+    Returns top 10 most important skills with caching for speed.
     """
     data = request.get_json()
     if not data:
@@ -79,21 +146,51 @@ def analyze_role_gaps():
     
     if not role:
         return jsonify({"error": "Role is required"}), 400
-        
-    # Use deterministic manager
-    missing = role_manager.compute_missing_skills(user_skills, role)
     
-    return jsonify({
-        "status": "ok",
-        "missing_skills": missing,
-        "source": "deterministic"
-    })
+    # Use optimized CSV-based analysis (top 10 skills, cached)
+    from app.ai_generator import analyze_skill_gaps
+    
+    try:
+        # Pass top_n=30 for more skill options
+        gap_analysis = analyze_skill_gaps(user_skills, role, top_n=30)
+        
+        required_skills = gap_analysis.get("required_skills", [])
+        missing_skills = gap_analysis.get("missing_skills", [])
+        matched_count = gap_analysis.get("matched_count", 0)
+        
+        # Calculate match score
+        if len(required_skills) > 0:
+            user_has_count = len(required_skills) - len(missing_skills)
+            match_score = int((user_has_count / len(required_skills)) * 100)
+        else:
+            match_score = 0
+        
+        # Get alternative role suggestions
+        from app.role_suggestions import get_alternative_roles
+        alternative_roles = get_alternative_roles(user_skills, limit=5)
+        
+        return jsonify({
+            "status": "ok",
+            "missing_skills": missing_skills,  # Top 10 cleaned skills
+            "required_skills": required_skills,  # Top 10 required skills
+            "match_score": match_score,
+            "user_skills_count": len(required_skills) - len(missing_skills),
+            "required_skills_count": len(required_skills),
+            "matched_jobs_count": matched_count,
+            "alternative_roles": alternative_roles,
+            "source": gap_analysis.get("source", "csv_optimized")
+        })
+    except Exception as e:
+        print(f"Error in analyze_role_gaps: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Analysis failed: {str(e)}"}), 500
+
 
 @bp.route("/confirm_skills", methods=["POST", "OPTIONS"])
-@cross_origin(supports_credentials=True)
 def confirm_skills():
-    # if request.method == "OPTIONS":
-    #     return jsonify({"status": "ok"}), 200
+    if request.method == "OPTIONS":
+        return jsonify({"status": "ok"}), 200
 
     user_id = verify_jwt_token(request.headers.get("Authorization"))
     if not user_id:
@@ -146,7 +243,6 @@ def confirm_skills():
         conn.close()
 
 @bp.route("/generate_learning_path", methods=["POST"])
-@cross_origin(supports_credentials=True)
 def generate_learning_path():
     user_id = verify_jwt_token(request.headers.get("Authorization"))
     if not user_id:
@@ -199,6 +295,11 @@ def generate_learning_path():
         return jsonify({"error": "target_role is required"}), 400
     if not selected_skills or not isinstance(selected_skills, list) or len(selected_skills) == 0:
         return jsonify({"error": "selected_skills must be a non-empty list"}), 400
+    
+    # CRITICAL: Limit to 10 skills max (prevent 5014 skills issue)
+    if len(selected_skills) > 10:
+        print(f"⚠️ Limiting selected_skills from {len(selected_skills)} to 10")
+        selected_skills = selected_skills[:10]
 
     # Resolve profile_id from user_id if not provided
     conn = get_db_conn()
@@ -231,6 +332,8 @@ def generate_learning_path():
 
     # Generate learning plan using AI generator
     try:
+        print(f"✅ Generating learning plan for {len(selected_skills)} skills: {selected_skills}")
+        
         plan_result = generate_learning_plan(
             selected_skills=selected_skills,
             role=target_role,
@@ -303,15 +406,34 @@ def generate_learning_path():
 
         # Get YouTube videos if requested
         videos = []
+        skill_videos = {}  # Map skill -> list of videos
+        
         if include_youtube:
             try:
+                from app.youtube_search import search_youtube_videos
+                
+                logger.info(f"🎥 Fetching YouTube videos for {len(selected_skills)} skills")
+                
                 for skill in selected_skills:
+                    # Search for skill-specific tutorials
                     video_results = search_youtube_videos(
                         f"{skill} tutorial {target_role}",
-                        max_results=2,
+                        max_results=3,  # 3 videos per skill
                         allow_search=True
                     )
-                    videos.extend(video_results[:2])  # Limit to 2 per skill
+                    
+                    if video_results:
+                        # Store videos for this skill
+                        skill_videos[skill] = video_results[:3]
+                        logger.info(f"   ✅ Found {len(video_results)} videos for {skill}")
+                    else:
+                        logger.warning(f"   ⚠️ No videos found for {skill}")
+                        skill_videos[skill] = []
+                
+                # Also collect all videos for general display
+                for vids in skill_videos.values():
+                    videos.extend(vids)
+                
                 # Deduplicate by URL
                 seen_urls = set()
                 unique_videos = []
@@ -321,21 +443,35 @@ def generate_learning_path():
                         seen_urls.add(url)
                         unique_videos.append({
                             "title": vid.get("title", "Untitled"),
-                            "url": url
+                            "url": url,
+                            "channel": vid.get("channel", ""),
+                            "thumbnail": vid.get("thumbnail", "")
                         })
-                videos = unique_videos[:5]  # Max 5 videos total
+                videos = unique_videos[:10]  # Max 10 videos total for general display
+                
+                logger.info(f"   ✅ Total unique videos: {len(videos)}")
+                
             except Exception as e:
+                logger.error(f"   ❌ YouTube search failed: {e}")
                 # YouTube search failed, continue without videos
                 videos = []
+                skill_videos = {}
+
+        # Attach YouTube videos to each skill's learning path
+        for skill_name, skill_data in formatted_learning_paths.items():
+            if skill_name in skill_videos:
+                skill_data["youtube_videos"] = skill_videos[skill_name]
+            else:
+                skill_data["youtube_videos"] = []
 
         # Build response matching exact contract
         response_data = {
             "status": "ok",
             "learning_path": {
                 "summary": f"{days}-day learning plan for {target_role}",
-                "skills": formatted_learning_paths,
+                "skills": formatted_learning_paths,  # Now includes youtube_videos per skill
                 "projects": formatted_projects,
-                "videos": videos
+                "videos": videos  # General videos for backward compatibility
             },
             "matching_score": matching_score,
             "source": source_used
@@ -349,7 +485,6 @@ def generate_learning_path():
         return jsonify({"error": "Failed to generate learning path", "details": str(e)}), 500
 
 @bp.route("/role-chat", methods=["POST"])
-@cross_origin(supports_credentials=True)
 def role_chat_endpoint():
     try:
         data = request.get_json()

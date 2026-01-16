@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 // Initialize Supabase client
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_KEY || '';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
 let supabase = null;
 if (supabaseUrl && supabaseAnonKey) {
@@ -29,6 +30,20 @@ export const authService = {
                     localStorage.setItem('jwtToken', data.session.access_token);
                     localStorage.setItem('username', data.user?.email || email);
                     localStorage.setItem('userId', data.user?.id || '');
+
+                    // Sync profile with backend
+                    try {
+                        await fetch(`${API_URL}/api/sync_profile`, {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': `Bearer ${data.session.access_token}`,
+                                'Content-Type': 'application/json'
+                            }
+                        });
+                    } catch (err) {
+                        console.warn('Profile sync failed:', err);
+                    }
+
                     return {
                         access_token: data.session.access_token,
                         username: data.user?.email || email,
@@ -42,7 +57,7 @@ export const authService = {
         } else {
             // Fallback to local API auth
             try {
-                const response = await fetch('http://localhost:8080/auth/login', {
+                const response = await fetch(`${API_URL}/auth/login`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email, password })
@@ -51,6 +66,20 @@ export const authService = {
                 if (response.ok && data.access_token) {
                     localStorage.setItem('jwtToken', data.access_token);
                     localStorage.setItem('username', data.email || email);
+
+                    // Sync profile with backend
+                    try {
+                        await fetch(`${API_URL}/api/sync_profile`, {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': `Bearer ${data.access_token}`,
+                                'Content-Type': 'application/json'
+                            }
+                        });
+                    } catch (err) {
+                        console.warn('Profile sync failed:', err);
+                    }
+
                     return data;
                 }
                 throw new Error(data.error || 'Login failed');
@@ -78,6 +107,19 @@ export const authService = {
                     localStorage.setItem('jwtToken', data.session.access_token);
                     localStorage.setItem('username', data.user?.email || email);
                     localStorage.setItem('userId', data.user?.id || '');
+
+                    // Sync profile with backend
+                    try {
+                        await fetch(`${API_URL}/api/sync_profile`, {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': `Bearer ${data.session.access_token}`,
+                                'Content-Type': 'application/json'
+                            }
+                        });
+                    } catch (err) {
+                        console.warn('Profile sync failed:', err);
+                    }
                 }
 
                 return {
@@ -91,13 +133,15 @@ export const authService = {
         } else {
             // Fallback to local API auth
             try {
-                const response = await fetch('http://localhost:8080/auth/register', {
+                const response = await fetch(`${API_URL}/auth/register`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email, password })
                 });
                 const data = await response.json();
                 if (response.ok) {
+                    // For local registration, user needs to login separately
+                    // No token returned from registration endpoint
                     return data;
                 }
                 throw new Error(data.error || 'Registration failed');

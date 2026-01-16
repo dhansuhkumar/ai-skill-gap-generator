@@ -29,8 +29,8 @@ except ImportError:
 # If get_supabase function was imported, try to initialize client
 if _get_supabase_func:
     # If using Supabase, ensure DB_PATH matches or is not used directly
-    supabase_url = os.getenv("VITE_SUPABASE_URL")
-    supabase_key = os.getenv("VITE_SUPABASE_KEY")
+    supabase_url = os.getenv("SUPABASE_URL")
+    supabase_key = os.getenv("SUPABASE_KEY")
 
     if supabase_url and supabase_key: # Supabase is configured
         print("Attempting to initialize Supabase client...")
@@ -50,8 +50,16 @@ if _get_supabase_func:
 
 
 # Always initialize local DB for hybrid support (profiles/skills tables)
-from backend.database import init_db
-init_db() 
+from backend.database import init_db, DB_NAME
+print("=" * 60)
+print("🚀 Starting database initialization...")
+init_db()
+print(f"📁 Database file location: {os.path.abspath(DB_NAME)}")
+if os.path.exists(DB_NAME):
+    print(f"✅ Database file exists (size: {os.path.getsize(DB_NAME)} bytes)")
+else:
+    print(f"❌ WARNING: Database file not found at {os.path.abspath(DB_NAME)}")
+print("=" * 60)
 
 if not supabase_client:
     # Any other local-only setup if needed
@@ -80,7 +88,9 @@ def set_response_headers(response):
 
 if __name__ == "__main__":
     # Always init db
-    from backend.database import init_db
+    from backend.database import init_db, DB_NAME
+    print("🔄 Re-initializing database from __main__ block...")
     init_db()
+    print(f"✅ Database ready at: {os.path.abspath(DB_NAME)}")
     app.run(host="0.0.0.0", port=8080, debug=True)
 

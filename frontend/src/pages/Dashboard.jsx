@@ -23,6 +23,7 @@ const Dashboard = () => {
     const [skills, setSkills] = useState([]);
     const [role, setRole] = useState('');
     const [missingSkills, setMissingSkills] = useState([]);
+    const [matchData, setMatchData] = useState(null); // Store match score data
     const [selectedToLearn, setSelectedToLearn] = useState([]);
     const [learningPrefs, setLearningPrefs] = useState({
         time_commitment: '1 hour',
@@ -75,8 +76,16 @@ const Dashboard = () => {
 
             if (res.data && res.data.missing_skills) {
                 setMissingSkills(res.data.missing_skills);
+                // Store match data for display
+                setMatchData({
+                    match_score: res.data.match_score || 0,
+                    user_skills_count: res.data.user_skills_count || 0,
+                    required_skills_count: res.data.required_skills_count || 0,
+                    matched_jobs_count: res.data.matched_jobs_count || 0
+                });
             } else {
                 setMissingSkills([]);
+                setMatchData(null);
             }
             setStep(3);
         } catch (err) {
@@ -206,6 +215,7 @@ const Dashboard = () => {
                             onConfirm={handleConfirmSkills}
                             loading={loading}
                             skillsSaved={skillsSaved}
+                            error={error}
                         />
                     )}
 
@@ -222,6 +232,7 @@ const Dashboard = () => {
                     {step === 3 && (
                         <StepMissingSkills
                             missingSkills={missingSkills}
+                            matchData={matchData}
                             onNext={handleSelectMissing}
                             onBack={() => setStep(2)}
                         />

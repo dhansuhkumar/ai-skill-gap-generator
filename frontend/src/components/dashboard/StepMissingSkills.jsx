@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { CheckCircle2, Circle, ArrowRight, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-const StepMissingSkills = ({ missingSkills, onNext, onBack }) => {
+const StepMissingSkills = ({ missingSkills, matchData, onNext, onBack }) => {
     const [selected, setSelected] = useState([]);
 
     useEffect(() => {
@@ -31,6 +31,30 @@ const StepMissingSkills = ({ missingSkills, onNext, onBack }) => {
                 <h2 style={{ fontSize: '1.8rem', marginBottom: '0.5rem' }}>
                     What do you want to learn?
                 </h2>
+
+                {/* Match Score Display */}
+                {matchData && (
+                    <div style={{
+                        background: 'rgba(139, 92, 246, 0.1)',
+                        border: '1px solid rgba(139, 92, 246, 0.3)',
+                        borderRadius: '0.75rem',
+                        padding: '1rem',
+                        marginBottom: '1rem'
+                    }}>
+                        <div style={{ fontSize: '2rem', fontWeight: 'bold', color: 'var(--color-primary)' }}>
+                            {matchData.match_score}% Match
+                        </div>
+                        <div style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>
+                            You have {matchData.user_skills_count} out of {matchData.required_skills_count} required skills
+                        </div>
+                        {matchData.matched_jobs_count > 0 && (
+                            <div style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem', marginTop: '0.25rem' }}>
+                                Based on {matchData.matched_jobs_count} job postings
+                            </div>
+                        )}
+                    </div>
+                )}
+
                 <p style={{ color: 'var(--color-text-muted)' }}>
                     These skills are typically required for this role. Select the ones you want to focus on now.
                 </p>
