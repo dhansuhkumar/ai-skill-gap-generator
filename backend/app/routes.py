@@ -21,7 +21,7 @@ def home():
 @main.route('/job_titles', methods=['GET'])
 def job_titles():
     """Get list of available job titles for autocomplete."""
-    from .db_data_loader import get_similar_job_titles
+    from .hf_data_loader import get_similar_job_titles
     query = request.args.get('q', '')
     limit = int(request.args.get('limit', 10))
     

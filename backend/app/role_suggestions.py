@@ -5,7 +5,7 @@ Alternative Role Suggestions - Find roles user has high chance to become.
 
 from typing import List, Dict
 from collections import Counter
-from .db_data_loader import db_loader, find_matching_jobs
+from .hf_data_loader import hf_loader, find_matching_jobs
 from .skill_cleaner import clean_and_deduplicate_skills
 
 
@@ -28,7 +28,7 @@ def get_alternative_roles(user_skills: List[str], limit: int = 5) -> List[Dict]:
     print(f"🔍 Finding alternative roles for {len(user_skills)} user skills")
     
     # Get all unique job titles from database
-    all_job_titles = db_loader.get_all_job_titles()
+    all_job_titles = hf_loader.get_all_job_titles()
     
     if not all_job_titles:
         print("❌ No job titles found")
@@ -61,7 +61,7 @@ def get_alternative_roles(user_skills: List[str], limit: int = 5) -> List[Dict]:
         
         # Get required skills for this role
         job_links = [job.get('job_link') for job in matched_jobs if job.get('job_link')]
-        skills_map = db_loader.get_skills_for_job_links(job_links[:50])  # Limit for speed
+        skills_map = hf_loader.get_skills_for_job_links(job_links[:50])  # Limit for speed
         
         if not skills_map:
             continue

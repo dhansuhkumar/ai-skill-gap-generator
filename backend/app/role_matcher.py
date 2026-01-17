@@ -8,8 +8,8 @@ import re
 from typing import List, Dict, Tuple
 from difflib import get_close_matches
 
-from .db_data_loader import (
-    db_loader,
+from .hf_data_loader import (
+    hf_loader,
     get_all_job_titles,
     find_matching_jobs,
     get_similar_job_titles
@@ -145,7 +145,7 @@ def match_role_to_csv(role_query: str, limit_jobs: int = 20) -> Dict:
     # Get required skills for matched jobs
     if matched_jobs:
         job_titles = [j['job_title'] for j in matched_jobs]
-        required_skills = db_loader.get_skills_for_job_titles(job_titles)
+        required_skills = hf_loader.get_skills_for_job_titles(job_titles)
     else:
         required_skills = []
     

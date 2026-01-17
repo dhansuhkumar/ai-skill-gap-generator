@@ -7,7 +7,7 @@ import functools
 from typing import List, Dict, Tuple
 from collections import Counter
 
-from .db_data_loader import db_loader, find_matching_jobs
+from .hf_data_loader import hf_loader, find_matching_jobs
 from .role_matcher import match_role_to_csv, compute_missing_skills
 from .skill_cleaner import clean_and_deduplicate_skills, rank_skills_by_frequency
 
@@ -55,7 +55,7 @@ def get_top_skills_for_role(role: str, top_n: int = 10) -> Tuple[List[str], int]
     print(f"✅ Extracted {len(job_links)} job links")
     
     # Get skills for all job links
-    skills_map = db_loader.get_skills_for_job_links(job_links)
+    skills_map = hf_loader.get_skills_for_job_links(job_links)
     
     if not skills_map:
         print(f"❌ No skills found for job links")

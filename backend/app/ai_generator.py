@@ -10,8 +10,8 @@ import logging
 import time
 from typing import List, Optional, Dict
 
-from .db_data_loader import (
-    db_loader,
+from .hf_data_loader import (
+    hf_loader,
     get_required_skills,
     find_matching_jobs
 )

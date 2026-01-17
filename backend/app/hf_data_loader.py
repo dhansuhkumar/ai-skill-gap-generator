@@ -1,56 +1,65 @@
-# backend/app/csv_data_loader.py
 """
-CSV Data Loader - Loads and queries Kaggle job data CSV files.
-Provides deterministic skill gap analysis without AI.
+HuggingFace Data Loader - Loads job/skill data from HuggingFace Datasets.
+Uses Arrow/Parquet format with local caching for fast retrieval.
 """
 
 import os
-import pandas as pd
-import json
-from typing import List, Dict, Set, Optional
+from typing import List, Dict, Optional
 from collections import Counter
 
-# Base directory for CSV files
-DATA_DIR = os.path.join(os.path.dirname(__file__), '..', 'data')
+# HuggingFace dataset configuration
+HF_USERNAME = os.getenv("HF_USERNAME", "dhansuhkumar")
+HF_JOBS_DATASET = os.getenv("HF_JOBS_DATASET", f"{HF_USERNAME}/skill-gap-jobs")
+HF_SKILLS_DATASET = os.getenv("HF_SKILLS_DATASET", f"{HF_USERNAME}/skill-gap-skills")
 
-class CSVDataLoader:
-    """Load and query job/skill data from CSV files."""
+
+class HFDataLoader:
+    """Load and query job/skill data from HuggingFace Datasets with local caching."""
     
     _instance = None
     _jobs_df = None
     _skills_df = None
-    # Removed _summary_df - job_summary.csv is 4.8GB and never used
+    _initialized = False
     
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
-            cls._instance._load_data()
         return cls._instance
     
-    def _load_data(self):
-        """Load all CSV files into memory."""
-        jobs_path = os.path.join(DATA_DIR, 'linkedin_job_postings.csv')
-        skills_path = os.path.join(DATA_DIR, 'job_skills.csv')
-        # Removed job_summary.csv loading - 4.8GB file that was never used
+    def _ensure_loaded(self):
+        """Lazy load datasets on first access."""
+        if self._initialized:
+            return
         
         try:
-            self._jobs_df = pd.read_csv(jobs_path)
-            print(f"✅ Loaded {len(self._jobs_df)} jobs from linkedin_job_postings.csv")
+            from datasets import load_dataset
+            import pandas as pd
+            
+            print(f"📥 Loading datasets from HuggingFace Hub...")
+            print(f"   Jobs: {HF_JOBS_DATASET}")
+            print(f"   Skills: {HF_SKILLS_DATASET}")
+            
+            # Load datasets - HuggingFace caches locally in Arrow format
+            jobs_ds = load_dataset(HF_JOBS_DATASET, split="train")
+            skills_ds = load_dataset(HF_SKILLS_DATASET, split="train")
+            
+            # Convert to pandas for fast in-memory operations
+            self._jobs_df = jobs_ds.to_pandas()
+            self._skills_df = skills_ds.to_pandas()
+            
+            print(f"✅ Loaded {len(self._jobs_df):,} jobs and {len(self._skills_df):,} skill mappings")
+            self._initialized = True
+            
         except Exception as e:
-            print(f"❌ Error loading jobs: {e}")
+            print(f"❌ Failed to load HuggingFace datasets: {e}")
+            import pandas as pd
             self._jobs_df = pd.DataFrame()
-        
-        try:
-            self._skills_df = pd.read_csv(skills_path)
-            print(f"✅ Loaded {len(self._skills_df)} job skills from job_skills.csv")
-        except Exception as e:
-            print(f"❌ Error loading skills: {e}")
             self._skills_df = pd.DataFrame()
-        
-        print("✅ CSV data loader initialized (job_summary.csv skipped for performance)")
+            self._initialized = True
     
     def get_all_job_titles(self) -> List[str]:
         """Return all unique job titles."""
+        self._ensure_loaded()
         if self._jobs_df is None or 'job_title' not in self._jobs_df.columns:
             return []
         return self._jobs_df['job_title'].dropna().unique().tolist()
@@ -60,7 +69,8 @@ class CSVDataLoader:
         Find jobs matching a query string.
         Uses case-insensitive partial matching.
         """
-        if self._jobs_df is None:
+        self._ensure_loaded()
+        if self._jobs_df is None or self._jobs_df.empty:
             return []
         
         query_lower = query.lower()
@@ -84,9 +94,11 @@ class CSVDataLoader:
     
     def get_job_links_for_titles(self, job_titles: List[str]) -> List[str]:
         """Get job_links for a list of job titles."""
-        if self._jobs_df is None:
+        self._ensure_loaded()
+        if self._jobs_df is None or self._jobs_df.empty or not job_titles:
             return []
         
+        import pandas as pd
         # Create a mask for matching titles
         titles_set = set(t.lower() for t in job_titles)
         mask = self._jobs_df['job_title'].str.lower().apply(
@@ -97,9 +109,11 @@ class CSVDataLoader:
     
     def get_skills_for_job_links(self, job_links: List[str]) -> Dict[str, List[str]]:
         """Get skills mapping for a list of job_links."""
-        if self._skills_df is None or not job_links:
+        self._ensure_loaded()
+        if self._skills_df is None or self._skills_df.empty or not job_links:
             return {}
         
+        import pandas as pd
         # Filter skills dataframe by job_links
         mask = self._skills_df['job_link'].isin(job_links)
         filtered = self._skills_df[mask]
@@ -157,7 +171,8 @@ class CSVDataLoader:
     
     def get_job_details(self, job_link: str) -> Optional[Dict]:
         """Get full details for a specific job."""
-        if self._jobs_df is None:
+        self._ensure_loaded()
+        if self._jobs_df is None or self._jobs_df.empty:
             return None
         
         row = self._jobs_df[self._jobs_df['job_link'] == job_link]
@@ -187,17 +202,17 @@ class CSVDataLoader:
 
 
 # Singleton instance
-csv_loader = CSVDataLoader()
+hf_loader = HFDataLoader()
 
-# Convenience functions
+# Convenience functions (maintain same API as db_data_loader)
 def get_all_job_titles():
-    return csv_loader.get_all_job_titles()
+    return hf_loader.get_all_job_titles()
 
 def find_matching_jobs(query: str, limit: int = 10):
-    return csv_loader.find_matching_jobs(query, limit)
+    return hf_loader.find_matching_jobs(query, limit)
 
 def get_required_skills(query: str, limit_jobs: int = 20):
-    return csv_loader.get_required_skills(query, limit_jobs)
+    return hf_loader.get_required_skills(query, limit_jobs)
 
 def get_similar_job_titles(query: str, limit: int = 10):
-    return csv_loader.get_similar_job_titles(query, limit)
+    return hf_loader.get_similar_job_titles(query, limit)
