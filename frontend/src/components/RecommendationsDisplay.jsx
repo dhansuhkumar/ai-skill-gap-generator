@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { AlertTriangle, CheckCircle, BookOpen, Gift, Download, ExternalLink, PlayCircle, Sparkles, Calendar, Clock, ArrowRight } from 'lucide-react';
+import { AlertTriangle, CheckCircle, BookOpen, Gift, Download, ExternalLink, PlayCircle, Sparkles, Calendar, Clock, ArrowRight, Github } from 'lucide-react';
 import api from '../services/api';
 
 const RecommendationsDisplay = ({ results }) => {
@@ -174,11 +174,44 @@ const RecommendationsDisplay = ({ results }) => {
                     <div key={idx} className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
                         <h4 style={{ fontSize: '1.1rem', marginBottom: '0.5rem', color: 'var(--color-secondary)' }}>{proj.title}</h4>
                         <p style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)', marginBottom: '1rem', flex: 1 }}>{proj.description}</p>
-                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
                             {proj.skills && proj.skills.map(s => (
                                 <span key={s} style={{ fontSize: '0.75rem', background: 'rgba(255,255,255,0.1)', padding: '0.2rem 0.6rem', borderRadius: '1rem' }}>{s}</span>
                             ))}
                         </div>
+                        {proj.repo_url && (
+                            <a
+                                href={proj.repo_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.5rem',
+                                    padding: '0.5rem 1rem',
+                                    background: 'rgba(139, 92, 246, 0.15)',
+                                    border: '1px solid var(--color-primary)',
+                                    borderRadius: '0.5rem',
+                                    color: 'var(--color-primary)',
+                                    textDecoration: 'none',
+                                    fontSize: '0.85rem',
+                                    fontWeight: 500,
+                                    transition: 'all 0.2s',
+                                    width: 'fit-content'
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.background = 'var(--color-primary)';
+                                    e.currentTarget.style.color = 'white';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.background = 'rgba(139, 92, 246, 0.15)';
+                                    e.currentTarget.style.color = 'var(--color-primary)';
+                                }}
+                            >
+                                <Github size={16} />
+                                View Code
+                            </a>
+                        )}
                     </div>
                 ))}
             </div>
