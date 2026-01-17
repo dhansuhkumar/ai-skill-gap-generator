@@ -22,12 +22,17 @@ DATA_DIR = Path(__file__).parent.parent / "data"
 JOBS_CSV = DATA_DIR / "linkedin_job_postings_filtered.csv"
 SKILLS_CSV = DATA_DIR / "job_skills_filtered.csv"
 
+# Harvested data
+PROJECTS_CSV = DATA_DIR / "harvested_projects.csv"
+LEARNING_PATHS_CSV = DATA_DIR / "harvested_learning_paths.csv"
+
 
 def load_csv(path: Path, name: str) -> pd.DataFrame:
     """Load a CSV file and clean it."""
     print(f"  Loading {path.name}...")
     if not path.exists():
-        raise FileNotFoundError(f"{name} CSV not found: {path}")
+        print(f"  ⚠️ File not found: {path}")
+        return None
     
     df = pd.read_csv(path)
     print(f"  ✅ Loaded {len(df):,} {name}")
@@ -44,6 +49,10 @@ def load_csv(path: Path, name: str) -> pd.DataFrame:
 
 def push_dataset(df: pd.DataFrame, repo_name: str, description: str):
     """Convert DataFrame to HF Dataset and push to Hub."""
+    
+    if df is None or df.empty:
+        print(f"  ⚠️ Skipping {repo_name} - no data")
+        return True
     
     print(f"\n🔄 Converting {repo_name} to HuggingFace Dataset...")
     dataset = Dataset.from_pandas(df, preserve_index=False)
@@ -75,31 +84,46 @@ def main():
     
     print(f"📁 Loading data from: {DATA_DIR}\n")
     
-    # Load CSVs
-    jobs_df = load_csv(JOBS_CSV, "job postings")
-    skills_df = load_csv(SKILLS_CSV, "skill mappings")
-    
-    # Push as separate datasets
     success = True
     
-    print("\n" + "-" * 40)
-    print("Pushing Jobs Dataset")
-    print("-" * 40)
-    success &= push_dataset(jobs_df, "skill-gap-jobs", "job postings data")
+    # Push Jobs Dataset (optional - already uploaded)
+    if JOBS_CSV.exists():
+        print("\n" + "-" * 40)
+        print("Jobs Dataset (already uploaded, skipping)")
+        print("-" * 40)
     
-    print("\n" + "-" * 40)
-    print("Pushing Skills Dataset")
-    print("-" * 40)
-    success &= push_dataset(skills_df, "skill-gap-skills", "job skills mapping")
+    # Push Skills Dataset (optional - already uploaded)
+    if SKILLS_CSV.exists():
+        print("\n" + "-" * 40)
+        print("Skills Dataset (already uploaded, skipping)")
+        print("-" * 40)
+    
+    # Push Harvested Projects
+    if PROJECTS_CSV.exists():
+        print("\n" + "-" * 40)
+        print("Pushing Projects Dataset")
+        print("-" * 40)
+        projects_df = load_csv(PROJECTS_CSV, "projects")
+        success &= push_dataset(projects_df, "skill-gap-projects", "curated project ideas")
+    
+    # Push Learning Paths
+    if LEARNING_PATHS_CSV.exists():
+        print("\n" + "-" * 40)
+        print("Pushing Learning Paths Dataset")
+        print("-" * 40)
+        paths_df = load_csv(LEARNING_PATHS_CSV, "learning path phases")
+        success &= push_dataset(paths_df, "skill-gap-learning-paths", "roadmap learning paths")
     
     print("\n" + "=" * 60)
     if success:
-        print("  ✅ Migration Complete!")
+        print("  ✅ Upload Complete!")
         print(f"\n  Datasets available at:")
         print(f"    - https://huggingface.co/datasets/{HF_USERNAME}/skill-gap-jobs")
         print(f"    - https://huggingface.co/datasets/{HF_USERNAME}/skill-gap-skills")
+        print(f"    - https://huggingface.co/datasets/{HF_USERNAME}/skill-gap-projects")
+        print(f"    - https://huggingface.co/datasets/{HF_USERNAME}/skill-gap-learning-paths")
     else:
-        print("  ⚠️ Migration completed with errors. Check output above.")
+        print("  ⚠️ Upload completed with errors. Check output above.")
     print("=" * 60)
 
 

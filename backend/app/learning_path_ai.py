@@ -144,8 +144,9 @@ def generate_ai_learning_path(
     requested_provider: Optional[str] = None
 ) -> Dict:
     """
-    Generate an AI-powered learning path for a single skill.
-    Uses caching to minimize API calls on free tier.
+    Generate a learning path for a single skill.
+    Uses HuggingFace retrieval for instant, deterministic results.
+    Falls back to heuristic generation if no curated data exists.
     
     Args:
         skill: The skill to learn
@@ -154,45 +155,35 @@ def generate_ai_learning_path(
         hours: Daily hours available
         pace: Learning pace (Fast/Balanced/Thorough)
         context: Additional context from user
-        requested_provider: Specific AI provider to use (optional)
+        requested_provider: Ignored (kept for API compatibility)
     
     Returns:
-        Dict with 'summary' and 'steps' keys, or fallback heuristic data
+        Dict with 'summary' and 'steps' keys
     """
-    # Check cache first to save API calls
+    # Check cache first
     cache_key = _generate_cache_key(skill, role, days, hours, pace)
     if cache_key in _AI_CACHE:
         logger.info(f"✅ Using cached learning path for {skill}")
         return _AI_CACHE[cache_key]
     
-    # Build prompt
-    prompt = _build_learning_path_prompt(skill, role, days, hours, pace, context)
-    
-    # Try to use AI
+    # Use HuggingFace retrieval (instant, no API cost)
     try:
-        from app.ai.router import get_ai_response
+        from app.hf_data_loader import get_learning_path_for_skill
         
-        logger.info(f"🤖 Generating AI learning path for {skill} (provider: {requested_provider or 'auto'})")
+        logger.info(f"📚 Retrieving learning path for {skill} from HuggingFace")
         
-        ai_response = get_ai_response(
-            prompt=prompt,
-            requested_provider=requested_provider
-        )
+        result = get_learning_path_for_skill(skill, days)
         
-        if ai_response and ai_response.get("response"):
-            parsed = _parse_ai_response(ai_response["response"])
-            if parsed and "steps" in parsed:
-                # Cache the result
-                _AI_CACHE[cache_key] = parsed
-                logger.info(f"✅ AI learning path generated for {skill}")
-                return parsed
-        
-        logger.warning(f"AI response invalid for {skill}, using fallback")
+        if result and 'steps' in result:
+            # Cache the result
+            _AI_CACHE[cache_key] = result
+            logger.info(f"✅ Learning path retrieved for {skill}")
+            return result
         
     except Exception as e:
-        logger.error(f"AI generation failed for {skill}: {e}")
+        logger.error(f"Retrieval failed for {skill}: {e}")
     
-    # Fallback to heuristic if AI fails
+    # Fallback to heuristic
     return _generate_fallback_learning_path(skill, role, days)
 
 
@@ -273,15 +264,15 @@ def generate_ai_projects(
     requested_provider: Optional[str] = None
 ) -> List[Dict]:
     """
-    Generate AI-powered project recommendations.
-    Uses caching to minimize API calls.
+    Get curated project recommendations from HuggingFace.
+    Instant retrieval, no API costs.
     
     Args:
         skills: List of skills to incorporate
         role: Target job role
         project_type: Type of project (portfolio/practice/production)
         context: Additional context from user
-        requested_provider: Specific AI provider to use (optional)
+        requested_provider: Ignored (kept for API compatibility)
     
     Returns:
         List of project dictionaries with title, description, and skills
@@ -292,33 +283,22 @@ def generate_ai_projects(
         logger.info(f"✅ Using cached projects for {role}")
         return _AI_CACHE[cache_key]
     
-    # Build prompt
-    prompt = _build_projects_prompt(skills, role, project_type, context)
-    
-    # Try AI
+    # Use HuggingFace retrieval (instant, no API cost)
     try:
-        from app.ai.router import get_ai_response
+        from app.hf_data_loader import get_projects_for_skills
         
-        logger.info(f"🤖 Generating AI projects for {role}")
+        logger.info(f"📚 Retrieving projects for {role} from HuggingFace")
         
-        ai_response = get_ai_response(
-            prompt=prompt,
-            requested_provider=requested_provider
-        )
+        projects = get_projects_for_skills(skills, limit=5)
         
-        if ai_response and ai_response.get("response"):
-            parsed = _parse_ai_response(ai_response["response"])
-            if parsed and "projects" in parsed:
-                projects = parsed["projects"]
-                # Cache the result
-                _AI_CACHE[cache_key] = projects
-                logger.info(f"✅ AI projects generated: {len(projects)} projects")
-                return projects
-        
-        logger.warning(f"AI response invalid for projects, using fallback")
+        if projects:
+            # Cache the result
+            _AI_CACHE[cache_key] = projects
+            logger.info(f"✅ Retrieved {len(projects)} projects")
+            return projects
         
     except Exception as e:
-        logger.error(f"AI project generation failed: {e}")
+        logger.error(f"Project retrieval failed: {e}")
     
     # Fallback to simple projects
     return _generate_fallback_projects(skills, role, project_type)

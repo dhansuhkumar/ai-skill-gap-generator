@@ -7,7 +7,7 @@ from .auth import token_required
 from .utils.validators import sanitize_filename
 from .resume_parser import extract_skills_from_pdf
 from .ai_generator import analyze_skill_gaps
-from .ai_skill_analyzer import find_required_and_missing
+from .skill_analyzer import analyze_skill_gaps_optimized
 
 import logging
 logger = logging.getLogger(__name__)
@@ -125,19 +125,19 @@ def recommend():
         return jsonify({"error": "Role name too long"}), 400
 
     try:
-        # Use CSV-based analysis with YouTube resources
-        result = find_required_and_missing(user_skills, role)
+        # Use HuggingFace-based analysis
+        result = analyze_skill_gaps_optimized(user_skills, role)
         
         missing_skills = result.get('missing_skills', [])
-        resources = result.get('resources', {})
-        matched_jobs = result.get('matched_jobs', [])
+        required_skills = result.get('required_skills', [])
+        matched_jobs_count = result.get('matched_jobs_count', 0)
         source = result.get('source', 'unknown')
         
         return jsonify({
             "missing_skills": missing_skills,
+            "required_skills": required_skills,
             "recommended_projects": [],
-            "resources": resources,
-            "matched_jobs": matched_jobs[:5] if matched_jobs else [],  # Top 5 matched jobs
+            "matched_jobs_count": matched_jobs_count,
             "source": source
         })
     except Exception as e:
