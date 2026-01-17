@@ -156,33 +156,187 @@ def harvest_app_ideas() -> List[Dict]:
 
 
 def get_curated_projects() -> List[Dict]:
-    """Curated fallback projects based on real app-ideas repo content."""
+    """Curated projects with real GitHub repository links for cloning."""
     return [
-        # Beginner
-        {"title": "Calculator", "description": "Build a calculator app with basic arithmetic operations. Practice DOM manipulation and event handling.", "difficulty": "beginner", "skills": "JavaScript,HTML,CSS", "source": "curated", "source_url": ""},
-        {"title": "To-Do List", "description": "Create a task management app with add, edit, delete, and mark complete features. Learn CRUD operations.", "difficulty": "beginner", "skills": "JavaScript,HTML,CSS,LocalStorage", "source": "curated", "source_url": ""},
-        {"title": "Countdown Timer", "description": "Build a countdown timer that tracks time to a specific event. Learn date/time APIs.", "difficulty": "beginner", "skills": "JavaScript,HTML,CSS", "source": "curated", "source_url": ""},
-        {"title": "Quiz App", "description": "Create an interactive quiz with multiple choice questions and score tracking.", "difficulty": "beginner", "skills": "JavaScript,HTML,CSS", "source": "curated", "source_url": ""},
-        {"title": "Weather App", "description": "Fetch and display weather data from an API. Learn API integration and async programming.", "difficulty": "beginner", "skills": "JavaScript,REST APIs,HTML,CSS", "source": "curated", "source_url": ""},
-        {"title": "Notes App", "description": "Build a note-taking app with local storage persistence. Practice data management.", "difficulty": "beginner", "skills": "JavaScript,HTML,CSS,LocalStorage", "source": "curated", "source_url": ""},
-        {"title": "Random Quote Generator", "description": "Display random quotes from an API with share functionality.", "difficulty": "beginner", "skills": "JavaScript,REST APIs,HTML,CSS", "source": "curated", "source_url": ""},
-        {"title": "Pomodoro Timer", "description": "Build a productivity timer with work/break intervals. Learn timers and state management.", "difficulty": "beginner", "skills": "JavaScript,HTML,CSS", "source": "curated", "source_url": ""},
-        # Intermediate
-        {"title": "Expense Tracker", "description": "Track income and expenses with charts and reports. Learn data visualization and state management.", "difficulty": "intermediate", "skills": "React,JavaScript,Chart.js", "source": "curated", "source_url": ""},
-        {"title": "Movie Search App", "description": "Search movies using OMDB API with details page. Master API pagination and routing.", "difficulty": "intermediate", "skills": "React,REST APIs,JavaScript", "source": "curated", "source_url": ""},
-        {"title": "Chat Application", "description": "Real-time chat with WebSockets. Learn real-time communication patterns.", "difficulty": "intermediate", "skills": "Node.js,WebSocket,React,JavaScript", "source": "curated", "source_url": ""},
-        {"title": "Blog Platform", "description": "Full CRUD blog with authentication. Learn backend integration and auth flows.", "difficulty": "intermediate", "skills": "React,Node.js,MongoDB,REST APIs", "source": "curated", "source_url": ""},
-        {"title": "Recipe Finder", "description": "Search recipes with ingredient filtering and favorites. Practice complex filtering logic.", "difficulty": "intermediate", "skills": "React,REST APIs,JavaScript", "source": "curated", "source_url": ""},
-        {"title": "GitHub Profile Finder", "description": "Search GitHub profiles and display repos. Learn GitHub API integration.", "difficulty": "intermediate", "skills": "React,REST APIs,JavaScript", "source": "curated", "source_url": ""},
-        {"title": "E-commerce Cart", "description": "Shopping cart with product listing and checkout flow. Learn cart state management.", "difficulty": "intermediate", "skills": "React,JavaScript,Redux", "source": "curated", "source_url": ""},
-        {"title": "Kanban Board", "description": "Drag-and-drop task board like Trello. Learn drag-drop APIs and complex state.", "difficulty": "intermediate", "skills": "React,JavaScript,DnD", "source": "curated", "source_url": ""},
-        # Advanced
-        {"title": "Full-Stack Social Network", "description": "Complete social platform with posts, friends, and messaging. Master full-stack development.", "difficulty": "advanced", "skills": "React,Node.js,MongoDB,REST APIs,WebSocket", "source": "curated", "source_url": ""},
-        {"title": "Real-Time Collaborative Editor", "description": "Google Docs-style collaborative editing. Learn operational transformation and WebSockets.", "difficulty": "advanced", "skills": "React,Node.js,WebSocket,CRDT", "source": "curated", "source_url": ""},
-        {"title": "Video Streaming Platform", "description": "Video upload and streaming service. Learn media handling and streaming protocols.", "difficulty": "advanced", "skills": "React,Node.js,FFmpeg,AWS", "source": "curated", "source_url": ""},
-        {"title": "Job Board with AI Matching", "description": "Job platform with intelligent skill matching. Combine ML with web development.", "difficulty": "advanced", "skills": "React,Python,Machine Learning,REST APIs", "source": "curated", "source_url": ""},
-        {"title": "DevOps Dashboard", "description": "Monitor deployments and server health. Learn infrastructure visualization.", "difficulty": "advanced", "skills": "React,Docker,Kubernetes,Node.js", "source": "curated", "source_url": ""},
-        {"title": "AI Code Review Tool", "description": "Automated code review with AI suggestions. Integrate LLMs with dev workflows.", "difficulty": "advanced", "skills": "Python,React,OpenAI,Git", "source": "curated", "source_url": ""},
+        # ==================== BEGINNER ====================
+        {
+            "title": "Calculator",
+            "description": "Build a calculator app with basic arithmetic operations. Practice DOM manipulation and event handling.",
+            "difficulty": "beginner",
+            "skills": "JavaScript,HTML,CSS",
+            "repo_url": "https://github.com/AsmrProg-YT/100-days-of-javascript/tree/master/Day%20%231%20-%20Calculator%20App",
+            "source": "curated"
+        },
+        {
+            "title": "To-Do List",
+            "description": "Create a task management app with add, edit, delete, and mark complete features. Learn CRUD operations.",
+            "difficulty": "beginner",
+            "skills": "JavaScript,HTML,CSS,LocalStorage",
+            "repo_url": "https://github.com/bradtraversy/vanillawebprojects/tree/master/todo-list",
+            "source": "curated"
+        },
+        {
+            "title": "Countdown Timer",
+            "description": "Build a countdown timer that tracks time to a specific event. Learn date/time APIs.",
+            "difficulty": "beginner",
+            "skills": "JavaScript,HTML,CSS",
+            "repo_url": "https://github.com/bradtraversy/vanillawebprojects/tree/master/new-year-countdown",
+            "source": "curated"
+        },
+        {
+            "title": "Quiz App",
+            "description": "Create an interactive quiz with multiple choice questions and score tracking.",
+            "difficulty": "beginner",
+            "skills": "JavaScript,HTML,CSS",
+            "repo_url": "https://github.com/bradtraversy/quizzical",
+            "source": "curated"
+        },
+        {
+            "title": "Weather App",
+            "description": "Fetch and display weather data from an API. Learn API integration and async programming.",
+            "difficulty": "beginner",
+            "skills": "JavaScript,REST APIs,HTML,CSS",
+            "repo_url": "https://github.com/bradtraversy/vanillawebprojects/tree/master/weather-app",
+            "source": "curated"
+        },
+        {
+            "title": "Notes App",
+            "description": "Build a note-taking app with local storage persistence. Practice data management.",
+            "difficulty": "beginner",
+            "skills": "JavaScript,HTML,CSS,LocalStorage",
+            "repo_url": "https://github.com/bradtraversy/vanillawebprojects/tree/master/notes-app",
+            "source": "curated"
+        },
+        {
+            "title": "Random Quote Generator",
+            "description": "Display random quotes from an API with share functionality.",
+            "difficulty": "beginner",
+            "skills": "JavaScript,REST APIs,HTML,CSS",
+            "repo_url": "https://github.com/bradtraversy/vanillawebprojects/tree/master/quote-generator",
+            "source": "curated"
+        },
+        {
+            "title": "Pomodoro Timer",
+            "description": "Build a productivity timer with work/break intervals. Learn timers and state management.",
+            "difficulty": "beginner",
+            "skills": "JavaScript,HTML,CSS",
+            "repo_url": "https://github.com/Asabeneh/30-Days-Of-JavaScript/tree/master/projects",
+            "source": "curated"
+        },
+        # ==================== INTERMEDIATE ====================
+        {
+            "title": "Expense Tracker",
+            "description": "Track income and expenses with charts and reports. Learn data visualization and state management.",
+            "difficulty": "intermediate",
+            "skills": "React,JavaScript,Chart.js",
+            "repo_url": "https://github.com/bradtraversy/expense-tracker-react",
+            "source": "curated"
+        },
+        {
+            "title": "Movie Search App",
+            "description": "Search movies using OMDB API with details page. Master API pagination and routing.",
+            "difficulty": "intermediate",
+            "skills": "React,REST APIs,JavaScript",
+            "repo_url": "https://github.com/bradtraversy/react-crash-2024",
+            "source": "curated"
+        },
+        {
+            "title": "Chat Application",
+            "description": "Real-time chat with WebSockets. Learn real-time communication patterns.",
+            "difficulty": "intermediate",
+            "skills": "Node.js,WebSocket,React,JavaScript",
+            "repo_url": "https://github.com/adrianhajdin/project_chat_application",
+            "source": "curated"
+        },
+        {
+            "title": "Blog Platform",
+            "description": "Full CRUD blog with authentication. Learn backend integration and auth flows.",
+            "difficulty": "intermediate",
+            "skills": "React,Node.js,MongoDB,REST APIs",
+            "repo_url": "https://github.com/safak/youtube/tree/mern-blog",
+            "source": "curated"
+        },
+        {
+            "title": "Recipe Finder",
+            "description": "Search recipes with ingredient filtering and favorites. Practice complex filtering logic.",
+            "difficulty": "intermediate",
+            "skills": "React,REST APIs,JavaScript",
+            "repo_url": "https://github.com/bradtraversy/react-hooks-crash-course",
+            "source": "curated"
+        },
+        {
+            "title": "GitHub Profile Finder",
+            "description": "Search GitHub profiles and display repos. Learn GitHub API integration.",
+            "difficulty": "intermediate",
+            "skills": "React,REST APIs,JavaScript",
+            "repo_url": "https://github.com/bradtraversy/github-finder-app",
+            "source": "curated"
+        },
+        {
+            "title": "E-commerce Cart",
+            "description": "Shopping cart with product listing and checkout flow. Learn cart state management.",
+            "difficulty": "intermediate",
+            "skills": "React,JavaScript,Redux",
+            "repo_url": "https://github.com/adrianhajdin/ecommerce_sanity_stripe",
+            "source": "curated"
+        },
+        {
+            "title": "Kanban Board",
+            "description": "Drag-and-drop task board like Trello. Learn drag-drop APIs and complex state.",
+            "difficulty": "intermediate",
+            "skills": "React,JavaScript,DnD",
+            "repo_url": "https://github.com/Kliton/trello-clone-nextjs14",
+            "source": "curated"
+        },
+        # ==================== ADVANCED ====================
+        {
+            "title": "Full-Stack Social Network",
+            "description": "Complete social platform with posts, friends, and messaging. Master full-stack development.",
+            "difficulty": "advanced",
+            "skills": "React,Node.js,MongoDB,REST APIs,WebSocket",
+            "repo_url": "https://github.com/safak/youtube/tree/mern-social",
+            "source": "curated"
+        },
+        {
+            "title": "Real-Time Collaborative Editor",
+            "description": "Google Docs-style collaborative editing. Learn operational transformation and WebSockets.",
+            "difficulty": "advanced",
+            "skills": "React,Node.js,WebSocket,CRDT",
+            "repo_url": "https://github.com/liveblocks/liveblocks/tree/main/examples",
+            "source": "curated"
+        },
+        {
+            "title": "Video Streaming Platform",
+            "description": "Video upload and streaming service. Learn media handling and streaming protocols.",
+            "difficulty": "advanced",
+            "skills": "React,Node.js,FFmpeg,AWS",
+            "repo_url": "https://github.com/adrianhajdin/project_youtube_clone",
+            "source": "curated"
+        },
+        {
+            "title": "Job Board with AI Matching",
+            "description": "Job platform with intelligent skill matching. Combine ML with web development.",
+            "difficulty": "advanced",
+            "skills": "React,Python,Machine Learning,REST APIs",
+            "repo_url": "https://github.com/techyoichiro/joboard",
+            "source": "curated"
+        },
+        {
+            "title": "DevOps Dashboard",
+            "description": "Monitor deployments and server health. Learn infrastructure visualization.",
+            "difficulty": "advanced",
+            "skills": "React,Docker,Kubernetes,Node.js",
+            "repo_url": "https://github.com/grafana/grafana",
+            "source": "curated"
+        },
+        {
+            "title": "AI Code Review Tool",
+            "description": "Automated code review with AI suggestions. Integrate LLMs with dev workflows.",
+            "difficulty": "advanced",
+            "skills": "Python,React,OpenAI,Git",
+            "repo_url": "https://github.com/Codium-ai/pr-agent",
+            "source": "curated"
+        },
     ]
 
 
@@ -395,7 +549,7 @@ def save_projects_csv(projects: List[Dict]):
     """Save harvested projects to CSV."""
     output_path = OUTPUT_DIR / "harvested_projects.csv"
     
-    fieldnames = ["title", "description", "difficulty", "skills", "source", "source_url"]
+    fieldnames = ["title", "description", "difficulty", "skills", "repo_url", "source"]
     
     with open(output_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)

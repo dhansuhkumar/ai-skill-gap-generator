@@ -272,7 +272,8 @@ class HFDataLoader:
                         'title': row.get('title', ''),
                         'description': row.get('description', ''),
                         'difficulty': row.get('difficulty', 'intermediate'),
-                        'skills': [s.strip() for s in str(project_skills).split(',')]
+                        'skills': [s.strip() for s in str(project_skills).split(',')],
+                        'repo_url': row.get('repo_url', '')
                     })
         
         # If no matches, return projects based on difficulty mix
@@ -282,7 +283,8 @@ class HFDataLoader:
                     'title': row.get('title', ''),
                     'description': row.get('description', ''),
                     'difficulty': row.get('difficulty', 'intermediate'),
-                    'skills': [s.strip() for s in str(row.get('skills', '')).split(',')]
+                    'skills': [s.strip() for s in str(row.get('skills', '')).split(',')],
+                    'repo_url': row.get('repo_url', '')
                 })
         
         return matched_projects[:limit]
@@ -299,7 +301,8 @@ class HFDataLoader:
                 'title': row.get('title', ''),
                 'description': row.get('description', ''),
                 'difficulty': row.get('difficulty', 'intermediate'),
-                'skills': [s.strip() for s in str(row.get('skills', '')).split(',')]
+                'skills': [s.strip() for s in str(row.get('skills', '')).split(',')],
+                'repo_url': row.get('repo_url', '')
             })
         return projects
     
