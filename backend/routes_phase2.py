@@ -501,3 +501,461 @@ def role_chat_endpoint():
         return jsonify({"reply": reply, "status": "ok"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+# ============================================================
+# SKILL TRIANGULATION ENGINE ENDPOINTS
+# ============================================================
+
+@bp.route("/analyze-github", methods=["POST", "OPTIONS"])
+def analyze_github():
+    """
+    Analyze a GitHub profile for skill proficiency indicators.
+    
+    Input: { "github_username": "user123", "github_token": "optional_token" }
+    
+    Output: {
+        "status": "ok",
+        "username": "user123",
+        "languages": {
+            "Python": { "repos": 3, "score": 55, "has_tests": true, ... },
+            ...
+        },
+        "total_repos": 8,
+        "diversity_bonus": 10,
+        "language_count": 5
+    }
+    """
+    if request.method == "OPTIONS":
+        return jsonify({"status": "ok"}), 200
+    
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "Invalid JSON body"}), 400
+    
+    github_username = data.get("github_username")
+    if not github_username:
+        return jsonify({"error": "github_username is required"}), 400
+    
+    # Optional: GitHub token for higher rate limits
+    github_token = data.get("github_token") or os.getenv("GITHUB_TOKEN")
+    
+    try:
+        from app.github_analyzer import analyze_github_profile
+        
+        result = analyze_github_profile(github_username, github_token)
+        
+        if result.get("error"):
+            return jsonify({
+                "status": "error",
+                "error": result["error"],
+                "username": github_username
+            }), 400
+        
+        return jsonify({
+            "status": "ok",
+            "username": result["username"],
+            "languages": result["languages"],
+            "total_repos": result["total_repos"],
+            "diversity_bonus": result["diversity_bonus"],
+            "language_count": result["language_count"]
+        })
+        
+    except Exception as e:
+        logger.error(f"GitHub analysis failed for {github_username}: {e}")
+        return jsonify({
+            "status": "error",
+            "error": f"Analysis failed: {str(e)}"
+        }), 500
+
+
+@bp.route("/fuse-profile", methods=["POST", "OPTIONS"])
+def fuse_profile():
+    """
+    Fuse skill data from multiple sources to calculate proficiency scores.
+    
+    Input: {
+        "skills": [
+            { "name": "Python", "manual_score": 70 },
+            { "name": "React", "manual_score": 60 }
+        ],
+        "github_username": "optional_user123",
+        "resume_data": { ... }  // Optional: output from extract_skills_with_context
+    }
+    
+    Output: {
+        "status": "ok",
+        "proficiencies": [
+            { "skill": "Python", "score": 75, "level": "Advanced", "breakdown": {...} },
+            ...
+        ],
+        "average_score": 65,
+        "skill_count": 2,
+        "diversity_bonus_applied": true
+    }
+    """
+    if request.method == "OPTIONS":
+        return jsonify({"status": "ok"}), 200
+    
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "Invalid JSON body"}), 400
+    
+    skills = data.get("skills", [])
+    if not skills or not isinstance(skills, list):
+        return jsonify({"error": "skills must be a non-empty list"}), 400
+    
+    # Validate skill format
+    for skill in skills:
+        if not isinstance(skill, dict) or "name" not in skill:
+            return jsonify({"error": "Each skill must have a 'name' field"}), 400
+        if "manual_score" in skill:
+            score = skill["manual_score"]
+            if not isinstance(score, (int, float)) or score < 0 or score > 100:
+                return jsonify({"error": "manual_score must be 0-100"}), 400
+    
+    try:
+        # Get GitHub data if username provided
+        github_analysis = None
+        github_username = data.get("github_username")
+        if github_username:
+            from app.github_analyzer import analyze_github_profile
+            github_token = data.get("github_token") or os.getenv("GITHUB_TOKEN")
+            github_analysis = analyze_github_profile(github_username, github_token)
+            if github_analysis.get("error"):
+                # Log but continue without GitHub data
+                logger.warning(f"GitHub analysis failed: {github_analysis['error']}")
+                github_analysis = None
+        
+        # Get resume data (already parsed, passed directly)
+        resume_data = data.get("resume_data")
+        
+        # Fuse the profile
+        from app.services.fusion_engine import fuse_skill_profile
+        
+        result = fuse_skill_profile(
+            skills=skills,
+            resume_data=resume_data,
+            github_analysis=github_analysis
+        )
+        
+        return jsonify({
+            "status": "ok",
+            "proficiencies": result["proficiencies"],
+            "average_score": result["average_score"],
+            "skill_count": result["skill_count"],
+            "diversity_bonus_applied": result["diversity_bonus_applied"]
+        })
+        
+    except Exception as e:
+        logger.error(f"Profile fusion failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            "status": "error",
+            "error": f"Fusion failed: {str(e)}"
+        }), 500
+
+
+@bp.route("/upload-resume-with-context", methods=["POST", "OPTIONS"])
+def upload_resume_with_context():
+    """
+    Upload resume and extract skills with context analysis.
+    
+    Input: Multipart form with 'file' field (PDF)
+    
+    Output: {
+        "status": "ok",
+        "parsed": {
+            "skills": [{ "skill": "Python", "context": "fresher", "has_projects": true }],
+            "global_context": "fresher",
+            "estimated_years": null,
+            "has_projects": true,
+            "raw_skills": ["Python", "React", ...]
+        }
+    }
+    """
+    if request.method == "OPTIONS":
+        return jsonify({"status": "ok"}), 200
+    
+    if "file" not in request.files:
+        return jsonify({"error": "No file part"}), 400
+    
+    file = request.files["file"]
+    if file.filename == "":
+        return jsonify({"error": "No selected file"}), 400
+    
+    if not file.filename.lower().endswith('.pdf'):
+        return jsonify({"error": "Only PDF files are supported"}), 400
+    
+    # Check file size (limit to 5MB)
+    file.seek(0, os.SEEK_END)
+    file_size = file.tell()
+    file.seek(0)
+    
+    if file_size > 5 * 1024 * 1024:
+        return jsonify({"error": "File size exceeds 5MB limit"}), 400
+    
+    try:
+        from app.resume_parser import extract_skills_with_context
+        
+        parsed_data = extract_skills_with_context(file)
+        
+        return jsonify({
+            "status": "ok",
+            "parsed": parsed_data
+        })
+        
+    except Exception as e:
+        logger.error(f"Resume parsing with context failed: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+# ============================================================
+# DYNAMIC VISUALIZATION & DATA FUSION ENDPOINTS
+# ============================================================
+
+@bp.route("/update_github_data", methods=["POST", "OPTIONS"])
+def update_github_data():
+    """
+    Manually refresh GitHub analysis data for a user.
+    Stores results in Supabase for persistence.
+    """
+    if request.method == "OPTIONS":
+        return jsonify({"status": "ok"}), 200
+    
+    user_id = verify_jwt_token(request.headers.get("Authorization"))
+    if not user_id:
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "Invalid JSON body"}), 400
+    
+    github_username = data.get("github_username")
+    if not github_username:
+        return jsonify({"error": "github_username is required"}), 400
+    
+    try:
+        # Get or create profile
+        from backend.supabase_client import get_supabase
+        from app.github_analyzer import analyze_github_profile
+        
+        supabase = get_supabase()
+        if not supabase:
+            return jsonify({"error": "Database connection not available"}), 500
+        
+        # Get profile_id
+        profile_res = supabase.table("profiles").select("id").eq("user_id", user_id).execute()
+        if not profile_res.data:
+            # Create profile
+            profile_res = supabase.table("profiles").insert({"user_id": user_id}).execute()
+            profile_id = profile_res.data[0]["id"]
+        else:
+            profile_id = profile_res.data[0]["id"]
+        
+        # Analyze GitHub profile
+        github_token = data.get("github_token") or os.getenv("GITHUB_TOKEN")
+        result = analyze_github_profile(github_username, github_token)
+        
+        if result.get("error"):
+            return jsonify({"error": result["error"]}), 400
+        
+        # Store in Supabase
+        analysis_record = {
+            "profile_id": profile_id,
+            "username": github_username,
+            "analysis_data": result.get("languages", {}),
+            "commit_timeline": {},  # TODO: Add commit timeline data
+            "total_repos": result.get("total_repos", 0),
+            "diversity_bonus": result.get("diversity_bonus", 0),
+            "language_count": result.get("language_count", 0),
+            "last_updated": "now()"
+        }
+        
+        # Upsert (update if exists, insert if not)
+        existing = supabase.table("github_analysis")\
+            .select("id")\
+            .eq("profile_id", profile_id)\
+            .execute()
+        
+        if existing.data:
+            # Update existing
+            supabase.table("github_analysis")\
+                .update(analysis_record)\
+                .eq("id", existing.data[0]["id"])\
+                .execute()
+        else:
+            # Insert new
+            supabase.table("github_analysis").insert(analysis_record).execute()
+        
+        return jsonify({
+            "status": "ok",
+            "github_data": result,
+            "profile_id": profile_id
+        })
+        
+    except Exception as e:
+        logger.error(f"GitHub data update failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Failed to update GitHub data: {str(e)}"}), 500
+
+
+@bp.route("/save_learning_progress", methods=["POST", "OPTIONS"])
+def save_learning_progress():
+    """
+    Save user's progress on a learning path step.
+    """
+    if request.method == "OPTIONS":
+        return jsonify({"status": "ok"}), 200
+    
+    user_id = verify_jwt_token(request.headers.get("Authorization"))
+    if not user_id:
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "Invalid JSON body"}), 400
+    
+    skill_name = data.get("skill_name")
+    step_index = data.get("step_index")
+    completed = data.get("completed", False)
+    
+    if not skill_name or step_index is None:
+        return jsonify({"error": "skill_name and step_index are required"}), 400
+    
+    try:
+        from backend.supabase_client import get_supabase
+        
+        supabase = get_supabase()
+        if not supabase:
+            return jsonify({"error": "Database connection not available"}), 500
+        
+        # Get profile_id
+        profile_res = supabase.table("profiles").select("id").eq("user_id", user_id).execute()
+        if not profile_res.data:
+            return jsonify({"error": "Profile not found"}), 404
+        
+        profile_id = profile_res.data[0]["id"]
+        
+        # Upsert progress
+        progress_record = {
+            "profile_id": profile_id,
+            "skill_name": skill_name,
+            "step_index": step_index,
+            "step_title": data.get("step_title", ""),
+            "completed": completed,
+            "completed_at": "now()" if completed else None,
+            "notes": data.get("notes", ""),
+            "updated_at": "now()"
+        }
+        
+        # Check if already exists
+        existing = supabase.table("learning_progress")\
+            .select("id")\
+            .eq("profile_id", profile_id)\
+            .eq("skill_name", skill_name)\
+            .eq("step_index", step_index)\
+            .execute()
+        
+        if existing.data:
+            # Update
+            supabase.table("learning_progress")\
+                .update(progress_record)\
+                .eq("id", existing.data[0]["id"])\
+                .execute()
+        else:
+            # Insert
+            supabase.table("learning_progress").insert(progress_record).execute()
+        
+        return jsonify({"status": "ok", "message": "Progress saved"})
+        
+    except Exception as e:
+        logger.error(f"Save learning progress failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Failed to save progress: {str(e)}"}), 500
+
+
+@bp.route("/get_dashboard_data", methods=["POST", "OPTIONS"])
+def get_dashboard_data():
+    """
+    Get unified dashboard data combining all sources.
+    Returns data structured for all visualization components.
+    """
+    if request.method == "OPTIONS":
+        return jsonify({"status": "ok"}), 200
+    
+    user_id = verify_jwt_token(request.headers.get("Authorization"))
+    if not user_id:
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "Invalid JSON body"}), 400
+    
+    try:
+        from backend.supabase_client import get_supabase
+        from app.services.fusion_service import create_unified_dashboard_data
+        
+        supabase = get_supabase()
+        if not supabase:
+            return jsonify({"error": "Database connection not available"}), 500
+        
+        # Get profile_id
+        profile_res = supabase.table("profiles").select("id").eq("user_id", user_id).execute()
+        if not profile_res.data:
+            return jsonify({"error": "Profile not found"}), 404
+        
+        profile_id = profile_res.data[0]["id"]
+        
+        # Get user skills
+        skills_res = supabase.table("profile_skills")\
+            .select("skills(name)")\
+            .eq("profile_id", profile_id)\
+            .execute()
+        user_skills = [s["skills"]["name"] for s in skills_res.data if s.get("skills")]
+        
+        # Get GitHub data
+        github_res = supabase.table("github_analysis")\
+            .select("*")\
+            .eq("profile_id", profile_id)\
+            .order("last_updated", desc=True)\
+            .limit(1)\
+            .execute()
+        github_data = github_res.data[0] if github_res.data else None
+        if github_data:
+            github_data["languages"] = github_data.get("analysis_data", {})
+        
+        # Get learning progress
+        progress_res = supabase.table("learning_progress")\
+            .select("*")\
+            .eq("profile_id", profile_id)\
+            .execute()
+        progress_data = progress_res.data
+        
+        # Get role analysis and learning path from request
+        role_analysis = data.get("role_analysis", {})
+        learning_path = data.get("learning_path", {})
+        
+        # Create unified dashboard data
+        dashboard_data = create_unified_dashboard_data(
+            user_skills=user_skills,
+            role_analysis=role_analysis,
+            github_data=github_data,
+            learning_path=learning_path,
+            progress_data=progress_data
+        )
+        
+        return jsonify({
+            "status": "ok",
+            "dashboard_data": dashboard_data
+        })
+        
+    except Exception as e:
+        logger.error(f"Get dashboard data failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Failed to get dashboard data: {str(e)}"}), 500
+

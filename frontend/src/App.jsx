@@ -8,13 +8,16 @@ import Dashboard from './pages/Dashboard';
 import ChatPage from './pages/ChatPage';
 import Profile from './pages/Profile';
 import ProtectedRoute from './components/ProtectedRoute';
+import AnimatedBackground from './components/AnimatedBackground';
 
 const NotFound = () => <div className="container" style={{ paddingTop: '4rem', textAlign: 'center' }}><h1>404 - Not Found</h1></div>;
 
 function App() {
     return (
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+            <AnimatedBackground />
             <div className="app-layout">
+
                 <Routes>
                     <Route path="/login" element={<Login />} />
                     <Route path="/register" element={<Register />} />

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import Navbar from '../components/Navbar';
-import { AnimatePresence } from 'framer-motion';
-import { CheckCircle2, User, Target, BrainCircuit, ListChecks, Clock, Briefcase } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { CheckCircle2, User, Target, BrainCircuit, ListChecks, Clock, Briefcase, Sparkles } from 'lucide-react';
 import api from '../services/api';
 
 // Sub-components
@@ -11,6 +11,8 @@ import StepMissingSkills from '../components/dashboard/StepMissingSkills';
 import StepLearningQuestions from '../components/dashboard/StepLearningQuestions';
 import StepProjectPreferences from '../components/dashboard/StepProjectPreferences';
 import StepResults from '../components/dashboard/StepResults';
+import StepProgressIndicator from '../components/StepProgressIndicator';
+import AIChatInput from '../components/ui/AIChatInput';
 
 const Dashboard = () => {
     const [step, setStep] = useState(1);
@@ -25,6 +27,7 @@ const Dashboard = () => {
     const [missingSkills, setMissingSkills] = useState([]);
     const [matchData, setMatchData] = useState(null); // Store match score data
     const [selectedToLearn, setSelectedToLearn] = useState([]);
+    const [githubUsername, setGithubUsername] = useState(''); // Track GitHub username
     const [learningPrefs, setLearningPrefs] = useState({
         time_commitment: '1 hour',
         learning_pace: 'Balanced',
@@ -150,45 +153,20 @@ const Dashboard = () => {
     };
 
     const renderProgress = () => {
+        // Map current step to display step (steps 4 & 5 are grouped as "Plan")
+        const displayStep = step === 5 ? 4 : (step === 6 ? 5 : step);
+
         const steps = [
             { id: 1, label: 'Skills', icon: User },
             { id: 2, label: 'Role', icon: Target },
             { id: 3, label: 'Gaps', icon: ListChecks },
-            { id: 4, label: 'Plan', icon: Clock }, // Grouping Questions/Project roughly
-            { id: 6, label: 'Result', icon: BrainCircuit }
+            { id: 4, label: 'Plan', icon: Clock },
+            { id: 5, label: 'Result', icon: Sparkles }
         ];
 
-        // Map current step to progress index
-        // Steps 4 & 5 map to "Plan" (id 4) visually for cleaner UI
-        const activeId = step === 5 ? 4 : step;
-
-        return (
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '3rem', gap: '1rem', flexWrap: 'wrap' }}>
-                {steps.map((s, idx) => (
-                    <div key={s.id} style={{ display: 'flex', alignItems: 'center' }}>
-                        <div style={{
-                            display: 'flex', alignItems: 'center', gap: '0.5rem',
-                            opacity: activeId >= s.id ? 1 : 0.5,
-                            color: activeId >= s.id ? 'var(--color-primary)' : 'var(--color-text-muted)'
-                        }}>
-                            <div style={{
-                                width: '32px', height: '32px', borderRadius: '50%',
-                                background: activeId > s.id ? 'var(--color-success)' : (activeId === s.id ? 'var(--color-primary)' : 'rgba(255,255,255,0.1)'),
-                                color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                fontWeight: 'bold'
-                            }}>
-                                {activeId > s.id || step === 6 ? <CheckCircle2 size={16} /> : (idx + 1)}
-                            </div>
-                            <span style={{ fontWeight: 500, display: window.innerWidth < 600 ? 'none' : 'block' }}>{s.label}</span>
-                        </div>
-                        {idx < steps.length - 1 && (
-                            <div style={{ height: '2px', width: '30px', background: 'var(--color-border)', margin: '0 0.5rem' }} />
-                        )}
-                    </div>
-                ))}
-            </div>
-        );
+        return <StepProgressIndicator currentStep={displayStep} steps={steps} />;
     };
+
 
     return (
         <>
@@ -261,6 +239,9 @@ const Dashboard = () => {
                     )}
                 </AnimatePresence>
             </div>
+
+            {/* AI Chat Drawer */}
+            <AIChatInput />
         </>
     );
 };

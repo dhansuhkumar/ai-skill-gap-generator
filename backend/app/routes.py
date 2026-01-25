@@ -8,6 +8,7 @@ from .utils.validators import sanitize_filename
 from .resume_parser import extract_skills_from_pdf
 from .ai_generator import analyze_skill_gaps
 from .skill_analyzer import analyze_skill_gaps_optimized
+from .services.github_analyzer import GithubProfileAnalyzer
 
 import logging
 logger = logging.getLogger(__name__)
@@ -68,6 +69,42 @@ def upload_resume():
     except Exception as e:
         logger.error(f"Resume parsing failed: {e}")
         return jsonify({"error": str(e)}), 500
+
+@main.route('/analyze-github', methods=['POST', 'OPTIONS'])
+def analyze_github():
+    """Analyze GitHub profile for language proficiency scores.
+    
+    Returns skill scores and radar chart data based on repository analysis.
+    """
+    if request.method == 'OPTIONS':
+        return jsonify({"status": "ok"}), 200
+    
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "Invalid JSON body"}), 400
+    
+    username = data.get('username')
+    
+    if not username:
+        return jsonify({"error": "GitHub username is required"}), 400
+    
+    # Validate username format (basic check)
+    if not isinstance(username, str) or len(username) == 0 or len(username) > 39:
+        return jsonify({"error": "Invalid GitHub username"}), 400
+    
+    try:
+        analyzer = GithubProfileAnalyzer()
+        result = analyzer.analyze_profile(username)
+        
+        # Check if there was an error
+        if 'error' in result:
+            return jsonify(result), 400
+        
+        return jsonify(result), 200
+        
+    except Exception as e:
+        logger.error(f"GitHub analysis failed: {e}")
+        return jsonify({"error": "Failed to analyze GitHub profile", "details": str(e)}), 500
 
 @main.route('/analyze_gaps', methods=['POST'])
 @token_required
