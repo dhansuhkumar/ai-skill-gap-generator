@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Briefcase, Youtube, Sparkles, Send } from 'lucide-react';
+import { Briefcase, Youtube, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const StepProjectPreferences = ({ onGenerate, onBack, loading }) => {
@@ -14,6 +14,44 @@ const StepProjectPreferences = ({ onGenerate, onBack, loading }) => {
             additional_context: context
         });
     };
+
+    // Toggle switch styles
+    const toggleSwitchStyle = {
+        position: 'relative',
+        display: 'inline-block',
+        width: '50px',
+        height: '26px'
+    };
+
+    const inputStyle = {
+        opacity: 0,
+        width: 0,
+        height: 0
+    };
+
+    const sliderStyle = (isChecked) => ({
+        position: 'absolute',
+        cursor: 'pointer',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: isChecked ? 'var(--color-primary)' : 'rgba(255,255,255,0.2)',
+        transition: '.4s',
+        borderRadius: '34px'
+    });
+
+    const sliderBeforeStyle = (isChecked) => ({
+        position: 'absolute',
+        content: '""',
+        height: '18px',
+        width: '18px',
+        left: isChecked ? '28px' : '4px',
+        bottom: '4px',
+        backgroundColor: 'white',
+        transition: '.4s',
+        borderRadius: '50%'
+    });
 
     return (
         <div className="glass-panel slide-up" style={{ padding: '2rem', maxWidth: '700px', margin: '0 auto' }}>
@@ -72,14 +110,16 @@ const StepProjectPreferences = ({ onGenerate, onBack, loading }) => {
                             </p>
                         </div>
                     </div>
-                    <label className="toggle-switch">
-                        <input
-                            type="checkbox"
-                            checked={includeYoutube}
-                            onChange={(e) => setIncludeYoutube(e.target.checked)}
-                        />
-                        <span className="slider round"></span>
-                    </label>
+
+                    {/* Custom Toggle Switch - No styled-jsx */}
+                    <div
+                        style={toggleSwitchStyle}
+                        onClick={() => setIncludeYoutube(!includeYoutube)}
+                    >
+                        <div style={sliderStyle(includeYoutube)}>
+                            <div style={sliderBeforeStyle(includeYoutube)} />
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -126,52 +166,6 @@ const StepProjectPreferences = ({ onGenerate, onBack, loading }) => {
                     </button>
                 </div>
             </div>
-
-            <style jsx>{`
-                .toggle-switch {
-                    position: relative;
-                    display: inline-block;
-                    width: 50px;
-                    height: 26px;
-                }
-                .toggle-switch input {
-                    opacity: 0;
-                    width: 0;
-                    height: 0;
-                }
-                .slider {
-                    position: absolute;
-                    cursor: pointer;
-                    top: 0;
-                    left: 0;
-                    right: 0;
-                    bottom: 0;
-                    background-color: rgba(255,255,255,0.2);
-                    transition: .4s;
-                }
-                .slider:before {
-                    position: absolute;
-                    content: "";
-                    height: 18px;
-                    width: 18px;
-                    left: 4px;
-                    bottom: 4px;
-                    background-color: white;
-                    transition: .4s;
-                }
-                input:checked + .slider {
-                    background-color: var(--color-primary);
-                }
-                input:checked + .slider:before {
-                    transform: translateX(24px);
-                }
-                .slider.round {
-                    border-radius: 34px;
-                }
-                .slider.round:before {
-                    border-radius: 50%;
-                }
-            `}</style>
         </div>
     );
 };

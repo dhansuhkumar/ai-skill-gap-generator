@@ -4,6 +4,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
 const apiClient = axios.create({
     baseURL: API_URL,
+    withCredentials: true,  // Required for CORS with credentials
     headers: {
         'Content-Type': 'application/json',
     },
@@ -69,8 +70,20 @@ export const api = {
     saveProfile: (role, skills, recommendations) =>
         apiClient.post('/api/save_profile', { role, skills, recommendations }),
 
+    // Learning Path Persistence
+    getSavedLearningPath: () => apiClient.get('/api/get_saved_learning_path'),
+    saveLearningPath: (data) => apiClient.post('/api/save_learning_path', data),
+
+    // Dashboard Data
+    getDashboardData: (data) => apiClient.post('/api/get_dashboard_data', data),
+    saveLearningProgress: (data) => apiClient.post('/api/save_learning_progress', data),
+
+    // GitHub Analysis
+    analyzeGitHub: (username) => apiClient.post('/api/analyze-github', { username }),
+
     // Starter Project Download URL helper
     getStarterProjectUrl: (skillName) => `${API_URL}/api/starter/${encodeURIComponent(skillName)}`
 };
 
 export default api;
+

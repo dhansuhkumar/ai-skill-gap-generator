@@ -141,7 +141,8 @@ def generate_ai_learning_path(
     hours: float,
     pace: str,
     context: str = "",
-    requested_provider: Optional[str] = None
+    requested_provider: Optional[str] = None,
+    include_youtube: bool = True
 ) -> Dict:
     """
     Generate a learning path for a single skill.
@@ -156,9 +157,10 @@ def generate_ai_learning_path(
         pace: Learning pace (Fast/Balanced/Thorough)
         context: Additional context from user
         requested_provider: Ignored (kept for API compatibility)
+        include_youtube: Whether to include YouTube video recommendations
     
     Returns:
-        Dict with 'summary' and 'steps' keys
+        Dict with 'summary', 'steps', and optionally 'youtube_videos' keys
     """
     # Check cache first
     cache_key = _generate_cache_key(skill, role, days, hours, pace)
@@ -167,6 +169,7 @@ def generate_ai_learning_path(
         return _AI_CACHE[cache_key]
     
     # Use HuggingFace retrieval (instant, no API cost)
+    result = None
     try:
         from app.hf_data_loader import get_learning_path_for_skill
         
@@ -175,16 +178,35 @@ def generate_ai_learning_path(
         result = get_learning_path_for_skill(skill, days)
         
         if result and 'steps' in result:
-            # Cache the result
-            _AI_CACHE[cache_key] = result
             logger.info(f"✅ Learning path retrieved for {skill}")
-            return result
+        else:
+            result = None
         
     except Exception as e:
         logger.error(f"Retrieval failed for {skill}: {e}")
     
-    # Fallback to heuristic
-    return _generate_fallback_learning_path(skill, role, days)
+    # Use fallback if HuggingFace failed
+    if not result:
+        result = _generate_fallback_learning_path(skill, role, days)
+    
+    # Add YouTube videos if requested
+    if include_youtube:
+        try:
+            from app.youtube_search import search_youtube_videos
+            
+            query = f"{skill} tutorial for beginners {role}"
+            videos = search_youtube_videos(query, max_results=3, allow_search=True)
+            
+            if videos:
+                result['youtube_videos'] = videos
+                logger.info(f"🎬 Added {len(videos)} YouTube videos for {skill}")
+        except Exception as e:
+            logger.error(f"YouTube search failed for {skill}: {e}")
+            result['youtube_videos'] = []
+    
+    # Cache the result
+    _AI_CACHE[cache_key] = result
+    return result
 
 
 def _generate_fallback_learning_path(skill: str, role: str, days: int) -> Dict:

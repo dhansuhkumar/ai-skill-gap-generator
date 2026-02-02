@@ -1,17 +1,10 @@
 import os
-import sqlite3
-import datetime
 import time
 import logging
 from functools import wraps
 from flask import request, g, jsonify, Blueprint, current_app
-from werkzeug.security import generate_password_hash, check_password_hash
-from flask_jwt_extended import create_access_token, decode_token
 
 from app.utils.validators import validate_email, validate_password
-
-# Security: Database path relative to the app
-DB_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "users.db")
 
 logger = logging.getLogger(__name__)
 
@@ -65,12 +58,7 @@ def record_failed_attempt(email):
 # Initialize the Blueprint
 auth = Blueprint('auth', __name__)
 
-def get_db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
-
-# Register Endpoint
+# Register Endpoint - Supabase Auth
 @auth.route('/register', methods=['POST', 'OPTIONS'])
 def register():
     if request.method == 'OPTIONS':
@@ -93,26 +81,49 @@ def register():
     if not valid:
         return jsonify({"error": password_error}), 400
 
-    conn = get_db()
-    cur = conn.cursor()
+    # Use Supabase Auth to register
     try:
-        password_hash = generate_password_hash(password)
-        cur.execute(
-            "INSERT INTO auth_users (email, password_hash, created_at) VALUES (?, ?, ?)",
-            (email, password_hash, datetime.datetime.utcnow().isoformat())
-        )
-        conn.commit()
-        logger.info(f"New user registered: {email}")
-        return jsonify({"message": "User registered successfully"}), 201
-    except sqlite3.IntegrityError:
-        return jsonify({"error": "Email already exists"}), 409
+        supabase = current_app.supabase
+        if not supabase:
+            return jsonify({"error": "Authentication service unavailable"}), 503
+        
+        # Sign up with Supabase
+        response = supabase.auth.sign_up({
+            "email": email,
+            "password": password
+        })
+        
+        if response.user:
+            logger.info(f"New user registered via Supabase: {email}")
+            
+            # Create profile entry in profiles table
+            try:
+                supabase.table('profiles').insert({
+                    "id": response.user.id,
+                    "email": email
+                }).execute()
+            except Exception as e:
+                logger.warning(f"Failed to create profile for {email}: {e}")
+            
+            return jsonify({
+                "message": "User registered successfully",
+                "user_id": response.user.id,
+                "email": email
+            }), 201
+        else:
+            return jsonify({"error": "Registration failed"}), 500
+            
     except Exception as e:
-        logger.error(f"Registration error: {e}")
+        error_msg = str(e)
+        logger.error(f"Supabase registration error: {error_msg}")
+        
+        # Handle common Supabase errors
+        if "already registered" in error_msg.lower() or "already exists" in error_msg.lower():
+            return jsonify({"error": "Email already exists"}), 409
+        
         return jsonify({"error": "Registration failed"}), 500
-    finally:
-        conn.close()
 
-# Login Endpoint
+# Login Endpoint - Supabase Auth
 @auth.route('/login', methods=['POST', 'OPTIONS'])
 def login():
     if request.method == 'OPTIONS':
@@ -137,33 +148,61 @@ def login():
             "retry_after": remaining
         }), 429
 
-    conn = get_db()
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM auth_users WHERE email = ?", (email,))
-    user = cur.fetchone()
-    conn.close()
+    # Use Supabase Auth to login
+    try:
+        supabase = current_app.supabase
+        if not supabase:
+            return jsonify({"error": "Authentication service unavailable"}), 503
+        
+        # Sign in with Supabase
+        response = supabase.auth.sign_in_with_password({
+            "email": email,
+            "password": password
+        })
+        
+        if response.session:
+            logger.info(f"User logged in via Supabase: {email}")
+            
+            # Return Supabase session token
+            return jsonify({
+                "access_token": response.session.access_token,
+                "refresh_token": response.session.refresh_token,
+                "user": {
+                    "id": response.user.id,
+                    "email": response.user.email
+                }
+            }), 200
+        else:
+            # Record failed attempt
+            record_failed_attempt(email)
+            return jsonify({"error": "Invalid email or password"}), 401
+            
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"Supabase login error: {error_msg}")
+        
+        # Record failed attempt
+        record_failed_attempt(email)
+        
+        # Handle common Supabase errors
+        if "invalid" in error_msg.lower() or "credentials" in error_msg.lower():
+            return jsonify({"error": "Invalid email or password"}), 401
+        
+        return jsonify({"error": "Login failed"}), 500
 
-    if user and check_password_hash(user['password_hash'], password):
-        # Create a local JWT token
-        access_token = create_access_token(
-            identity=str(user['id']), 
-            expires_delta=datetime.timedelta(days=1)
-        )
-        logger.info(f"User logged in: {email}")
-        return jsonify({"access_token": access_token, "email": email}), 200
-    
-    # Record failed attempt
-    record_failed_attempt(email)
-    return jsonify({"error": "Invalid email or password"}), 401
-
-# Minimal health check endpoint
+# Health check endpoint
 @auth.route('/ping', methods=['GET'])
 def ping():
-    return jsonify({"status": "auth service ok", "timestamp": datetime.datetime.utcnow().isoformat()}), 200
+    import datetime
+    return jsonify({
+        "status": "auth service ok", 
+        "provider": "supabase",
+        "timestamp": datetime.datetime.utcnow().isoformat()
+    }), 200
 
 def token_required(f):
     """
-    A decorator to protect Flask routes, ensuring the user is authenticated with a valid local JWT.
+    Decorator to protect Flask routes using Supabase token verification.
     """
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -175,20 +214,26 @@ def token_required(f):
         token = auth_header.split(" ")[1]
 
         try:
-            # Verify the token using the app's secret key
-            decoded = decode_token(token)
-            user_id = decoded.get("sub")
+            supabase = current_app.supabase
+            if not supabase:
+                return jsonify({"message": "Authentication service unavailable"}), 503
             
-            if not user_id:
-                raise ValueError("User ID ('sub') not found in token.")
+            # Verify token with Supabase
+            user_response = supabase.auth.get_user(token)
+            
+            if not user_response or not user_response.user:
+                return jsonify({"message": "Token is invalid or expired"}), 401
 
+            # Store user info in request context
             g.user = {
-                "id": user_id,
-                "provider": "local"
+                "id": user_response.user.id,
+                "email": user_response.user.email,
+                "provider": "supabase"
             }
 
         except Exception as e:
-            return jsonify({"message": "Token is invalid or expired", "error": str(e)}), 401
+            logger.error(f"Token verification error: {e}")
+            return jsonify({"message": "Token is invalid or expired"}), 401
 
         return f(*args, **kwargs)
 

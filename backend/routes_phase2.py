@@ -1,9 +1,8 @@
 # routes_phase2.py
 import os
-import sqlite3
 import json
 import logging
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from dotenv import load_dotenv
 
 # Do NOT import openai globally to avoid circular import crashes during app startup
@@ -15,23 +14,37 @@ logger = logging.getLogger(__name__)
 
 bp = Blueprint("phase2", __name__)
 
-# Use same path resolution as database.py for consistency
-DB_PATH = os.getenv("DB_PATH", os.path.join(os.path.dirname(__file__), "users.db"))
+# Import Supabase client
+from supabase_client import get_supabase
 
-def get_db_conn():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+def get_supabase_client():
+    """Get Supabase client, with fallback to app context if available."""
+    # Try to get from Flask app context first
+    try:
+        if hasattr(current_app, 'supabase') and current_app.supabase:
+            return current_app.supabase
+    except RuntimeError:
+        pass  # Outside app context
+    
+    # Fallback to direct client creation
+    client = get_supabase()
+    if not client:
+        raise RuntimeError("Supabase client not available")
+    return client
 
-def ensure_skill_exists(conn, skill_name):
-    cur = conn.cursor()
-    cur.execute("SELECT id FROM skills WHERE name = ?", (skill_name,))
-    row = cur.fetchone()
-    if row:
-        return row["id"]
-    cur.execute("INSERT INTO skills (name) VALUES (?)", (skill_name,))
-    conn.commit()
-    return cur.lastrowid
+def ensure_skill_exists_supabase(supabase, skill_name):
+    """Ensure a skill exists in Supabase, return its ID."""
+    # Check if skill exists
+    result = supabase.table("skills").select("id").eq("name", skill_name).execute()
+    if result.data:
+        return result.data[0]["id"]
+    
+    # Insert new skill
+    insert_result = supabase.table("skills").insert({"name": skill_name}).execute()
+    if insert_result.data:
+        return insert_result.data[0]["id"]
+    
+    raise RuntimeError(f"Failed to create skill: {skill_name}")
 
 def verify_jwt_token(authorization_header):
     """
@@ -92,11 +105,11 @@ def verify_jwt_token(authorization_header):
 
 from app.role_manager import role_manager
 
-@bp.route("/api/sync_profile", methods=["POST", "OPTIONS"])
+@bp.route("/sync_profile", methods=["POST", "OPTIONS"])
 def sync_profile():
     """
     Sync user profile after Supabase authentication.
-    Creates local SQLite profile if it doesn't exist.
+    Creates Supabase profile if it doesn't exist.
     """
     if request.method == "OPTIONS":
         return jsonify({"status": "ok"}), 200
@@ -105,21 +118,21 @@ def sync_profile():
     if not user_id:
         return jsonify({"error": "Unauthorized"}), 401
     
-    conn = get_db_conn()
     try:
-        cur = conn.cursor()
+        supabase = get_supabase_client()
         
         # Check if profile exists
-        cur.execute("SELECT id FROM profiles WHERE user_id = ?", (user_id,))
-        row = cur.fetchone()
+        result = supabase.table("profiles").select("id").eq("user_id", user_id).execute()
         
-        if row:
-            profile_id = row["id"]
+        if result.data:
+            profile_id = result.data[0]["id"]
         else:
             # Create new profile
-            cur.execute("INSERT INTO profiles (user_id) VALUES (?)", (user_id,))
-            conn.commit()
-            profile_id = cur.lastrowid
+            insert_result = supabase.table("profiles").insert({"user_id": user_id}).execute()
+            if insert_result.data:
+                profile_id = insert_result.data[0]["id"]
+            else:
+                return jsonify({"error": "Failed to create profile"}), 500
         
         return jsonify({
             "status": "ok",
@@ -127,9 +140,8 @@ def sync_profile():
             "user_id": user_id
         })
     except Exception as e:
+        logger.error(f"Failed to sync profile: {e}")
         return jsonify({"error": f"Failed to sync profile: {str(e)}"}), 500
-    finally:
-        conn.close()
 
 @bp.route("/analyze_role_gaps", methods=["POST"])
 def analyze_role_gaps():
@@ -204,43 +216,52 @@ def confirm_skills():
     if not isinstance(skills, list):
         return jsonify({"error": "skills[] must be a list"}), 400
 
-    conn = get_db_conn()
     try:
-        cur = conn.cursor()
+        supabase = get_supabase_client()
         
         # Auto-resolve profile_id from user_id
-        cur.execute("SELECT id FROM profiles WHERE user_id = ?", (user_id,))
-        row = cur.fetchone()
+        result = supabase.table("profiles").select("id").eq("user_id", user_id).execute()
         
-        if row:
-            profile_id = row["id"]
+        if result.data:
+            profile_id = result.data[0]["id"]
         else:
             # Create new profile if it doesn't exist
-            cur.execute("INSERT INTO profiles (user_id) VALUES (?)", (user_id,))
-            conn.commit()
-            profile_id = cur.lastrowid
+            insert_result = supabase.table("profiles").insert({"user_id": user_id}).execute()
+            if insert_result.data:
+                profile_id = insert_result.data[0]["id"]
+            else:
+                return jsonify({"error": "Failed to create profile"}), 500
 
         saved = []
         for sk in skills:
             name = sk.get("name")
             confidence = int(sk.get("confidence", 80))
             source = sk.get("source", "user")
-            skill_id = ensure_skill_exists(conn, name)
+            skill_id = ensure_skill_exists_supabase(supabase, name)
             
-            cur.execute("SELECT id FROM profile_skills WHERE profile_id=? AND skill_id=?", (profile_id, skill_id))
-            if not cur.fetchone():
-                cur.execute(
-                    "INSERT INTO profile_skills (profile_id, skill_id, confidence, source) VALUES (?,?,?,?)",
-                    (profile_id, skill_id, confidence, source)
-                )
-                saved.append({"skill_id": cur.lastrowid, "name": name, "confidence": confidence})
+            # Check if profile_skill already exists
+            existing = supabase.table("profile_skills")\
+                .select("id")\
+                .eq("profile_id", profile_id)\
+                .eq("skill_id", skill_id)\
+                .execute()
+            
+            if not existing.data:
+                insert_result = supabase.table("profile_skills").insert({
+                    "profile_id": profile_id,
+                    "skill_id": skill_id,
+                    "confidence": confidence,
+                    "source": source
+                }).execute()
+                if insert_result.data:
+                    saved.append({"skill_id": insert_result.data[0]["id"], "name": name, "confidence": confidence})
             else:
                 saved.append({"name": name, "status": "already_exists"})
 
-        conn.commit()
         return jsonify({"status": "ok", "saved": saved})
-    finally:
-        conn.close()
+    except Exception as e:
+        logger.error(f"Failed to confirm skills: {e}")
+        return jsonify({"error": f"Failed to confirm skills: {str(e)}"}), 500
 
 @bp.route("/generate_learning_path", methods=["POST"])
 def generate_learning_path():
@@ -301,30 +322,37 @@ def generate_learning_path():
         print(f"⚠️ Limiting selected_skills from {len(selected_skills)} to 10")
         selected_skills = selected_skills[:10]
 
-    # Resolve profile_id from user_id if not provided
-    conn = get_db_conn()
+    # Resolve profile_id from user_id if not provided using Supabase
     try:
-        cur = conn.cursor()
+        supabase = get_supabase_client()
+        
         if not profile_id:
-            cur.execute("SELECT id FROM profiles WHERE user_id = ?", (user_id,))
-            row = cur.fetchone()
-            if row:
-                profile_id = row["id"]
+            result = supabase.table("profiles").select("id").eq("user_id", user_id).execute()
+            if result.data:
+                profile_id = result.data[0]["id"]
             else:
                 # Create profile if it doesn't exist
-                cur.execute("INSERT INTO profiles (user_id) VALUES (?)", (user_id,))
-                conn.commit()
-                profile_id = cur.lastrowid
+                insert_result = supabase.table("profiles").insert({"user_id": user_id}).execute()
+                if insert_result.data:
+                    profile_id = insert_result.data[0]["id"]
+                else:
+                    return jsonify({"error": "Failed to create profile"}), 500
 
         # Get user's current skills for matching score calculation
-        cur.execute("""
-            SELECT s.name FROM profile_skills ps
-            JOIN skills s ON s.id = ps.skill_id
-            WHERE ps.profile_id = ?
-        """, (profile_id,))
-        user_skills = [r["name"] for r in cur.fetchall()]
-    finally:
-        conn.close()
+        # Query profile_skills joined with skills
+        skills_result = supabase.table("profile_skills")\
+            .select("skill_id, skills(name)")\
+            .eq("profile_id", profile_id)\
+            .execute()
+        
+        user_skills = []
+        if skills_result.data:
+            for row in skills_result.data:
+                if row.get("skills") and row["skills"].get("name"):
+                    user_skills.append(row["skills"]["name"])
+    except Exception as e:
+        logger.error(f"Failed to get profile/skills: {e}")
+        user_skills = []  # Continue with empty skills if DB fails
 
     # Import AI generator functions
     from app.ai_generator import generate_learning_plan

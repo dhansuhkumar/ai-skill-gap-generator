@@ -1,0 +1,14 @@
+2026-01-27 21:03:29 [    INFO] root:    - Debug mode: ENABLED
+2026-01-27 21:03:29 [    INFO] root:    - Auto-reload: ENABLED
+2026-01-27 21:03:29 [    INFO] werkzeug: [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:8080
+ * Running on http://172.29.163.109:8080
+2026-01-27 21:03:29 [    INFO] werkzeug: [33mPress CTRL+C to quit[0m
+2026-01-27 21:03:29 [    INFO] werkzeug:  * Restarting with stat
+2026-01-27 21:03:32 [    INFO] root:    - Debug mode: ENABLED
+2026-01-27 21:03:32 [    INFO] root:    - Auto-reload: ENABLED
+2026-01-27 21:03:32 [ WARNING] werkzeug:  * Debugger is active!
+2026-01-27 21:03:32 [    INFO] werkzeug:  * Debugger PIN: 819-891-622
+2026-01-27 21:03:44 [    INFO] werkzeug:  * Detected change in 'C:\\Users\\Dhanush Kumar\\ai-skill-gap-generator\\backend\\app\\ai_generator.py', reloading
+2026-01-27 21:03:45 [    INFO] werkzeug:  * Restarting with stat

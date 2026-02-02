@@ -33,24 +33,48 @@ def create_app():
     
     # Configure CORS - Use environment variable or default to local dev ports
     # Security: Don't allow wildcard origins with credentials
-    raw_origins = os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:5174,http://localhost:5173,http://127.0.0.1:5174,http://127.0.0.1:5173")
+    flask_env = os.getenv("FLASK_ENV", "development")
+    is_production = flask_env == "production"
     
-    # Validate origins - never allow wildcard with credentials
-    if raw_origins == "*":
-        logging.warning("CORS_ALLOWED_ORIGINS is set to wildcard - this is insecure with credentials enabled!")
+    if is_production:
+        # Production: Use explicitly configured origins only
+        raw_origins = os.getenv("CORS_ALLOWED_ORIGINS", "")
+        if not raw_origins:
+            logging.warning("CORS_ALLOWED_ORIGINS not set in production - CORS will be restrictive")
+            allowed_origins = []
+        elif raw_origins == "*":
+            logging.error("CORS_ALLOWED_ORIGINS=* is NOT allowed in production with credentials!")
+            raise RuntimeError("Wildcard CORS origin is not allowed in production with credentials enabled")
+        else:
+            allowed_origins = [origin.strip() for origin in raw_origins.split(',') if origin.strip()]
+    else:
+        # Development: Allow local dev servers
+        raw_origins = os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:5174,http://localhost:5173,http://127.0.0.1:5174,http://127.0.0.1:5173")
+        allowed_origins = [origin.strip() for origin in raw_origins.split(',') if origin.strip()]
+    
+    logging.info(f"CORS allowed origins: {allowed_origins}")
 
-    allowed_origins = [origin.strip() for origin in raw_origins.split(',')] if raw_origins != "*" else "*"
-
+    # Initialize CORS with comprehensive settings for Supabase JWT auth
     CORS(
         app,
-        resources={
-            r"/*": {
-                "origins": allowed_origins,
-                "supports_credentials": True,
-                "allow_headers": ["Content-Type", "Authorization", "Access-Control-Allow-Origin"],
-                "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
-            },
-        },
+        origins=allowed_origins,
+        supports_credentials=True,
+        allow_headers=[
+            "Content-Type",
+            "Authorization",
+            "Accept",
+            "Origin",
+            "X-Requested-With",
+            "Access-Control-Request-Method",
+            "Access-Control-Request-Headers",
+        ],
+        expose_headers=[
+            "Content-Type",
+            "Authorization",
+            "X-Request-Id",
+        ],
+        methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+        max_age=600,  # Cache preflight requests for 10 minutes
     )
 
 
@@ -74,34 +98,40 @@ def create_app():
         except ImportError:
             _get_supabase_func_app = None
 
-    app.supabase = None # Default to None
-    
     # Supabase config - Backend uses SUPABASE_URL/KEY (no VITE_ prefix)
     app.config["SUPABASE_URL"] = os.getenv("SUPABASE_URL")
     app.config["SUPABASE_KEY"] = os.getenv("SUPABASE_KEY")
 
-    if _get_supabase_func_app:
-        supabase_url = app.config["SUPABASE_URL"]
-        supabase_key = app.config["SUPABASE_KEY"]
-        if supabase_url and supabase_key:
-            try:
-                app.supabase = _get_supabase_func_app()
-                logging.info("Supabase client attached to app successfully.")
-            except Exception as e:
-                logging.error(f"Error attaching Supabase client to app: {e}")
-                # If Supabase is configured but fails here, run.py should have already raised a RuntimeError
-                # So here we just log and app.supabase remains None
-        else:
-            logging.info("Supabase client module found but not configured (SUPABASE_URL or SUPABASE_KEY missing).")
-    else:
-        logging.info("Supabase client module not found for app.")
+    # Supabase is REQUIRED for authentication
+    if not app.config["SUPABASE_URL"] or not app.config["SUPABASE_KEY"]:
+        logging.critical("CRITICAL: Supabase credentials not configured")
+        raise RuntimeError(
+            "Supabase is required. "
+            "Set SUPABASE_URL and SUPABASE_KEY in your .env file."
+        )
+
+    if not _get_supabase_func_app:
+        logging.critical("Supabase client module not found")
+        raise RuntimeError("Supabase client module (supabase_client.py) not found")
+    
+    try:
+        app.supabase = _get_supabase_func_app()
+        if not app.supabase:
+            logging.critical("Supabase client initialization returned None")
+            raise RuntimeError("Failed to initialize Supabase client")
+        logging.info("Supabase client initialized successfully.")
+    except Exception as e:
+        logging.critical(f"Failed to initialize Supabase: {e}")
+        raise RuntimeError(f"Supabase initialization failed: {e}")
 
 
     from .routes import main
     from .auth import auth
+    from .dashboard_routes import dashboard
 
     app.register_blueprint(auth, url_prefix='/auth')
     app.register_blueprint(main, url_prefix='/api')
+    app.register_blueprint(dashboard, url_prefix='/api')
     if phase2_bp:
         app.register_blueprint(phase2_bp, url_prefix="/api")
 

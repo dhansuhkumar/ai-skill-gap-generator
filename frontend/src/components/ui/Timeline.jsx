@@ -1,62 +1,143 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { CheckCircle2, Circle, Clock, Gift } from 'lucide-react';
+import { CheckCircle2, Circle, Gift, Youtube, ExternalLink } from 'lucide-react';
 
-const Timeline = ({ steps, onToggleStep }) => {
+const Timeline = ({ steps, youtubeVideos, onToggleStep }) => {
     return (
-        <div className="relative border-l border-gray-700 ml-4 space-y-8">
+        <div style={{ position: 'relative', marginLeft: '1rem' }}>
+            {/* Vertical line */}
+            <div style={{
+                position: 'absolute',
+                left: '8px',
+                top: '12px',
+                bottom: '12px',
+                width: '2px',
+                background: 'linear-gradient(180deg, var(--color-primary) 0%, var(--color-border) 100%)'
+            }} />
+
             {steps.map((step, idx) => {
                 const isCompleted = step.completed;
 
                 return (
                     <motion.div
                         key={idx}
-                        className="relative pl-8"
+                        style={{ position: 'relative', paddingLeft: '2.5rem', marginBottom: '1.5rem' }}
                         initial={{ opacity: 0, x: -20 }}
                         whileInView={{ opacity: 1, x: 0 }}
                         viewport={{ once: true }}
                         transition={{ delay: idx * 0.1 }}
                     >
-                        {/* Node on the line */}
+                        {/* Node circle */}
                         <div
-                            className={`absolute -left-[9px] top-1 w-5 h-5 rounded-full border-2 flex items-center justify-center bg-[var(--color-bg-app)] ${isCompleted
-                                    ? 'border-[var(--color-success)] text-[var(--color-success)]'
-                                    : 'border-gray-600 text-gray-500'
-                                }`}
+                            style={{
+                                position: 'absolute',
+                                left: 0,
+                                top: '4px',
+                                width: '18px',
+                                height: '18px',
+                                borderRadius: '50%',
+                                border: `2px solid ${isCompleted ? 'var(--color-success)' : 'var(--color-border)'}`,
+                                background: 'var(--color-bg-app)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                            }}
                         >
-                            {isCompleted ? <div className="w-2 h-2 bg-[var(--color-success)] rounded-full" /> : <div className="w-2 h-2 bg-gray-600 rounded-full" />}
+                            <div style={{
+                                width: '8px',
+                                height: '8px',
+                                borderRadius: '50%',
+                                background: isCompleted ? 'var(--color-success)' : 'var(--color-border)'
+                            }} />
                         </div>
 
                         {/* Card Content */}
                         <div
-                            className={`glass-panel p-6 transition-all duration-300 ${isCompleted ? 'border-[var(--color-success)]/30' : 'border-[var(--color-border)]'}`}
-                            onClick={() => onToggleStep && onToggleStep(idx, !isCompleted)}
-                            style={{ cursor: onToggleStep ? 'pointer' : 'default' }}
+                            className="glass-panel"
+                            style={{
+                                padding: '1.25rem',
+                                transition: 'all 0.3s',
+                                borderColor: isCompleted ? 'rgba(16,185,129,0.3)' : 'var(--color-border)'
+                            }}
                         >
-                            <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center mb-4">
-                                <div>
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <span className="text-sm font-mono text-[var(--color-text-muted)]">
+                            <div style={{
+                                display: 'flex',
+                                flexWrap: 'wrap',
+                                gap: '0.75rem',
+                                justifyContent: 'space-between',
+                                alignItems: 'flex-start',
+                                marginBottom: '0.75rem'
+                            }}>
+                                <div style={{ flex: 1, minWidth: '200px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                                        <span style={{
+                                            fontSize: '0.75rem',
+                                            fontFamily: 'monospace',
+                                            color: 'var(--color-text-muted)',
+                                            background: 'rgba(139, 92, 246, 0.1)',
+                                            padding: '0.2rem 0.5rem',
+                                            borderRadius: '4px'
+                                        }}>
                                             Days {step.day_from}-{step.day_to}
                                         </span>
                                         {step.project && (
-                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-[rgba(16,185,129,0.1)] text-[var(--color-success)] border border-[rgba(16,185,129,0.2)]">
+                                            <span style={{
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: '4px',
+                                                padding: '0.2rem 0.5rem',
+                                                borderRadius: '4px',
+                                                fontSize: '0.7rem',
+                                                fontWeight: 500,
+                                                background: 'rgba(16,185,129,0.1)',
+                                                color: 'var(--color-success)',
+                                                border: '1px solid rgba(16,185,129,0.2)'
+                                            }}>
                                                 <Gift size={10} /> Project
                                             </span>
                                         )}
                                     </div>
-                                    <h3 className="text-xl font-semibold text-[var(--color-text-main)]">
+                                    <h3 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--color-text-main)' }}>
                                         {step.title}
                                     </h3>
                                 </div>
+
+                                {/* Improved Mark Complete Button */}
                                 <button
-                                    className={`flex items-center gap-2 text-sm font-medium px-3 py-1 rounded-full transition-colors ${isCompleted
-                                            ? 'bg-[rgba(16,185,129,0.1)] text-[var(--color-success)] hover:bg-[rgba(16,185,129,0.2)]'
-                                            : 'bg-[var(--color-border)] text-[var(--color-text-muted)] hover:text-white'
-                                        }`}
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         onToggleStep && onToggleStep(idx, !isCompleted);
+                                    }}
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.5rem',
+                                        fontSize: '0.85rem',
+                                        fontWeight: 500,
+                                        padding: '0.5rem 1rem',
+                                        borderRadius: '2rem',
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s',
+                                        background: isCompleted
+                                            ? 'linear-gradient(135deg, rgba(16,185,129,0.2) 0%, rgba(16,185,129,0.1) 100%)'
+                                            : 'linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(139, 92, 246, 0.05) 100%)',
+                                        color: isCompleted ? 'var(--color-success)' : 'var(--color-primary)',
+                                        boxShadow: isCompleted
+                                            ? '0 0 0 1px rgba(16,185,129,0.3)'
+                                            : '0 0 0 1px rgba(139, 92, 246, 0.3)'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.target.style.transform = 'scale(1.05)';
+                                        e.target.style.boxShadow = isCompleted
+                                            ? '0 0 12px rgba(16,185,129,0.4)'
+                                            : '0 0 12px rgba(139, 92, 246, 0.4)';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.target.style.transform = 'scale(1)';
+                                        e.target.style.boxShadow = isCompleted
+                                            ? '0 0 0 1px rgba(16,185,129,0.3)'
+                                            : '0 0 0 1px rgba(139, 92, 246, 0.3)';
                                     }}
                                 >
                                     {isCompleted ? <CheckCircle2 size={16} /> : <Circle size={16} />}
@@ -64,18 +145,123 @@ const Timeline = ({ steps, onToggleStep }) => {
                                 </button>
                             </div>
 
-                            <ul className="space-y-2 mb-4">
-                                {step.tasks && step.tasks.map((task, taskIdx) => (
-                                    <li key={taskIdx} className="flex items-start gap-2 text-[var(--color-text-muted)] text-sm">
-                                        <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[var(--color-primary)] opacity-60 flex-shrink-0" />
-                                        <span>{task}</span>
-                                    </li>
-                                ))}
-                            </ul>
+                            {/* Tasks List */}
+                            {step.tasks && step.tasks.length > 0 && (
+                                <ul style={{ margin: 0, padding: 0, listStyle: 'none', marginTop: '0.75rem' }}>
+                                    {step.tasks.map((task, taskIdx) => (
+                                        <li key={taskIdx} style={{
+                                            display: 'flex',
+                                            alignItems: 'flex-start',
+                                            gap: '0.5rem',
+                                            color: 'var(--color-text-muted)',
+                                            fontSize: '0.9rem',
+                                            marginBottom: '0.35rem'
+                                        }}>
+                                            <span style={{
+                                                marginTop: '0.5rem',
+                                                width: '5px',
+                                                height: '5px',
+                                                borderRadius: '50%',
+                                                background: 'var(--color-primary)',
+                                                opacity: 0.6,
+                                                flexShrink: 0
+                                            }} />
+                                            <span>{task}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
                         </div>
                     </motion.div>
                 );
             })}
+
+            {/* YouTube Videos Section */}
+            {youtubeVideos && youtubeVideos.length > 0 && (
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    style={{
+                        marginTop: '1.5rem',
+                        marginLeft: '2.5rem',
+                        padding: '1.25rem',
+                        background: 'rgba(255, 0, 0, 0.05)',
+                        borderRadius: '12px',
+                        border: '1px solid rgba(255, 0, 0, 0.1)'
+                    }}
+                >
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        marginBottom: '1rem',
+                        color: '#ff4444'
+                    }}>
+                        <Youtube size={20} />
+                        <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>
+                            Recommended Videos
+                        </h4>
+                    </div>
+                    <div style={{ display: 'grid', gap: '0.75rem' }}>
+                        {youtubeVideos.map((video, idx) => (
+                            <a
+                                key={idx}
+                                href={video.url || `https://youtube.com/watch?v=${video.video_id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.75rem',
+                                    padding: '0.75rem',
+                                    background: 'rgba(255,255,255,0.03)',
+                                    borderRadius: '8px',
+                                    textDecoration: 'none',
+                                    transition: 'all 0.2s',
+                                    border: '1px solid transparent'
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
+                                    e.currentTarget.style.borderColor = 'rgba(255, 0, 0, 0.2)';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
+                                    e.currentTarget.style.borderColor = 'transparent';
+                                }}
+                            >
+                                {video.thumbnail && (
+                                    <img
+                                        src={video.thumbnail}
+                                        alt=""
+                                        style={{
+                                            width: '80px',
+                                            height: '45px',
+                                            objectFit: 'cover',
+                                            borderRadius: '6px'
+                                        }}
+                                    />
+                                )}
+                                <div style={{ flex: 1 }}>
+                                    <div style={{
+                                        fontSize: '0.9rem',
+                                        color: 'var(--color-text-main)',
+                                        marginBottom: '0.25rem',
+                                        fontWeight: 500
+                                    }}>
+                                        {video.title}
+                                    </div>
+                                    {video.channel && (
+                                        <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                                            {video.channel}
+                                        </div>
+                                    )}
+                                </div>
+                                <ExternalLink size={16} style={{ color: 'var(--color-text-muted)' }} />
+                            </a>
+                        ))}
+                    </div>
+                </motion.div>
+            )}
         </div>
     );
 };

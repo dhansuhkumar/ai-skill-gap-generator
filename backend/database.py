@@ -1,10 +1,19 @@
 # database.py
+"""
+Centralized database configuration for SQLite.
+Exports DB_NAME for consistent usage across all modules.
+"""
 import os
 import sys
 import sqlite3
+from pathlib import Path
 
+# Centralized database path configuration
 # Use DB_PATH environment variable, or default to users.db in backend directory
 DB_NAME = os.getenv("DB_PATH", os.path.join(os.path.dirname(__file__), "users.db"))
+
+# Export for use in other modules
+__all__ = ['DB_NAME', 'init_db']
 
 def init_db():
     # If Supabase is configured, skip local SQLite initialization

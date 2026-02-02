@@ -17,6 +17,17 @@ load_dotenv()
 supabase_client = None
 _get_supabase_func = None
 
+# Supabase is REQUIRED - validate credentials first
+supabase_url = os.getenv("SUPABASE_URL")
+supabase_key = os.getenv("SUPABASE_KEY")
+
+if not supabase_url or not supabase_key:
+    print("=" * 60)
+    print("ERROR: Supabase credentials are REQUIRED!")
+    print("Please set SUPABASE_URL and SUPABASE_KEY in your .env file")
+    print("=" * 60)
+    raise RuntimeError("Supabase credentials missing. Cannot start application.")
+
 # Attempt to import get_supabase function
 try:
     from backend.supabase_client import get_supabase as _get_supabase_func
@@ -24,73 +35,96 @@ except ImportError:
     try:
         from supabase_client import get_supabase as _get_supabase_func
     except ImportError:
-        _get_supabase_func = None # Supabase client not found at all
+        print("=" * 60)
+        print("ERROR: Supabase client module not found!")
+        print("Ensure supabase_client.py exists in backend/")
+        print("=" * 60)
+        raise RuntimeError("Supabase client module not found")
 
-# If get_supabase function was imported, try to initialize client
-if _get_supabase_func:
-    # If using Supabase, ensure DB_PATH matches or is not used directly
-    supabase_url = os.getenv("SUPABASE_URL")
-    supabase_key = os.getenv("SUPABASE_KEY")
-
-    if supabase_url and supabase_key: # Supabase is configured
-        print("Attempting to initialize Supabase client...")
-        try:
-            supabase_client = _get_supabase_func()
-            if supabase_client:
-                print("Supabase client initialized successfully.")
-            else:
-                print("Failed to initialize Supabase client (returned None).")
-        except Exception as e:
-            print(f"❌ Error initializing Supabase client: {e}")
-            print("Ensure SUPABASE_URL and SUPABASE_KEY are correct.")
-            # Critical failure: if Supabase is configured, it should work
-            raise RuntimeError(f"Failed to initialize Supabase client: {e}") from e
-    else: # Supabase client module found, but not configured
-        print("Supabase client module found, but SUPABASE_URL or SUPABASE_KEY not set. Falling back to SQLite.")
-
-
-# Always initialize local DB for hybrid support (profiles/skills tables)
-from backend.database import init_db, DB_NAME
-print("=" * 60)
-print("🚀 Starting database initialization...")
-init_db()
-print(f"📁 Database file location: {os.path.abspath(DB_NAME)}")
-if os.path.exists(DB_NAME):
-    print(f"✅ Database file exists (size: {os.path.getsize(DB_NAME)} bytes)")
-else:
-    print(f"❌ WARNING: Database file not found at {os.path.abspath(DB_NAME)}")
-print("=" * 60)
-
-if not supabase_client:
-    # Any other local-only setup if needed
-    pass
-else:
-    print("Supabase client initialized.")
+# Initialize Supabase client
+print("Attempting to initialize Supabase client...")
+try:
+    supabase_client = _get_supabase_func()
+    if supabase_client:
+        print("Supabase client initialized successfully.")
+    else:
+        print("Failed to initialize Supabase client (returned None).")
+        raise RuntimeError("Supabase client initialization failed")
+except Exception as e:
+    print(f"ERROR initializing Supabase client: {e}")
+    print("Ensure SUPABASE_URL and SUPABASE_KEY are correct.")
+    raise RuntimeError(f"Failed to initialize Supabase client: {e}") from e
 
 # Use explicit package imports to avoid "No module named 'app'" when running as a module
 from backend.app import create_app
 
 app = create_app()
 
+# Add security headers to all responses
+from backend.app.security_config import add_security_headers
+
 @app.after_request
 def set_response_headers(response):
+    """Add content type and security headers to all responses"""
+    # Set content type headers
     if response.content_type.startswith('application/json'):
         response.headers['Content-Type'] = 'application/json; charset=utf-8'
     elif response.mimetype == 'text/html':
         response.headers['Content-Type'] = 'text/html; charset=utf-8'
+    
+    # Add security headers (production-safe)
+    response = add_security_headers(response)
+    
     return response
 
-# def add_security_headers(response):
-#     response.headers['X-Content-Type-Options'] = 'nosniff'
-#     # response.headers['X-Frame-Options'] = 'DENY'
-#     # response.headers['Content-Security-Policy'] = "default-src 'self'"
-#     return response
 
 if __name__ == "__main__":
+    # Detect production mode
+    flask_env = os.getenv("FLASK_ENV", "development")
+    is_production = flask_env == "production"
+   
     # Always init db
     from backend.database import init_db, DB_NAME
-    print("🔄 Re-initializing database from __main__ block...")
+    print("Re-initializing database from __main__ block...")
     init_db()
-    print(f"✅ Database ready at: {os.path.abspath(DB_NAME)}")
-    app.run(host="0.0.0.0", port=8080, debug=True)
+    print(f"Database ready at: {os.path.abspath(DB_NAME)}")
+    
+    # Validate required environment variables
+    required_vars = ["JWT_SECRET_KEY"]
+    missing_vars = [var for var in required_vars if not os.getenv(var)]
+    
+    if missing_vars:
+        print(f"ERROR: Missing required environment variables: {', '.join(missing_vars)}")
+        print("Please check your .env file. Use .env.example as a template.")
+        sys.exit(1)
+    
+    # Warn about missing optional variables
+    optional_vars = {
+        "GEMINI_API_KEY": "AI features will use fallback heuristics",
+        "OPENAI_API_KEY": "OpenAI fallback unavailable",
+        "YOUTUBE_API_KEY": "Video recommendations disabled"
+    }
+    
+    for var, impact in optional_vars.items():
+        if not os.getenv(var):
+            print(f"WARNING: {var} not set - {impact}")
+    
+    # Production warnings
+    if is_production:
+        print("Starting in PRODUCTION mode")
+        print("   - Debug mode: DISABLED")
+        print("   - Security headers: ENABLED")
+        print("   - CORS wildcard: BLOCKED")
+        
+        # Run with production settings
+        port = int(os.getenv("PORT", 8080))
+        app.run(host="0.0.0.0", port=port, debug=False)
+    else:
+        print("Starting in DEVELOPMENT mode")
+        print("   - Debug mode: ENABLED")
+        print("   - Auto-reload: ENABLED")
+        
+        # Run with development settings
+        app.run(host="0.0.0.0", port=8080, debug=True)
+
 

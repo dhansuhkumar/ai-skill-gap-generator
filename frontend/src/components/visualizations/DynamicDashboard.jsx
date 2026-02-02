@@ -67,29 +67,65 @@ const DynamicDashboard = ({ results, userSkills, roleAnalysis, githubUsername })
         const projects = results?.learning_path?.projects || [];
         const videos = results?.learning_path?.videos || [];
 
+        // Calculate current proficiency from userSkills
+        const getUserProficiency = (skillName) => {
+            if (!userSkills || userSkills.length === 0) return 0;
+
+            for (const skill of userSkills) {
+                const name = typeof skill === 'string' ? skill : skill.name;
+                if (name?.toLowerCase() === skillName.toLowerCase()) {
+                    // If skill is in user's list, they have some proficiency
+                    return typeof skill === 'object' ? (skill.confidence || 80) : 80;
+                }
+            }
+            return 0; // Skill not in user's list
+        };
+
+        // Build skill comparison with actual proficiency data
+        const skillItems = Object.keys(learningPaths).map(skill => {
+            const currentProf = getUserProficiency(skill);
+            const requiredProf = 80;
+            return {
+                name: skill,
+                current_proficiency: currentProf,
+                required_proficiency: requiredProf,
+                gap: Math.max(0, requiredProf - currentProf),
+                source: currentProf > 0 ? 'user' : 'missing'
+            };
+        });
+
+        // Calculate averages
+        const totalCurrent = skillItems.reduce((sum, s) => sum + s.current_proficiency, 0);
+        const totalRequired = skillItems.reduce((sum, s) => sum + s.required_proficiency, 0);
+        const numSkills = skillItems.length || 1;
+
+        // Count videos from skill paths
+        let totalVideos = videos.length;
+        Object.values(learningPaths).forEach(path => {
+            totalVideos += (path.youtube_videos || []).length;
+        });
+
         const fallbackData = {
             skill_comparison: {
-                skills: Object.keys(learningPaths).map(skill => ({
-                    name: skill,
-                    current_proficiency: 0,
-                    required_proficiency: 80,
-                    gap: 80,
-                    source: 'manual'
-                })),
-                average_current: 0,
-                average_required: 80,
-                overall_gap: 80
+                skills: skillItems,
+                average_current: Math.round(totalCurrent / numSkills),
+                average_required: Math.round(totalRequired / numSkills),
+                overall_gap: Math.round((totalRequired - totalCurrent) / numSkills)
             },
             learning_timeline: Object.keys(learningPaths).map(skill => ({
                 skill: skill,
                 summary: learningPaths[skill].summary || '',
-                milestones: learningPaths[skill].steps || [],
+                milestones: (learningPaths[skill].steps || []).map(step => ({
+                    ...step,
+                    completed: false
+                })),
+                youtube_videos: learningPaths[skill].youtube_videos || [],
                 total_steps: (learningPaths[skill].steps || []).length,
                 completed_steps: 0,
                 progress_percentage: 0
             })),
             github_insights: {
-                available: false,
+                available: !!githubUsername,
                 username: githubUsername,
                 total_repos: 0,
                 languages: []
@@ -97,8 +133,8 @@ const DynamicDashboard = ({ results, userSkills, roleAnalysis, githubUsername })
             summary: {
                 total_skills: Object.keys(learningPaths).length,
                 projects: projects.length,
-                videos: videos.length,
-                github_available: false
+                videos: totalVideos,
+                github_available: !!githubUsername
             }
         };
 

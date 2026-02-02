@@ -1,16 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { CheckCircle2, Circle, ArrowRight, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const StepMissingSkills = ({ missingSkills, matchData, onNext, onBack }) => {
+    // Start with no skills selected - user chooses what to learn
     const [selected, setSelected] = useState([]);
-
-    useEffect(() => {
-        // Pre-select all by default to encourage learning
-        if (missingSkills && missingSkills.length > 0) {
-            setSelected(missingSkills);
-        }
-    }, [missingSkills]);
 
     const toggleSkill = (skill) => {
         if (selected.includes(skill)) {

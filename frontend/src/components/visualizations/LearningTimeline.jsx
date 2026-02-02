@@ -119,6 +119,7 @@ const LearningTimeline = ({ timelineData, onToggleComplete }) => {
                                     <div style={{ paddingTop: '1rem' }}>
                                         <Timeline
                                             steps={skillData.milestones}
+                                            youtubeVideos={skillData.youtube_videos}
                                             onToggleStep={(stepIdx, completed) => handleToggleComplete(skillData.skill, stepIdx, completed)}
                                         />
                                     </div>

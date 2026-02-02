@@ -74,25 +74,24 @@ def search_youtube_videos(query: str, max_results: int = 3, allow_search: bool =
         return results
     
     except HTTPError as e:
+        body = ""
         try:
             body = e.read().decode("utf-8")
         except Exception:
             body = "<no body>"
         print("❌ YouTube HTTPError:", e.code, e.reason)
         print("   Response body:", body)
+        
+        if "quotaExceeded" in body:
+            print("⚠️ YouTube API quota exceeded.")
+            global YT_QUOTA_EXCEEDED
+            YT_QUOTA_EXCEEDED = True
+            _YT_CACHE[cache_key] = []
+        
         return []
     except URLError as e:
         print("❌ YouTube URLError:", e)
         return []
     except Exception as e:
         print("❌ YouTube search failed (other):", e)
-    
-    if "quotaExceeded" in  body:
-        print("⚠️ YouTube API quota exceeded.")
-        
-        _YT_CACHE[cache_key] = []
-    global YT_QUOTA_EXCEEDED
-    if "quotaExceeded" in body:
-        YT_QUOTA_EXCEEDED = True
-
-    return []
+        return []
