@@ -48,62 +48,36 @@ def ensure_skill_exists_supabase(supabase, skill_name):
 
 def verify_jwt_token(authorization_header):
     """
-    Verify JWT token from Supabase or local auth.
+    Verify JWT token using Supabase's server-side token validation.
     Returns user_id on success, None on failure.
+
+    Uses supabase.auth.get_user(token) — the same approach as the
+    token_required decorator in app/auth.py. Signature IS verified
+    by Supabase itself; we do NOT decode locally to avoid the
+    verify_signature=False security hole.
     """
     if not authorization_header:
         return None
-    
+
     if not authorization_header.startswith("Bearer "):
         return None
-    
+
     token = authorization_header.split(" ")[1]
-    
-    # Try Supabase token verification first if configured
-    supabase_url = os.getenv("SUPABASE_URL")
-    supabase_key = os.getenv("SUPABASE_KEY")
-    
-    if supabase_url and supabase_key:
-        try:
-            # Use PyJWT to decode Supabase token
-            # Note: Supabase tokens are signed with JWT_SECRET (not anon key)
-            # For now, decode without signature verification
-            import jwt
-            
-            decoded = jwt.decode(
-                token,
-                options={"verify_signature": False},  # Skip signature verification
-                algorithms=["HS256"]
-            )
-            
-            # Extract user ID from 'sub' claim
-            user_id = decoded.get("sub")
-            if user_id:
-                return user_id
-                
-        except jwt.ExpiredSignatureError:
-            print("Supabase token expired")
-            return None
-        except jwt.DecodeError as e:
-            print(f"Supabase token decode error: {e}")
-            # Fall through to local JWT verification
-            pass
-        except Exception as e:
-            print(f"Supabase token verification error: {e}")
-            # Fall through to local JWT verification
-            pass
-    
-    # Fallback to local JWT verification
+
+    # Primary: verify via Supabase (proper server-side validation)
     try:
-        from flask_jwt_extended import decode_token
-        decoded = decode_token(token)
-        return decoded.get("sub")
+        supabase = get_supabase_client()
+        user_response = supabase.auth.get_user(token)
+        if user_response and user_response.user:
+            return user_response.user.id
+        logger.warning("Supabase token verification returned no user")
+        return None
     except Exception as e:
-        print(f"Local JWT verification failed: {e}")
+        logger.error(f"Supabase token verification failed: {e}")
         return None
 
 
-from app.role_manager import role_manager
+from backend.app.role_manager import role_manager
 
 @bp.route("/sync_profile", methods=["POST", "OPTIONS"])
 def sync_profile():
@@ -160,7 +134,7 @@ def analyze_role_gaps():
         return jsonify({"error": "Role is required"}), 400
     
     # Use optimized CSV-based analysis (top 10 skills, cached)
-    from app.ai_generator import analyze_skill_gaps
+    from backend.app.ai_generator import analyze_skill_gaps
     
     try:
         # Pass top_n=30 for more skill options
@@ -178,7 +152,7 @@ def analyze_role_gaps():
             match_score = 0
         
         # Get alternative role suggestions
-        from app.role_suggestions import get_alternative_roles
+        from backend.app.role_suggestions import get_alternative_roles
         alternative_roles = get_alternative_roles(user_skills, limit=5)
         
         return jsonify({
@@ -258,7 +232,7 @@ def confirm_skills():
             else:
                 saved.append({"name": name, "status": "already_exists"})
 
-        return jsonify({"status": "ok", "saved": saved})
+        return jsonify({"status": "ok", "saved": saved, "profile_id": profile_id})
     except Exception as e:
         logger.error(f"Failed to confirm skills: {e}")
         return jsonify({"error": f"Failed to confirm skills: {str(e)}"}), 500
@@ -307,6 +281,7 @@ def generate_learning_path():
 
     project_type = req.get("project_type", "portfolio")
     include_youtube = req.get("include_youtube", False)
+    print(f"DEBUG: generate_learning_path called. include_youtube={include_youtube}, selected_skills_count={len(selected_skills)}", flush=True)
     additional_context = req.get("additional_context", "")
     provider = req.get("provider", "auto")
     profile_id = req.get("profile_id")
@@ -355,8 +330,8 @@ def generate_learning_path():
         user_skills = []  # Continue with empty skills if DB fails
 
     # Import AI generator functions
-    from app.ai_generator import generate_learning_plan
-    from app.youtube_search import search_youtube_videos
+    from backend.app.ai_generator import generate_learning_plan
+    from backend.app.youtube_search import search_youtube_videos
 
     # Generate learning plan using AI generator
     try:
@@ -438,9 +413,10 @@ def generate_learning_path():
         
         if include_youtube:
             try:
-                from app.youtube_search import search_youtube_videos
+                from backend.app.youtube_search import search_youtube_videos
                 
                 logger.info(f"🎥 Fetching YouTube videos for {len(selected_skills)} skills")
+                print(f"DEBUG: Entering YouTube search loop. Querying for: {selected_skills}", flush=True)
                 
                 for skill in selected_skills:
                     # Search for skill-specific tutorials
@@ -523,10 +499,10 @@ def role_chat_endpoint():
         messages = data.get("messages", [])
         provider = data.get("provider", "auto")
         
-        from app.role_chat import generate_role_chat_reply
+        from backend.app.role_chat import generate_role_chat_reply
         reply = generate_role_chat_reply(role, messages, requested_provider=provider)
         
-        return jsonify({"reply": reply, "status": "ok"})
+        return jsonify({"response": reply, "reply": reply, "status": "ok"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -569,7 +545,7 @@ def analyze_github():
     github_token = data.get("github_token") or os.getenv("GITHUB_TOKEN")
     
     try:
-        from app.github_analyzer import analyze_github_profile
+        from backend.app.github_analyzer import analyze_github_profile
         
         result = analyze_github_profile(github_username, github_token)
         
@@ -647,7 +623,7 @@ def fuse_profile():
         github_analysis = None
         github_username = data.get("github_username")
         if github_username:
-            from app.github_analyzer import analyze_github_profile
+            from backend.app.github_analyzer import analyze_github_profile
             github_token = data.get("github_token") or os.getenv("GITHUB_TOKEN")
             github_analysis = analyze_github_profile(github_username, github_token)
             if github_analysis.get("error"):
@@ -659,7 +635,7 @@ def fuse_profile():
         resume_data = data.get("resume_data")
         
         # Fuse the profile
-        from app.services.fusion_engine import fuse_skill_profile
+        from backend.app.services.fusion_engine import fuse_skill_profile
         
         result = fuse_skill_profile(
             skills=skills,
@@ -725,7 +701,7 @@ def upload_resume_with_context():
         return jsonify({"error": "File size exceeds 5MB limit"}), 400
     
     try:
-        from app.resume_parser import extract_skills_with_context
+        from backend.app.resume_parser import extract_skills_with_context
         
         parsed_data = extract_skills_with_context(file)
         
@@ -767,7 +743,7 @@ def update_github_data():
     try:
         # Get or create profile
         from backend.supabase_client import get_supabase
-        from app.github_analyzer import analyze_github_profile
+        from backend.app.github_analyzer import analyze_github_profile
         
         supabase = get_supabase()
         if not supabase:
@@ -925,7 +901,7 @@ def get_dashboard_data():
     
     try:
         from backend.supabase_client import get_supabase
-        from app.services.fusion_service import create_unified_dashboard_data
+        from backend.app.services.fusion_service import create_unified_dashboard_data
         
         supabase = get_supabase()
         if not supabase:
@@ -986,4 +962,17 @@ def get_dashboard_data():
         import traceback
         traceback.print_exc()
         return jsonify({"error": f"Failed to get dashboard data: {str(e)}"}), 500
+
+
+@bp.route("/test_youtube", methods=["GET"])
+def test_youtube():
+    """Temporary endpoint to verify YouTube search functionality."""
+    try:
+        from backend.app.youtube_search import search_youtube_videos
+        query = request.args.get("q", "Python tutorial")
+        print(f"DEBUG: Testing YouTube search for query: {query}", flush=True)
+        results = search_youtube_videos(query, max_results=3, allow_search=True)
+        return jsonify({"status": "ok", "results": results, "query": query})
+    except Exception as e:
+        return jsonify({"status": "error", "error": str(e)}), 500
 

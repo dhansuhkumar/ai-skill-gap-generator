@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { authService } from '../services/auth';
 import { motion } from 'framer-motion';
 import { Loader2, LogIn, Sparkles, Rocket } from 'lucide-react';
-import FloatingIcons from '../components/FloatingIcons';
+
 
 const Login = () => {
     const [email, setEmail] = useState('');
@@ -29,7 +29,7 @@ const Login = () => {
 
     return (
         <>
-            <FloatingIcons />
+
             <div className="container" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', zIndex: 1 }}>
                 <motion.div
                     initial={{ opacity: 0, y: 30, scale: 0.95 }}

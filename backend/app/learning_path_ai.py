@@ -171,7 +171,7 @@ def generate_ai_learning_path(
     # Use HuggingFace retrieval (instant, no API cost)
     result = None
     try:
-        from app.hf_data_loader import get_learning_path_for_skill
+        from .hf_data_loader import get_learning_path_for_skill
         
         logger.info(f"📚 Retrieving learning path for {skill} from HuggingFace")
         
@@ -192,7 +192,7 @@ def generate_ai_learning_path(
     # Add YouTube videos if requested
     if include_youtube:
         try:
-            from app.youtube_search import search_youtube_videos
+            from .youtube_search import search_youtube_videos
             
             query = f"{skill} tutorial for beginners {role}"
             videos = search_youtube_videos(query, max_results=3, allow_search=True)
@@ -307,7 +307,7 @@ def generate_ai_projects(
     
     # Use HuggingFace retrieval (instant, no API cost)
     try:
-        from app.hf_data_loader import get_projects_for_skills
+        from .hf_data_loader import get_projects_for_skills
         
         logger.info(f"📚 Retrieving projects for {role} from HuggingFace")
         

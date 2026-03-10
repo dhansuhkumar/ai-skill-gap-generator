@@ -31,9 +31,8 @@ def test_internal_error_logs_exception(app, client):
     def trigger_error():
         raise Exception("Simulated Server Error")
 
-    # Mock the logger
-    # We mock app.logger because current_app proxies to it
-    with patch.object(app.logger, 'exception') as mock_exception:
+    # Mock the module logger used in routes.py
+    with patch('backend.app.routes.logger.exception') as mock_exception:
         # Trigger the error
         response = client.get('/trigger_error')
 

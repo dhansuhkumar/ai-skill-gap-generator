@@ -13,6 +13,7 @@ import StepProjectPreferences from '../components/dashboard/StepProjectPreferenc
 import StepResults from '../components/dashboard/StepResults';
 import StepProgressIndicator from '../components/StepProgressIndicator';
 import AIChatSidebar from '../components/ui/AIChatSidebar';
+import ErrorBoundary from '../components/ErrorBoundary';
 
 const Dashboard = () => {
     const [step, setStep] = useState(1);
@@ -282,64 +283,67 @@ const Dashboard = () => {
                         </div>
                     )}
 
-                    <AnimatePresence mode="wait">
-                        {step === 1 && (
-                            <StepSkills
-                                skills={skills}
-                                setSkills={setSkills}
-                                onConfirm={handleConfirmSkills}
-                                loading={loading}
-                                skillsSaved={skillsSaved}
-                                error={error}
-                                githubUsername={githubUsername}
-                                setGithubUsername={setGithubUsername}
-                            />
-                        )}
+                    <ErrorBoundary>
 
-                        {step === 2 && (
-                            <StepRole
-                                role={role}
-                                setRole={setRole}
-                                onConfirm={handleConfirmRole}
-                                onBack={() => setStep(1)}
-                                loading={loading}
-                            />
-                        )}
+                        <AnimatePresence mode="wait">
+                            {step === 1 && (
+                                <StepSkills
+                                    skills={skills}
+                                    setSkills={setSkills}
+                                    onConfirm={handleConfirmSkills}
+                                    loading={loading}
+                                    skillsSaved={skillsSaved}
+                                    error={error}
+                                    githubUsername={githubUsername}
+                                    setGithubUsername={setGithubUsername}
+                                />
+                            )}
 
-                        {step === 3 && (
-                            <StepMissingSkills
-                                missingSkills={missingSkills}
-                                matchData={matchData}
-                                onNext={handleSelectMissing}
-                                onBack={() => setStep(2)}
-                            />
-                        )}
+                            {step === 2 && (
+                                <StepRole
+                                    role={role}
+                                    setRole={setRole}
+                                    onConfirm={handleConfirmRole}
+                                    onBack={() => setStep(1)}
+                                    loading={loading}
+                                />
+                            )}
 
-                        {step === 4 && (
-                            <StepLearningQuestions
-                                onNext={handleLearningPrefs}
-                                onBack={() => setStep(3)}
-                            />
-                        )}
+                            {step === 3 && (
+                                <StepMissingSkills
+                                    missingSkills={missingSkills}
+                                    matchData={matchData}
+                                    onNext={handleSelectMissing}
+                                    onBack={() => setStep(2)}
+                                />
+                            )}
 
-                        {step === 5 && (
-                            <StepProjectPreferences
-                                onGenerate={handleGeneratePath}
-                                onBack={() => setStep(4)}
-                                loading={loading}
-                            />
-                        )}
+                            {step === 4 && (
+                                <StepLearningQuestions
+                                    onNext={handleLearningPrefs}
+                                    onBack={() => setStep(3)}
+                                />
+                            )}
 
-                        {step === 6 && results && (
-                            <StepResults
-                                results={results}
-                                onReset={handleStartNew}
-                                userSkills={skills}
-                                roleAnalysis={matchData}
-                                githubUsername={githubUsername}
-                            />
-                        )}
-                    </AnimatePresence>
+                            {step === 5 && (
+                                <StepProjectPreferences
+                                    onGenerate={handleGeneratePath}
+                                    onBack={() => setStep(4)}
+                                    loading={loading}
+                                />
+                            )}
+
+                            {step === 6 && results && (
+                                <StepResults
+                                    results={results}
+                                    onReset={handleStartNew}
+                                    userSkills={skills}
+                                    roleAnalysis={matchData}
+                                    githubUsername={githubUsername}
+                                />
+                            )}
+                        </AnimatePresence>
+                    </ErrorBoundary>
                 </div>
 
                 {/* AI Chat Sidebar - Always visible on the right */}

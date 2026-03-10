@@ -12,6 +12,66 @@ if (supabaseUrl && supabaseAnonKey) {
     console.warn('Supabase credentials not configured. Using fallback local auth.');
 }
 
+// ─── Token Refresh ────────────────────────────────────────────────────────────
+// Supabase JWTs expire after 1 hour. We refresh 5 min before that (every 55 min).
+const REFRESH_INTERVAL_MS = 55 * 60 * 1000; // 55 minutes
+let _refreshTimer = null;
+
+const _syncProfile = async (token) => {
+    try {
+        await fetch(`${API_URL}/api/sync_profile`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+    } catch (err) {
+        console.warn('Profile sync failed:', err);
+    }
+};
+
+export const refreshSession = async () => {
+    if (!supabase) return null;
+    try {
+        const { data, error } = await supabase.auth.refreshSession();
+        if (error || !data?.session) {
+            console.warn('Token refresh failed — logging out:', error?.message);
+            authService.logout();
+            return null;
+        }
+        const { access_token, refresh_token } = data.session;
+        localStorage.setItem('jwtToken', access_token);
+        if (data.user?.email) localStorage.setItem('username', data.user.email);
+        if (data.user?.id) localStorage.setItem('userId', data.user.id);
+        console.info('Supabase token refreshed successfully');
+        return access_token;
+    } catch (err) {
+        console.error('Unexpected error during token refresh:', err);
+        return null;
+    }
+};
+
+const startAutoRefresh = () => {
+    stopAutoRefresh(); // clear any existing timer first
+    _refreshTimer = setInterval(async () => {
+        const token = localStorage.getItem('jwtToken');
+        if (token) {
+            await refreshSession();
+        } else {
+            stopAutoRefresh();
+        }
+    }, REFRESH_INTERVAL_MS);
+};
+
+const stopAutoRefresh = () => {
+    if (_refreshTimer) {
+        clearInterval(_refreshTimer);
+        _refreshTimer = null;
+    }
+};
+// ─────────────────────────────────────────────────────────────────────────────
+
 export const authService = {
     login: async (email, password) => {
         // If Supabase is configured, use it; otherwise fallback to local API
@@ -31,18 +91,11 @@ export const authService = {
                     localStorage.setItem('username', data.user?.email || email);
                     localStorage.setItem('userId', data.user?.id || '');
 
+                    // Start auto-refresh timer
+                    startAutoRefresh();
+
                     // Sync profile with backend
-                    try {
-                        await fetch(`${API_URL}/api/sync_profile`, {
-                            method: 'POST',
-                            headers: {
-                                'Authorization': `Bearer ${data.session.access_token}`,
-                                'Content-Type': 'application/json'
-                            }
-                        });
-                    } catch (err) {
-                        console.warn('Profile sync failed:', err);
-                    }
+                    await _syncProfile(data.session.access_token);
 
                     return {
                         access_token: data.session.access_token,
@@ -67,18 +120,8 @@ export const authService = {
                     localStorage.setItem('jwtToken', data.access_token);
                     localStorage.setItem('username', data.email || email);
 
-                    // Sync profile with backend
-                    try {
-                        await fetch(`${API_URL}/api/sync_profile`, {
-                            method: 'POST',
-                            headers: {
-                                'Authorization': `Bearer ${data.access_token}`,
-                                'Content-Type': 'application/json'
-                            }
-                        });
-                    } catch (err) {
-                        console.warn('Profile sync failed:', err);
-                    }
+                    startAutoRefresh();
+                    await _syncProfile(data.access_token);
 
                     return data;
                 }
@@ -108,18 +151,8 @@ export const authService = {
                     localStorage.setItem('username', data.user?.email || email);
                     localStorage.setItem('userId', data.user?.id || '');
 
-                    // Sync profile with backend
-                    try {
-                        await fetch(`${API_URL}/api/sync_profile`, {
-                            method: 'POST',
-                            headers: {
-                                'Authorization': `Bearer ${data.session.access_token}`,
-                                'Content-Type': 'application/json'
-                            }
-                        });
-                    } catch (err) {
-                        console.warn('Profile sync failed:', err);
-                    }
+                    startAutoRefresh();
+                    await _syncProfile(data.session.access_token);
                 }
 
                 return {
@@ -140,8 +173,6 @@ export const authService = {
                 });
                 const data = await response.json();
                 if (response.ok) {
-                    // For local registration, user needs to login separately
-                    // No token returned from registration endpoint
                     return data;
                 }
                 throw new Error(data.error || 'Registration failed');
@@ -152,6 +183,7 @@ export const authService = {
     },
 
     logout: async () => {
+        stopAutoRefresh();
         if (supabase) {
             await supabase.auth.signOut();
         }
@@ -173,3 +205,4 @@ export const authService = {
         return localStorage.getItem('userId');
     }
 };
+

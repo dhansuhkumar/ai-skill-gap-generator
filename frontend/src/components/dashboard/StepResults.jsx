@@ -1,11 +1,8 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import DynamicDashboard from '../visualizations/DynamicDashboard';
-import RecommendationsDisplay from '../RecommendationsDisplay';
 
 const StepResults = ({ results, onReset, userSkills, roleAnalysis, githubUsername }) => {
-    const useDynamicDashboard = true; // Toggle between new and old view
-
     return (
         <motion.div
             key="step4"
@@ -15,16 +12,12 @@ const StepResults = ({ results, onReset, userSkills, roleAnalysis, githubUsernam
                 <button onClick={onReset} style={{ background: 'none', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer' }}>← Start Over</button>
             </div>
 
-            {useDynamicDashboard ? (
-                <DynamicDashboard
-                    results={results}
-                    userSkills={userSkills}
-                    roleAnalysis={roleAnalysis}
-                    githubUsername={githubUsername}
-                />
-            ) : (
-                <RecommendationsDisplay results={results} />
-            )}
+            <DynamicDashboard
+                results={results}
+                userSkills={userSkills}
+                roleAnalysis={roleAnalysis}
+                githubUsername={githubUsername}
+            />
         </motion.div>
     );
 };

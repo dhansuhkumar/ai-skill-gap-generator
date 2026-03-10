@@ -1,16 +1,15 @@
-import sys
 import os
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+import json
+import logging
 from flask import Blueprint, request, jsonify, g, current_app
-from user_profile import get_user_profile, save_user_profile
 from .auth import token_required
 from .utils.validators import sanitize_filename
 from .resume_parser import extract_skills_from_pdf
 from .ai_generator import analyze_skill_gaps
 from .skill_analyzer import analyze_skill_gaps_optimized
-from .services.github_analyzer import GithubProfileAnalyzer
+# Note: GitHub analysis is handled exclusively by the phase2 blueprint (routes_phase2.py)
+# GithubProfileAnalyzer import removed to prevent duplicate route registration
 
-import logging
 logger = logging.getLogger(__name__)
 
 main = Blueprint('main', __name__)
@@ -69,42 +68,6 @@ def upload_resume():
     except Exception as e:
         logger.error(f"Resume parsing failed: {e}")
         return jsonify({"error": str(e)}), 500
-
-@main.route('/analyze-github', methods=['POST', 'OPTIONS'])
-def analyze_github():
-    """Analyze GitHub profile for language proficiency scores.
-    
-    Returns skill scores and radar chart data based on repository analysis.
-    """
-    if request.method == 'OPTIONS':
-        return jsonify({"status": "ok"}), 200
-    
-    data = request.get_json()
-    if not data:
-        return jsonify({"error": "Invalid JSON body"}), 400
-    
-    username = data.get('username')
-    
-    if not username:
-        return jsonify({"error": "GitHub username is required"}), 400
-    
-    # Validate username format (basic check)
-    if not isinstance(username, str) or len(username) == 0 or len(username) > 39:
-        return jsonify({"error": "Invalid GitHub username"}), 400
-    
-    try:
-        analyzer = GithubProfileAnalyzer()
-        result = analyzer.analyze_profile(username)
-        
-        # Check if there was an error
-        if 'error' in result:
-            return jsonify(result), 400
-        
-        return jsonify(result), 200
-        
-    except Exception as e:
-        logger.error(f"GitHub analysis failed: {e}")
-        return jsonify({"error": "Failed to analyze GitHub profile", "details": str(e)}), 500
 
 @main.route('/analyze_gaps', methods=['POST'])
 @token_required
@@ -205,7 +168,13 @@ def save_profile():
         return jsonify({"error": "Role name too long"}), 400
     
     try:
-        save_user_profile(user_id, role, skills, recommendations)
+        supabase = current_app.supabase
+        supabase.table("profiles").upsert({
+            "user_id": user_id,
+            "role": role,
+            "skills": json.dumps(skills),
+            "recommendations": json.dumps(recommendations)
+        }, on_conflict="user_id").execute()
         return jsonify({"message": "Profile saved"}), 200
     except Exception as e:
         logger.error(f"Save profile failed: {e}")
@@ -215,10 +184,21 @@ def save_profile():
 @token_required
 def profile():
     user_id = g.user['id']
-    user_profile = get_user_profile(user_id)
-    if not user_profile:
-        return jsonify({"error": "Not found"}), 404
-    return jsonify(user_profile), 200
+    try:
+        supabase = current_app.supabase
+        result = supabase.table("profiles").select("*").eq("user_id", user_id).execute()
+        if not result.data:
+            return jsonify({"error": "Not found"}), 404
+        row = result.data[0]
+        return jsonify({
+            "user_id": user_id,
+            "role": row.get("role"),
+            "skills": json.loads(row.get("skills", "[]")) if isinstance(row.get("skills"), str) else row.get("skills", []),
+            "recommendations": json.loads(row.get("recommendations", "[]")) if isinstance(row.get("recommendations"), str) else row.get("recommendations", [])
+        }), 200
+    except Exception as e:
+        logger.error(f"Get profile failed: {e}")
+        return jsonify({"error": "Failed to get profile"}), 500
 
 @main.app_errorhandler(500)
 def internal_error(error):

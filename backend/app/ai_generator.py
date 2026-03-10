@@ -252,12 +252,71 @@ def generate_learning_plan(
 
 
 
-# ==================== REMOVED AI FUNCTIONS ====================
+# ==================== AI CHAT FUNCTIONALITY (DUAL PROVIDER) ====================
 
-# All AI-based functions have been removed:
-# - _call_gemini, _call_groq, _call_openai (API calls)
-# - _generate_ai_response (orchestrator)
-# - analyze_skill_gaps_ai (was fallback)
-# - extract_skills_with_ai
-# - generate_learning_plan (was AI-based)
-# - Provider state management (PROVIDERS, circuit breaker)
+def generate_chat_response(prompt: str, requested_provider: Optional[str] = None) -> str:
+    """
+    Generate chat response using Gemini 2.5 Flash (primary) or OpenAI (backup).
+    """
+    import os
+    import requests
+    import json
+    
+    # 1. Try Gemini 2.5 Flash first
+    gemini_key = os.getenv("GEMINI_API_KEY")
+    if gemini_key:
+        try:
+            # Using the new model name requested by user
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={gemini_key}"
+            
+            headers = {"Content-Type": "application/json"}
+            payload = {
+                "contents": [{"parts": [{"text": prompt}]}],
+                "generationConfig": {"temperature": 0.7, "maxOutputTokens": 800}
+            }
+            
+            # Shorter timeout for primary to quickly failover
+            response = requests.post(url, headers=headers, json=payload, timeout=8)
+            
+            if response.status_code == 200:
+                data = response.json()
+                try:
+                    return data["candidates"][0]["content"]["parts"][0]["text"]
+                except (KeyError, IndexError):
+                    logger.warning(f"Gemini 2.5 response parsing failed: {data}")
+            else:
+                logger.warning(f"Gemini 2.5 API error ({response.status_code}): {response.text}")
+                
+        except Exception as e:
+            logger.warning(f"Gemini 2.5 attempt failed: {e}")
+
+    # 2. Fallback to OpenAI
+    openai_key = os.getenv("OPENAI_API_KEY")
+    if openai_key:
+        try:
+            url = "https://api.openai.com/v1/chat/completions"
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {openai_key}"
+            }
+            payload = {
+                "model": "gpt-3.5-turbo",
+                "messages": [
+                    {"role": "system", "content": "You are a helpful career assistant."},
+                    {"role": "user", "content": prompt}
+                ],
+                "temperature": 0.7
+            }
+            
+            response = requests.post(url, headers=headers, json=payload, timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                return data["choices"][0]["message"]["content"]
+            else:
+                logger.error(f"OpenAI fallback error ({response.status_code}): {response.text}")
+                
+        except Exception as e:
+            logger.error(f"OpenAI fallback failed: {e}")
+
+    return "I'm having trouble connecting to both my primary and backup brains. Please try again later."

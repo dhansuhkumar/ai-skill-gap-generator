@@ -2,7 +2,6 @@ import os
 import logging
 from flask import Flask, jsonify, request # Removed 'app' from import, it's the Flask instance
 from flask_cors import CORS
-from flask_jwt_extended import JWTManager
 from logging.handlers import RotatingFileHandler
 from dotenv import load_dotenv
 
@@ -78,12 +77,7 @@ def create_app():
     )
 
 
-    # ✅ SECURE: Read secret from .env
-    jwt_secret_key = os.getenv("JWT_SECRET_KEY")
-    if not jwt_secret_key:
-        raise RuntimeError("FATAL: JWT_SECRET_KEY environment variable is not set. Aborting startup for security.")
-    app.config["JWT_SECRET_KEY"] = jwt_secret_key
-    jwt = JWTManager(app)
+
 
     # Store the loaded embedding model in app.config
     app.config['EMBEDDING_MODEL'] = _embedding_model

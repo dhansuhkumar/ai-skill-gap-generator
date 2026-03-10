@@ -6,8 +6,8 @@ import SkillInput from '../SkillInput';
 import SkillRadar from './SkillRadar';
 import axios from 'axios';
 
-const StepSkills = ({ skills, setSkills, onConfirm, loading, skillsSaved, error, onGithubUsernameChange }) => {
-    const [githubUsername, setGithubUsername] = useState('');
+const StepSkills = ({ skills, setSkills, onConfirm, loading, skillsSaved, error, githubUsername, setGithubUsername }) => {
+    // githubUsername and setGithubUsername come from parent (Dashboard) so the value
     const [githubLoading, setGithubLoading] = useState(false);
     const [githubError, setGithubError] = useState('');
     const [radarData, setRadarData] = useState(null);
@@ -23,8 +23,9 @@ const StepSkills = ({ skills, setSkills, onConfirm, loading, skillsSaved, error,
         setGithubError('');
 
         try {
-            const response = await axios.post('http://localhost:8080/api/analyze-github', {
-                username: githubUsername.trim()
+            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+            const response = await axios.post(`${API_URL}/api/analyze-github`, {
+                github_username: githubUsername.trim()
             });
 
             if (response.data.error) {
@@ -36,10 +37,7 @@ const StepSkills = ({ skills, setSkills, onConfirm, loading, skillsSaved, error,
                 const languages = Object.keys(response.data.skills || {});
                 setDetectedLanguages(languages);
 
-                // Notify parent component of GitHub username
-                if (onGithubUsernameChange) {
-                    onGithubUsernameChange(githubUsername.trim());
-                }
+                // Username is already stored in parent via setGithubUsername
             }
         } catch (err) {
             setGithubError(err.response?.data?.error || 'Failed to analyze GitHub profile');

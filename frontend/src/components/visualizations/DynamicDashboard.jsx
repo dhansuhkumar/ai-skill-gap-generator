@@ -1,18 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { BarChart3, TrendingUp, Github, Network } from 'lucide-react';
+import { BarChart3, TrendingUp, Github, Loader2 } from 'lucide-react';
 import SkillComparisonChart from './SkillComparisonChart';
 import LearningTimeline from './LearningTimeline';
 import axios from 'axios';
 
 /**
  * DynamicDashboard - Unified visualization dashboard combining all data sources
- * 
+ *
  * Props:
  * - results: Learning path data from backend
  * - userSkills: User's current skills
  * - roleAnalysis: Role gap analysis data
- * - githubUsername: GitHub username (optional)
+ * - githubUsername: GitHub username (optional) — now actually triggers API call
  */
 const DynamicDashboard = ({ results, userSkills, roleAnalysis, githubUsername }) => {
     const [activeTab, setActiveTab] = useState('overview');
@@ -20,11 +20,67 @@ const DynamicDashboard = ({ results, userSkills, roleAnalysis, githubUsername })
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
+    // GitHub-specific state — fetched independently so it doesn't block the main view
+    const [githubData, setGithubData] = useState(null);
+    const [githubLoading, setGithubLoading] = useState(false);
+    const [githubError, setGithubError] = useState('');
+
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
     useEffect(() => {
         fetchDashboardData();
     }, [results, userSkills, roleAnalysis]);
+
+    // Fire GitHub analysis whenever a username is (or becomes) available
+    useEffect(() => {
+        if (githubUsername && githubUsername.trim()) {
+            fetchGithubData(githubUsername.trim());
+        }
+    }, [githubUsername]);
+
+    const fetchGithubData = async (username) => {
+        setGithubLoading(true);
+        setGithubError('');
+        try {
+            const token = localStorage.getItem('jwtToken');
+            const response = await axios.post(
+                `${API_URL}/api/analyze-github`,
+                { github_username: username },
+                { headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } }
+            );
+            if (response.data && response.data.status === 'ok') {
+                // Normalise language data into a sorted list for display
+                const rawLangs = response.data.languages || {};
+                const languages = Object.entries(rawLangs)
+                    .map(([name, info]) => ({
+                        name,
+                        score: typeof info === 'object' ? (info.score ?? 0) : info,
+                        repos: typeof info === 'object' ? (info.repos ?? 0) : 0,
+                        has_tests: typeof info === 'object' ? (info.has_tests ?? false) : false,
+                    }))
+                    .sort((a, b) => b.score - a.score)
+                    .slice(0, 10);
+                setGithubData({
+                    available: true,
+                    username: response.data.username || username,
+                    total_repos: response.data.total_repos || 0,
+                    language_count: response.data.language_count || languages.length,
+                    diversity_bonus: response.data.diversity_bonus || 0,
+                    languages,
+                });
+            } else {
+                setGithubError(response.data?.error || 'GitHub analysis returned no data');
+            }
+        } catch (err) {
+            const msg = err.response?.data?.error || err.message || 'Failed to analyse GitHub profile';
+            setGithubError(msg);
+            console.error('GitHub analysis failed:', msg);
+        } finally {
+            setGithubLoading(false);
+        }
+    };
+
+
 
     const fetchDashboardData = async () => {
         try {
@@ -308,50 +364,98 @@ const DynamicDashboard = ({ results, userSkills, roleAnalysis, githubUsername })
 
                 {activeTab === 'github' && (
                     <div className="glass-panel" style={{ padding: '2rem' }}>
-                        {dashboardData?.github_insights?.available ? (
-                            <div>
-                                <h3 style={{ marginBottom: '1rem' }}>GitHub Profile: {dashboardData.github_insights.username}</h3>
-                                <div style={{ display: 'grid', gap: '1rem' }}>
-                                    <div>
-                                        <strong>Total Repositories:</strong> {dashboardData.github_insights.total_repos}
-                                    </div>
-                                    <div>
-                                        <strong>Languages Detected:</strong> {dashboardData.github_insights.language_count}
-                                    </div>
-                                    <div>
-                                        <strong>Diversity Score:</strong> +{dashboardData.github_insights.diversity_score}%
-                                    </div>
+                        {/* Loading state */}
+                        {githubLoading && (
+                            <div style={{ textAlign: 'center', padding: '2rem' }}>
+                                <Loader2 size={40} style={{ margin: '0 auto 1rem', animation: 'spin 1s linear infinite', display: 'block' }} color="var(--color-primary)" />
+                                <p style={{ color: 'var(--color-text-muted)' }}>
+                                    Analysing GitHub profile for <strong>{githubUsername}</strong>...
+                                </p>
+                            </div>
+                        )}
 
-                                    <h4 style={{ marginTop: '1rem' }}>Top Languages:</h4>
-                                    <div style={{ display: 'grid', gap: '0.5rem' }}>
-                                        {dashboardData.github_insights.languages.map((lang, idx) => (
-                                            <div key={idx} style={{
-                                                display: 'flex',
-                                                justifyContent: 'space-between',
-                                                padding: '0.75rem',
-                                                background: 'rgba(255,255,255,0.03)',
-                                                borderRadius: '8px'
-                                            }}>
-                                                <span>{lang.name}</span>
-                                                <span style={{ fontWeight: 'bold', color: 'var(--color-primary)' }}>
-                                                    {lang.score}%
-                                                </span>
-                                            </div>
-                                        ))}
+                        {/* Error state */}
+                        {!githubLoading && githubError && (
+                            <div style={{ textAlign: 'center', padding: '2rem' }}>
+                                <Github size={48} color="var(--color-error)" style={{ margin: '0 auto 1rem', display: 'block' }} />
+                                <h3 style={{ marginBottom: '0.5rem', color: 'var(--color-error)' }}>Analysis Failed</h3>
+                                <p style={{ color: 'var(--color-text-muted)', marginBottom: '1rem' }}>{githubError}</p>
+                                <button
+                                    className="btn btn-secondary"
+                                    onClick={() => fetchGithubData(githubUsername)}
+                                >
+                                    Retry
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Data available */}
+                        {!githubLoading && !githubError && githubData?.available && (
+                            <div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
+                                    <Github size={28} color="var(--color-primary)" />
+                                    <div>
+                                        <h3 style={{ margin: 0 }}>@{githubData.username}</h3>
+                                        <span style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
+                                            {githubData.total_repos} repositories · {githubData.language_count} languages · +{githubData.diversity_bonus}% diversity bonus
+                                        </span>
                                     </div>
                                 </div>
+
+                                <h4 style={{ marginBottom: '0.75rem', color: 'var(--color-text-muted)', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                    Language Proficiency
+                                </h4>
+                                <div style={{ display: 'grid', gap: '0.6rem' }}>
+                                    {githubData.languages.map((lang, idx) => (
+                                        <div key={idx} style={{
+                                            display: 'grid',
+                                            gridTemplateColumns: '120px 1fr 60px',
+                                            alignItems: 'center',
+                                            gap: '1rem',
+                                            padding: '0.75rem 1rem',
+                                            background: 'rgba(255,255,255,0.03)',
+                                            borderRadius: '8px',
+                                            border: '1px solid var(--color-border)'
+                                        }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                <span style={{ fontWeight: 600 }}>{lang.name}</span>
+                                                {lang.has_tests && (
+                                                    <span title="Has test files" style={{ fontSize: '0.7rem', background: 'rgba(34,197,94,0.2)', color: '#4ade80', padding: '1px 6px', borderRadius: '999px' }}>
+                                                        tests
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: '999px', height: '8px', overflow: 'hidden' }}>
+                                                <div style={{
+                                                    width: `${lang.score}%`,
+                                                    height: '100%',
+                                                    background: 'linear-gradient(90deg, var(--color-primary), var(--color-secondary))',
+                                                    borderRadius: '999px',
+                                                    transition: 'width 0.6s ease'
+                                                }} />
+                                            </div>
+                                            <span style={{ fontWeight: 'bold', color: 'var(--color-primary)', textAlign: 'right' }}>
+                                                {lang.score}%
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
-                        ) : (
+                        )}
+
+                        {/* No username provided */}
+                        {!githubLoading && !githubError && !githubData?.available && (
                             <div style={{ textAlign: 'center', padding: '2rem' }}>
-                                <Github size={48} color="var(--color-text-muted)" style={{ margin: '0 auto 1rem' }} />
+                                <Github size={48} color="var(--color-text-muted)" style={{ margin: '0 auto 1rem', display: 'block' }} />
                                 <h3 style={{ marginBottom: '1rem' }}>No GitHub Data Available</h3>
                                 <p style={{ color: 'var(--color-text-muted)' }}>
-                                    Connect your GitHub account in the skills step to see detailed repository insights.
+                                    Enter your GitHub username in <strong>Step 1</strong> to see detailed repository and language insights here.
                                 </p>
                             </div>
                         )}
                     </div>
                 )}
+
             </motion.div>
         </div>
     );

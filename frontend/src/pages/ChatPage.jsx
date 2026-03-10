@@ -3,7 +3,6 @@ import Navbar from '../components/Navbar';
 import { motion } from 'framer-motion';
 import { Send, Bot, User, Loader2 } from 'lucide-react';
 import api from '../services/api';
-import ProviderSelector from '../components/ProviderSelector';
 
 const ChatPage = () => {
     const [role, setRole] = useState('');

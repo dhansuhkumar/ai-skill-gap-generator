@@ -38,16 +38,23 @@ class HFDataLoader:
             return
         
         try:
-            from datasets import load_dataset
+            import datasets
             import pandas as pd
             
-            print(f"📥 Loading datasets from HuggingFace Hub...")
+            # Set a 10-second timeout for downloading to prevent backend hang
+            from datasets import DownloadConfig
+            dl_config = DownloadConfig(max_retries=1)
+            # Apply global timeout hack for older datasets versions
+            import os
+            os.environ['HF_HUB_DOWNLOAD_TIMEOUT'] = '10'
+            
+            print(f"📥 Loading datasets from HuggingFace Hub (10s timeout)...")
             print(f"   Jobs: {HF_JOBS_DATASET}")
             print(f"   Skills: {HF_SKILLS_DATASET}")
             
-            # Load datasets - HuggingFace caches locally in Arrow format
-            jobs_ds = load_dataset(HF_JOBS_DATASET, split="train")
-            skills_ds = load_dataset(HF_SKILLS_DATASET, split="train")
+            # Load datasets with timeout configuration
+            jobs_ds = datasets.load_dataset(HF_JOBS_DATASET, split="train", download_config=dl_config)
+            skills_ds = datasets.load_dataset(HF_SKILLS_DATASET, split="train", download_config=dl_config)
             
             # Convert to pandas for fast in-memory operations
             self._jobs_df = jobs_ds.to_pandas()
@@ -69,11 +76,16 @@ class HFDataLoader:
             return
         
         try:
-            from datasets import load_dataset
+            import datasets
             import pandas as pd
             
-            print(f"📥 Loading projects from: {HF_PROJECTS_DATASET}")
-            projects_ds = load_dataset(HF_PROJECTS_DATASET, split="train")
+            from datasets import DownloadConfig
+            dl_config = DownloadConfig(max_retries=1)
+            import os
+            os.environ['HF_HUB_DOWNLOAD_TIMEOUT'] = '10'
+            
+            print(f"📥 Loading projects from: {HF_PROJECTS_DATASET} (10s timeout)")
+            projects_ds = datasets.load_dataset(HF_PROJECTS_DATASET, split="train", download_config=dl_config)
             self._projects_df = projects_ds.to_pandas()
             print(f"✅ Loaded {len(self._projects_df)} projects")
             self._projects_initialized = True
@@ -90,11 +102,16 @@ class HFDataLoader:
             return
         
         try:
-            from datasets import load_dataset
+            import datasets
             import pandas as pd
             
-            print(f"📥 Loading learning paths from: {HF_LEARNING_PATHS_DATASET}")
-            paths_ds = load_dataset(HF_LEARNING_PATHS_DATASET, split="train")
+            from datasets import DownloadConfig
+            dl_config = DownloadConfig(max_retries=1)
+            import os
+            os.environ['HF_HUB_DOWNLOAD_TIMEOUT'] = '10'
+            
+            print(f"📥 Loading learning paths from: {HF_LEARNING_PATHS_DATASET} (10s timeout)")
+            paths_ds = datasets.load_dataset(HF_LEARNING_PATHS_DATASET, split="train", download_config=dl_config)
             self._learning_paths_df = paths_ds.to_pandas()
             print(f"✅ Loaded {len(self._learning_paths_df)} learning path phases")
             self._paths_initialized = True

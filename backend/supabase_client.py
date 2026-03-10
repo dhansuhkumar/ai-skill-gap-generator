@@ -18,7 +18,7 @@ def get_supabase():
 
     try:
         # import here to keep module import cheap when not used
-        from supabase import create_client
+        from supabase import create_client, ClientOptions
     except Exception:
         # If supabase client isn't installed, fail gracefully
         print("Supabase client not installed. Install 'supabase' in requirements.")
@@ -26,7 +26,7 @@ def get_supabase():
 
     try:
         print("Attempting to initialize Supabase client...")
-        client = create_client(SUPABASE_URL, SUPABASE_KEY)
+        client = create_client(SUPABASE_URL, SUPABASE_KEY, options=ClientOptions(auto_refresh_token=False))
         print("Supabase client initialized successfully.")
         return client
     except Exception as e:

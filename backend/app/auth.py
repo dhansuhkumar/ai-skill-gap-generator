@@ -4,7 +4,7 @@ import logging
 from functools import wraps
 from flask import request, g, jsonify, Blueprint, current_app
 
-from app.utils.validators import validate_email, validate_password
+from .utils.validators import validate_email, validate_password
 
 logger = logging.getLogger(__name__)
 

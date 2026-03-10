@@ -83,14 +83,8 @@ if __name__ == "__main__":
     flask_env = os.getenv("FLASK_ENV", "development")
     is_production = flask_env == "production"
    
-    # Always init db
-    from backend.database import init_db, DB_NAME
-    print("Re-initializing database from __main__ block...")
-    init_db()
-    print(f"Database ready at: {os.path.abspath(DB_NAME)}")
-    
     # Validate required environment variables
-    required_vars = ["JWT_SECRET_KEY"]
+    required_vars = []
     missing_vars = [var for var in required_vars if not os.getenv(var)]
     
     if missing_vars:
