@@ -248,91 +248,89 @@ const DynamicDashboard = ({ results, userSkills, roleAnalysis, githubUsername })
 
     if (loading) {
         return (
-            <div className="glass-panel" style={{ padding: '3rem', textAlign: 'center' }}>
-                <div className="loader" style={{ margin: '0 auto' }}></div>
-                <p style={{ color: 'var(--color-text-muted)', marginTop: '1rem' }}>
-                    Loading dashboard data...
-                </p>
+            <div className="glass-panel" style={{ padding: '4rem', textAlign: 'center' }}>
+                <div className="loader" style={{ margin: '0 auto 1.25rem', width: '44px', height: '44px' }} />
+                <p style={{ color: 'var(--color-text-muted)', fontSize: '0.95rem' }}>Building your dashboard...</p>
             </div>
         );
     }
 
     if (error && !dashboardData) {
         return (
-            <div className="glass-panel" style={{ padding: '2rem', textAlign: 'center' }}>
-                <p style={{ color: 'var(--color-error)' }}>{error}</p>
+            <div className="glass-panel" style={{ padding: '2.5rem', textAlign: 'center' }}>
+                <p style={{ color: 'var(--color-error)', fontSize: '0.95rem' }}>{error}</p>
             </div>
         );
     }
 
+    const githubConnected = githubData?.available || dashboardData?.github_insights?.available;
+
     return (
         <div>
             {/* Summary Stats */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
-                <div className="glass-panel" style={{ padding: '1.5rem' }}>
-                    <h4 style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)', marginBottom: '0.5rem' }}>
-                        Skills to Learn
-                    </h4>
-                    <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: 'var(--color-primary)' }}>
-                        {dashboardData?.summary?.total_skills || 0}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
+                {[
+                    { label: 'Skills to Learn', value: dashboardData?.summary?.total_skills || 0, suffix: '' },
+                    { label: 'Portfolio Projects', value: dashboardData?.summary?.projects || 0, suffix: '' },
+                    { label: 'Video Resources', value: dashboardData?.summary?.videos || 0, suffix: '' },
+                    { label: 'Match Score', value: results?.matching_score ?? '—', suffix: results?.matching_score != null ? '%' : '' },
+                ].map(stat => (
+                    <div className="stat-card" key={stat.label}>
+                        <div className="stat-value">{stat.value}{stat.suffix}</div>
+                        <div className="stat-label">{stat.label}</div>
                     </div>
-                </div>
-                <div className="glass-panel" style={{ padding: '1.5rem' }}>
-                    <h4 style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)', marginBottom: '0.5rem' }}>
-                        Portfolio Projects
-                    </h4>
-                    <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: 'var(--color-secondary)' }}>
-                        {dashboardData?.summary?.projects || 0}
-                    </div>
-                </div>
-                <div className="glass-panel" style={{ padding: '1.5rem' }}>
-                    <h4 style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)', marginBottom: '0.5rem' }}>
-                        Video Resources
-                    </h4>
-                    <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#ef4444' }}>
-                        {dashboardData?.summary?.videos || 0}
-                    </div>
-                </div>
-                <div className="glass-panel" style={{ padding: '1.5rem' }}>
-                    <h4 style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)', marginBottom: '0.5rem' }}>
-                        GitHub Status
-                    </h4>
-                    <div style={{ fontSize: '1.25rem', fontWeight: 'bold', color: dashboardData?.github_insights?.available ? 'var(--color-success)' : 'var(--color-text-muted)' }}>
-                        {dashboardData?.github_insights?.available ? '✓ Connected' : 'Not Connected'}
-                    </div>
-                </div>
+                ))}
             </div>
+
+            {/* GitHub connected badge */}
+            {githubConnected && (
+                <div style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
+                    padding: '0.4rem 0.875rem', marginBottom: '1.5rem',
+                    background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)',
+                    borderRadius: '999px', fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-success)'
+                }}>
+                    <Github size={13} /> @{githubData?.username || githubUsername} · Connected
+                </div>
+            )}
 
             {/* Tab Navigation */}
             <div style={{
                 display: 'flex',
-                gap: '1rem',
+                gap: '0.375rem',
                 marginBottom: '2rem',
-                borderBottom: '1px solid var(--color-border)',
-                paddingBottom: '0'
+                background: 'rgba(255,255,255,0.03)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 'var(--radius-lg)',
+                padding: '0.375rem',
+                width: 'fit-content'
             }}>
                 {tabs.map(tab => {
                     const Icon = tab.icon;
+                    const isActive = activeTab === tab.id;
                     return (
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
                             style={{
-                                background: 'none',
-                                border: 'none',
-                                padding: '1rem 1.5rem',
-                                color: activeTab === tab.id ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                                background: isActive
+                                    ? 'linear-gradient(135deg, rgba(99,102,241,0.2), rgba(6,182,212,0.1))'
+                                    : 'transparent',
+                                border: isActive ? '1px solid rgba(99,102,241,0.3)' : '1px solid transparent',
+                                padding: '0.5rem 1.125rem',
+                                color: isActive ? 'var(--color-primary-light)' : 'var(--color-text-muted)',
                                 cursor: 'pointer',
-                                borderBottom: activeTab === tab.id ? '2px solid var(--color-primary)' : '2px solid transparent',
+                                borderRadius: 'var(--radius-md)',
                                 display: 'flex',
                                 alignItems: 'center',
-                                gap: '0.5rem',
-                                fontSize: '1rem',
-                                fontWeight: activeTab === tab.id ? 600 : 400,
-                                transition: 'all 0.2s'
+                                gap: '0.45rem',
+                                fontSize: '0.875rem',
+                                fontWeight: isActive ? 600 : 500,
+                                transition: 'all 0.2s',
+                                fontFamily: 'var(--font-main)'
                             }}
                         >
-                            <Icon size={20} />
+                            <Icon size={16} />
                             {tab.label}
                         </button>
                     );
@@ -363,7 +361,7 @@ const DynamicDashboard = ({ results, userSkills, roleAnalysis, githubUsername })
                 )}
 
                 {activeTab === 'github' && (
-                    <div className="glass-panel" style={{ padding: '2rem' }}>
+                    <div className="glass-panel" style={{ padding: '2.25rem' }}>
                         {/* Loading state */}
                         {githubLoading && (
                             <div style={{ textAlign: 'center', padding: '2rem' }}>

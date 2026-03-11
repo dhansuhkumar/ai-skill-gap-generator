@@ -79,7 +79,7 @@ export const api = {
     saveLearningProgress: (data) => apiClient.post('/api/save_learning_progress', data),
 
     // GitHub Analysis
-    analyzeGitHub: (username) => apiClient.post('/api/analyze-github', { username }),
+    analyzeGitHub: (username) => apiClient.post('/api/analyze-github', { github_username: username }),
 
     // Starter Project Download URL helper
     getStarterProjectUrl: (skillName) => `${API_URL}/api/starter/${encodeURIComponent(skillName)}`

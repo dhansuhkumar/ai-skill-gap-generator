@@ -8,6 +8,7 @@ import os
 import json
 import logging
 import time
+import hashlib
 from typing import List, Optional, Dict
 
 from .hf_data_loader import (
@@ -32,6 +33,9 @@ if not logger.handlers:
 
 # Always use database mode - no AI
 USE_DB_MODE = True
+
+# --- Plan-Level Cache ---
+_PLAN_CACHE: dict = {}
 
 
 # ==================== CSV-BASED SKILL GAP ANALYSIS ====================
@@ -161,6 +165,14 @@ def generate_learning_plan(
     logger.info(f"🚀 Generating AI learning plan for {len(selected_skills)} skills over {days} days")
     logger.info(f"   Provider: {requested_provider or 'auto'}, Pace: {learning_pace}")
     
+    # Check plan-level cache
+    sorted_skills = ",".join(sorted(selected_skills))
+    cache_key = hashlib.md5(f"{sorted_skills}|{role}|{days}|{hours}|{learning_pace}|{project_type}".encode()).hexdigest()
+    
+    if cache_key in _PLAN_CACHE:
+        logger.info("⚡ Returning cached complete learning plan")
+        return _PLAN_CACHE[cache_key]
+    
     # Distribute days across skills
     days_per_skill = max(3, days // len(selected_skills)) if selected_skills else days
     
@@ -243,12 +255,17 @@ def generate_learning_plan(
     
     logger.info(f"✅ Learning plan generation complete!")
     
-    return {
+    result = {
         "learning_paths": learning_paths,
         "projects": projects,
         "matching_score": matching_score,
         "source": requested_provider or "ai_auto"
     }
+    
+    # Save to cache
+    _PLAN_CACHE[cache_key] = result
+    
+    return result
 
 
 

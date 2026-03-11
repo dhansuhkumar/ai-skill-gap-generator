@@ -16,6 +16,8 @@ Scoring Model (0-100 per language):
 
 import logging
 import requests
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional
 from dataclasses import dataclass, field
 
@@ -34,6 +36,12 @@ TYPE_SAFETY_BONUS = 5  # types.ts or py.typed
 STARS_BONUS = 5  # Only if > 5 stars
 DIVERSITY_BONUS = 10  # If 3+ languages
 DIVERSITY_THRESHOLD = 3
+MAX_PARALLEL_WORKERS = 8  # Parallel repo content checks
+
+# ─── Session-level LRU cache keyed by username ───────────────────────────────
+# Persists for the lifetime of the server process (cleared on restart).
+_ANALYSIS_CACHE: dict = {}  # username -> (result_dict, timestamp)
+_CACHE_TTL_SECONDS = 600    # 10-minute TTL per username
 
 
 @dataclass
@@ -103,53 +111,64 @@ class GitHubAnalyzer:
     def analyze_profile(self, username: str) -> GitHubAnalysisResult:
         """
         Analyze a GitHub user's profile and calculate skill scores.
-        
+        Uses ThreadPoolExecutor to fetch repo content checks in parallel.
+
         Args:
             username: GitHub username to analyze
-            
+
         Returns:
             GitHubAnalysisResult with language scores and bonuses
         """
         result = GitHubAnalysisResult(username=username)
-        
+
         try:
-            # Fetch user's public repos
+            # Fetch user's public repos (single serial request — this is fast)
             repos = self._fetch_repos(username)
             if not repos:
                 result.error = "No public repositories found"
                 return result
-            
+
             result.total_repos = len(repos)
-            
-            # Analyze each repo and aggregate by language
+
+            # ── PARALLEL: analyze every repo's root contents concurrently ──
             language_data: dict[str, LanguageScore] = {}
-            
-            for repo in repos:
-                repo_analysis = self._analyze_repo(username, repo)
-                if not repo_analysis or not repo_analysis.language:
-                    continue
-                
-                lang = repo_analysis.language
-                if lang not in language_data:
-                    language_data[lang] = LanguageScore()
-                
-                ld = language_data[lang]
-                ld.repos += 1
-                ld.total_bytes += repo.get("size", 0) * 1024  # size is in KB
-                
-                if repo_analysis.has_tests:
-                    ld.has_tests = True
-                if repo_analysis.has_devops:
-                    ld.has_devops = True
-                if repo_analysis.has_types:
-                    ld.has_types = True
-                if repo_analysis.stars > 5:
-                    ld.starred_repos += 1
-            
+
+            with ThreadPoolExecutor(max_workers=MAX_PARALLEL_WORKERS) as pool:
+                futures = {
+                    pool.submit(self._analyze_repo, username, repo): repo
+                    for repo in repos
+                }
+                for future in as_completed(futures):
+                    try:
+                        repo_analysis = future.result()
+                    except Exception as exc:
+                        logger.debug(f"Repo analysis raised: {exc}")
+                        continue
+
+                    if not repo_analysis or not repo_analysis.language:
+                        continue
+
+                    lang = repo_analysis.language
+                    if lang not in language_data:
+                        language_data[lang] = LanguageScore()
+
+                    ld = language_data[lang]
+                    ld.repos += 1
+                    ld.total_bytes += futures[future].get("size", 0) * 1024
+
+                    if repo_analysis.has_tests:
+                        ld.has_tests = True
+                    if repo_analysis.has_devops:
+                        ld.has_devops = True
+                    if repo_analysis.has_types:
+                        ld.has_types = True
+                    if repo_analysis.stars > 5:
+                        ld.starred_repos += 1
+
             # Calculate scores for each language
             for lang, ld in language_data.items():
                 ld.score = self._calculate_language_score(ld)
-            
+
             result.languages = {
                 lang: {
                     "repos": ld.repos,
@@ -162,16 +181,15 @@ class GitHubAnalyzer:
                 }
                 for lang, ld in language_data.items()
             }
-            
+
             # Apply diversity bonus if 3+ languages
             if len(language_data) >= DIVERSITY_THRESHOLD:
                 result.diversity_bonus = DIVERSITY_BONUS
-                # Add diversity bonus to all language scores
                 for lang_data in result.languages.values():
                     lang_data["score"] = min(100, lang_data["score"] + DIVERSITY_BONUS)
-            
+
             return result
-            
+
         except requests.exceptions.RequestException as e:
             logger.error(f"GitHub API error for {username}: {e}")
             result.error = f"GitHub API error: {str(e)}"
@@ -309,18 +327,30 @@ class GitHubAnalyzer:
 def analyze_github_profile(username: str, github_token: Optional[str] = None) -> dict:
     """
     Convenience function to analyze a GitHub profile.
-    
+    Returns cached result instantly if the same username was analyzed
+    within the last CACHE_TTL_SECONDS seconds.
+
     Args:
         username: GitHub username
         github_token: Optional auth token for higher rate limits
-        
+
     Returns:
         Dictionary with analysis results
     """
+    # ── Cache check ──────────────────────────────────────────────────────────
+    now = time.time()
+    cached = _ANALYSIS_CACHE.get(username)
+    if cached:
+        result_dict, ts = cached
+        if now - ts < _CACHE_TTL_SECONDS:
+            logger.info(f"⚡ GitHub cache hit for '{username}'")
+            return result_dict
+
+    # ── Fresh analysis ───────────────────────────────────────────────────────
     analyzer = GitHubAnalyzer(github_token)
     result = analyzer.analyze_profile(username)
-    
-    return {
+
+    result_dict = {
         "username": result.username,
         "languages": result.languages,
         "total_repos": result.total_repos,
@@ -328,3 +358,10 @@ def analyze_github_profile(username: str, github_token: Optional[str] = None) ->
         "language_count": len(result.languages),
         "error": result.error
     }
+
+    # Store in cache (only cache successful results)
+    if not result.error:
+        _ANALYSIS_CACHE[username] = (result_dict, now)
+        logger.info(f"📦 GitHub analysis cached for '{username}'")
+
+    return result_dict
