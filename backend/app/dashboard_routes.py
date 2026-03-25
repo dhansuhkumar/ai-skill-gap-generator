@@ -532,7 +532,6 @@ def role_chat():
 
 # ── BUG 2 FIX: GitHub Analysis route ───────────────────────────────────────
 @dashboard.route('/analyze-github', methods=['POST', 'OPTIONS'])
-@token_required
 def analyze_github():
     """
     POST /api/analyze-github
