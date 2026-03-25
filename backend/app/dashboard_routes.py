@@ -116,12 +116,13 @@ def get_dashboard_data():
                 'skill': skill_name,
                 'summary': skill_info.get('summary', ''),
                 'milestones': milestones_with_progress,
+                'youtube_videos': skill_info.get('youtube_videos', []),
                 'total_steps': len(steps),
                 'completed_steps': completed_steps,
                 'progress_percentage': progress_percentage
             })
         
-        # GitHub insights placeholder
+        # GitHub insights placeholder (real data fetched separately by frontend)
         github_insights = {
             'available': False,
             'username': None,
@@ -344,15 +345,221 @@ def _get_learning_progress(user_id: str, skill_name: str) -> dict:
                 'user_id': user_id,
                 'skill_name': skill_name
             }).execute()
-            
+
             if result.data:
                 return result.data[0]
         except Exception:
             pass
-    
+
     # Check in-memory storage
     key = f"{user_id}:{skill_name}"
     if key in _local_progress:
         return {'completed_steps': list(_local_progress[key])}
-    
+
     return {'completed_steps': []}
+
+
+# Learning path progress tracking (week/day/task based)
+_local_path_progress = {}
+
+
+@dashboard.route('/update_task_progress', methods=['POST'])
+@token_required
+def update_task_progress():
+    """
+    Upsert learning path task progress.
+    Accepts { path_id, week_number, day_number, task_index, completed: bool }
+    """
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Invalid JSON body'}), 400
+
+    user_id = g.user['id']
+    path_id = data.get('path_id')
+    week_number = data.get('week_number')
+    day_number = data.get('day_number')
+    task_index = data.get('task_index')
+    completed = data.get('completed', False)
+
+    if path_id is None or week_number is None or day_number is None or task_index is None:
+        return jsonify({'error': 'path_id, week_number, day_number, and task_index are required'}), 400
+
+    # Try Supabase first
+    if _supabase_available():
+        try:
+            supabase = current_app.supabase
+
+            # Check if record exists
+            existing = supabase.table('learning_progress').select('*').match({
+                'user_id': user_id,
+                'path_id': path_id,
+                'week_number': week_number,
+                'day_number': day_number
+            }).execute()
+
+            if existing.data:
+                # Update existing record
+                record = existing.data[0]
+                completed_tasks = set(record.get('completed_tasks', []) or [])
+
+                if completed:
+                    completed_tasks.add(task_index)
+                else:
+                    completed_tasks.discard(task_index)
+
+                supabase.table('learning_progress').update({
+                    'completed_tasks': list(completed_tasks)
+                }).eq('id', record['id']).execute()
+            else:
+                # Insert new record
+                completed_tasks = [task_index] if completed else []
+                supabase.table('learning_progress').insert({
+                    'user_id': user_id,
+                    'path_id': path_id,
+                    'week_number': week_number,
+                    'day_number': day_number,
+                    'completed_tasks': completed_tasks
+                }).execute()
+
+            return jsonify({'status': 'ok', 'message': 'Task progress updated'})
+
+        except Exception as e:
+            logger.warning(f"Supabase update failed, using in-memory: {e}")
+
+    # Fallback to in-memory storage
+    key = f"{user_id}:{path_id}:{week_number}:{day_number}"
+    if key not in _local_path_progress:
+        _local_path_progress[key] = set()
+
+    if completed:
+        _local_path_progress[key].add(task_index)
+    else:
+        _local_path_progress[key].discard(task_index)
+
+    return jsonify({'status': 'ok', 'message': 'Task progress saved (in-memory)'})
+
+
+@dashboard.route('/get_task_progress', methods=['GET'])
+@token_required
+def get_task_progress():
+    """
+    Get all completed task indices for a given learning path.
+    Query param: path_id=xxx
+    Returns { completed_tasks: [{path_id, week_number, day_number, completed_tasks: [...]}] }
+    """
+    user_id = g.user['id']
+    path_id = request.args.get('path_id')
+
+    if not path_id:
+        return jsonify({'error': 'path_id query parameter is required'}), 400
+
+    # Try Supabase first
+    if _supabase_available():
+        try:
+            supabase = current_app.supabase
+
+            result = supabase.table('learning_progress').select('*').eq({
+                'user_id': user_id,
+                'path_id': path_id
+            }).execute()
+
+            if result.data:
+                completed_tasks = []
+                for record in result.data:
+                    for task_idx in record.get('completed_tasks', []):
+                        completed_tasks.append({
+                            'week_number': record.get('week_number'),
+                            'day_number': record.get('day_number'),
+                            'task_index': task_idx
+                        })
+
+                return jsonify({
+                    'status': 'ok',
+                    'completed_tasks': completed_tasks
+                })
+        except Exception as e:
+            logger.warning(f"Supabase query failed, using in-memory: {e}")
+
+    # Check in-memory storage
+    completed_tasks = []
+    prefix = f"{user_id}:{path_id}"
+    for key, tasks in _local_path_progress.items():
+        if key.startswith(prefix):
+            parts = key.split(':')
+            week_num = int(parts[2]) if len(parts) > 2 else 0
+            day_num = int(parts[3]) if len(parts) > 3 else 0
+            for task_idx in tasks:
+                completed_tasks.append({
+                    'week_number': week_num,
+                    'day_number': day_num,
+                    'task_index': task_idx
+                })
+
+    return jsonify({
+        'status': 'ok',
+        'completed_tasks': completed_tasks
+    })
+
+
+# ── BUG 1 FIX: Role Chat route ─────────────────────────────────────────────
+@dashboard.route('/role-chat', methods=['POST', 'OPTIONS'])
+@token_required
+def role_chat():
+    """
+    POST /api/role-chat
+    Body: { role, messages, provider }
+    Returns: { reply: "..." }
+    """
+    if request.method == 'OPTIONS':
+        return jsonify({'status': 'ok'}), 200
+
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Invalid JSON body'}), 400
+
+    role = data.get('role', '')
+    messages = data.get('messages', [])
+    provider = data.get('provider', None)
+
+    try:
+        from .role_chat import generate_role_chat_reply
+        reply = generate_role_chat_reply(role, messages, requested_provider=provider)
+        return jsonify({'response': reply}), 200
+    except Exception as e:
+        logger.error(f'Role chat error: {e}')
+        return jsonify({'error': 'AI chat is currently unavailable. Please try again.'}), 500
+
+
+# ── BUG 2 FIX: GitHub Analysis route ───────────────────────────────────────
+@dashboard.route('/analyze-github', methods=['POST', 'OPTIONS'])
+@token_required
+def analyze_github():
+    """
+    POST /api/analyze-github
+    Body: { github_username }
+    Returns: GitHub analysis result dict
+    """
+    if request.method == 'OPTIONS':
+        return jsonify({'status': 'ok'}), 200
+
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Invalid JSON body', 'available': False}), 400
+
+    github_username = data.get('github_username', '').strip()
+    if not github_username:
+        return jsonify({'error': 'github_username is required', 'available': False}), 400
+
+    try:
+        from .github_analyzer import analyze_github_profile
+        import os
+        github_token = os.getenv('GITHUB_TOKEN')
+        result = analyze_github_profile(github_username, github_token)
+
+        if result.get('error'):
+            return jsonify({**result, 'status': 'error', 'available': False}), 400
+
+        return jsonify({**result, 'status': 'ok', 'available': True}), 200
+    except Exception as e:
+        logger.error(f'GitHub analysis error: {e}')
+        return jsonify({'error': str(e), 'available': False}), 500
