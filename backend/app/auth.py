@@ -99,7 +99,8 @@ def register():
             # Create profile entry in profiles table
             try:
                 supabase.table('profiles').insert({
-                    "id": response.user.id
+                    "id": response.user.id,
+                    "email": email
                 }).execute()
             except Exception as e:
                 logger.warning(f"Failed to create profile for {email}: {e}")
@@ -182,15 +183,11 @@ def login():
         
         # Record failed attempt
         record_failed_attempt(email)
-
+        
         # Handle common Supabase errors
         if "invalid" in error_msg.lower() or "credentials" in error_msg.lower():
             return jsonify({"error": "Invalid email or password"}), 401
-
-        # Handle timeout errors
-        if "timeout" in error_msg.lower() or "timed out" in error_msg.lower():
-            return jsonify({"error": "Authentication service is slow. Please try again."}), 503
-
+        
         return jsonify({"error": "Login failed"}), 500
 
 # Health check endpoint
@@ -209,10 +206,6 @@ def token_required(f):
     """
     @wraps(f)
     def decorated(*args, **kwargs):
-        # Let CORS preflight requests pass through without auth
-        if request.method == 'OPTIONS':
-            return f(*args, **kwargs)
-
         auth_header = request.headers.get("authorization")
 
         if not auth_header or not auth_header.lower().startswith("bearer "):
