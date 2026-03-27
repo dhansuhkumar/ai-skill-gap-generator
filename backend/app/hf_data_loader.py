@@ -4,8 +4,9 @@ Uses Arrow/Parquet format with local caching for fast retrieval.
 """
 
 import os
+import functools
 from typing import List, Dict, Optional
-from collections import Counter
+from collections import Counter, defaultdict
 
 # HuggingFace dataset configuration
 HF_USERNAME = os.getenv("HF_USERNAME", "dhansuhkumar")
@@ -17,7 +18,7 @@ HF_LEARNING_PATHS_DATASET = os.getenv("HF_LEARNING_PATHS_DATASET", f"{HF_USERNAM
 
 class HFDataLoader:
     """Load and query job/skill data from HuggingFace Datasets with local caching."""
-    
+
     _instance = None
     _jobs_df = None
     _skills_df = None
@@ -26,6 +27,11 @@ class HFDataLoader:
     _initialized = False
     _projects_initialized = False
     _paths_initialized = False
+
+    # ── In-memory inverted index: normalised_title_word -> list[job_row_dict] ──
+    _role_index: dict = {}   # built once after datasets load
+    # Merged view: normalised_title -> list[str] (skills)
+    _role_skills_index: dict = {}  # "machine learning engineer" -> ["Python", ...]
     
     def __new__(cls):
         if cls._instance is None:
@@ -62,6 +68,9 @@ class HFDataLoader:
             
             print(f"✅ Loaded {len(self._jobs_df):,} jobs and {len(self._skills_df):,} skill mappings")
             self._initialized = True
+
+            # ── Build fast in-memory index once ───────────────────────────
+            self._build_role_skills_index()
             
         except Exception as e:
             print(f"❌ Failed to load HuggingFace datasets: {e}")
@@ -96,6 +105,48 @@ class HFDataLoader:
             self._projects_df = pd.DataFrame()
             self._projects_initialized = True
     
+    def _build_role_skills_index(self):
+        """
+        Build an in-memory dict: normalised_job_title -> [skill, skill, ...]
+        Called ONCE after the datasets are loaded into memory.
+        Subsequent skill lookups are O(1) dict access instead of 
+        DataFrame scan + row iteration.
+        """
+        if self._jobs_df is None or self._jobs_df.empty:
+            return
+        if self._skills_df is None or self._skills_df.empty:
+            return
+
+        import pandas as pd
+
+        print("🔧 Building role→skills in-memory index...")
+
+        # Build job_link -> skills mapping from skills DataFrame
+        link_to_skills: dict = defaultdict(list)
+        if 'job_link' in self._skills_df.columns and 'job_skills' in self._skills_df.columns:
+            for _, row in self._skills_df.iterrows():
+                link = row['job_link']
+                skills_str = row.get('job_skills', '')
+                if pd.notna(skills_str) and skills_str:
+                    for s in str(skills_str).split(','):
+                        s = s.strip()
+                        if s:
+                            link_to_skills[link].append(s)
+
+        # Build title -> aggregated skills index
+        if 'job_title' in self._jobs_df.columns and 'job_link' in self._jobs_df.columns:
+            title_skills: dict = defaultdict(list)
+            for _, row in self._jobs_df.iterrows():
+                title = str(row.get('job_title', '')).lower().strip()
+                link = row.get('job_link', '')
+                if title and link in link_to_skills:
+                    title_skills[title].extend(link_to_skills[link])
+
+            self._role_skills_index = dict(title_skills)
+
+        print(f"✅ Index built: {len(self._role_skills_index):,} unique role titles")
+
+    # ==================== LEARNING PATHS ====================
     def _ensure_learning_paths_loaded(self):
         """Lazy load learning paths dataset."""
         if self._paths_initialized:
@@ -132,18 +183,41 @@ class HFDataLoader:
     def find_matching_jobs(self, query: str, limit: int = 10) -> List[Dict]:
         """
         Find jobs matching a query string.
-        Uses case-insensitive partial matching.
+        Uses the pre-built in-memory index for O(1) lookup,
+        falls back to DataFrame scan if index not ready.
         """
         self._ensure_loaded()
         if self._jobs_df is None or self._jobs_df.empty:
             return []
-        
-        query_lower = query.lower()
-        
-        # Filter jobs where job_title contains query
+
+        query_lower = query.lower().strip()
+
+        # ── Fast path: use pre-built index ───────────────────────────────────
+        if self._role_skills_index:
+            # Gather all titles that contain the query keyword
+            matched_titles = [
+                title for title in self._role_skills_index
+                if query_lower in title
+            ][:limit]
+
+            results = []
+            for title in matched_titles:
+                results.append({
+                    'job_link': title,   # use title as proxy key
+                    'job_title': title,
+                    'company': '',
+                    'job_location': '',
+                    'job_level': '',
+                    'job_type': ''
+                })
+            if results:
+                return results[:limit]
+
+        # ── Slow path: DataFrame scan (fallback if index not ready) ────────
+        import pandas as pd
         mask = self._jobs_df['job_title'].str.lower().str.contains(query_lower, na=False)
         matched = self._jobs_df[mask].head(limit)
-        
+
         results = []
         for _, row in matched.iterrows():
             results.append({
@@ -154,7 +228,7 @@ class HFDataLoader:
                 'job_level': row.get('job_level', ''),
                 'job_type': row.get('job_type', '')
             })
-        
+
         return results
     
     def get_job_links_for_titles(self, job_titles: List[str]) -> List[str]:
@@ -173,261 +247,49 @@ class HFDataLoader:
         return self._jobs_df[mask]['job_link'].dropna().unique().tolist()
     
     def get_skills_for_job_links(self, job_links: List[str]) -> Dict[str, List[str]]:
-        """Get skills mapping for a list of job_links."""
+        """Get skills mapping for a list of job_links or title proxy keys."""
         self._ensure_loaded()
+
+        # ── Fast path: check index (titles used as proxy keys) ────────────────
+        if self._role_skills_index:
+            result = {}
+            missing_links = []
+            for link in job_links:
+                title_key = link.lower().strip()
+                if title_key in self._role_skills_index:
+                    result[link] = self._role_skills_index[title_key]
+                else:
+                    missing_links.append(link)
+
+            # Fall through to DataFrame for any real job_links not in index
+            if missing_links and self._skills_df is not None and not self._skills_df.empty:
+                import pandas as pd
+                mask = self._skills_df['job_link'].isin(missing_links)
+                filtered = self._skills_df[mask]
+                for _, row in filtered.iterrows():
+                    link = row['job_link']
+                    skills_str = row.get('job_skills', '')
+                    if pd.notna(skills_str) and skills_str:
+                        result[link] = [s.strip() for s in str(skills_str).split(',')]
+            return result
+
+        # ── Slow path: always scan DataFrame ──────────────────────────────
         if self._skills_df is None or self._skills_df.empty or not job_links:
             return {}
-        
+
         import pandas as pd
-        # Filter skills dataframe by job_links
         mask = self._skills_df['job_link'].isin(job_links)
         filtered = self._skills_df[mask]
-        
+
         result = {}
         for _, row in filtered.iterrows():
             link = row['job_link']
             skills_str = row.get('job_skills', '')
             if pd.notna(skills_str) and skills_str:
-                # Split skills by comma and clean
                 skills = [s.strip() for s in str(skills_str).split(',')]
                 result[link] = skills
-        
+
         return result
-    
-    def get_skills_for_job_titles(self, job_titles: List[str]) -> List[str]:
-        """Get all required skills for a list of job titles."""
-        job_links = self.get_job_links_for_titles(job_titles)
-        skills_map = self.get_skills_for_job_links(job_links)
-        
-        # Collect all skills
-        all_skills = []
-        for skills in skills_map.values():
-            all_skills.extend(skills)
-        
-        return all_skills
-    
-    def get_required_skills(self, query: str, limit_jobs: int = 20) -> List[str]:
-        """
-        Get required skills for jobs matching the query.
-        Returns a deduplicated list of skills ordered by frequency.
-        """
-        # Find matching jobs
-        matched_jobs = self.find_matching_jobs(query, limit=limit_jobs)
-        
-        if not matched_jobs:
-            return []
-        
-        job_titles = [j['job_title'] for j in matched_jobs]
-        all_skills = self.get_skills_for_job_titles(job_titles)
-        
-        # Count skill frequency and return most common
-        skill_counts = Counter(all_skills)
-        
-        # Return unique skills, prioritizing more common ones
-        seen = set()
-        result = []
-        for skill, count in skill_counts.most_common():
-            normalized = skill.strip().lower()
-            if normalized not in seen and normalized:
-                seen.add(normalized)
-                result.append(skill.strip())
-        
-        return result
-    
-    def get_job_details(self, job_link: str) -> Optional[Dict]:
-        """Get full details for a specific job."""
-        self._ensure_loaded()
-        if self._jobs_df is None or self._jobs_df.empty:
-            return None
-        
-        row = self._jobs_df[self._jobs_df['job_link'] == job_link]
-        if row.empty:
-            return None
-        
-        row = row.iloc[0]
-        return {
-            'job_link': row.get('job_link', ''),
-            'job_title': row.get('job_title', ''),
-            'company': row.get('company', ''),
-            'job_location': row.get('job_location', ''),
-            'job_level': row.get('job_level', ''),
-            'job_type': row.get('job_type', '')
-        }
-    
-    def get_similar_job_titles(self, query: str, limit: int = 10) -> List[str]:
-        """Get job titles similar to the query (for autocomplete)."""
-        all_titles = self.get_all_job_titles()
-        query_lower = query.lower()
-        
-        # Prioritize titles that start with query
-        exact_start = [t for t in all_titles if t.lower().startswith(query_lower)]
-        partial = [t for t in all_titles if query_lower in t.lower() and t not in exact_start]
-        
-        return (exact_start + partial)[:limit]
-    
-    # ==================== PROJECT RETRIEVAL ====================
-    
-    def get_projects_for_skills(self, skills: List[str], limit: int = 5) -> List[Dict]:
-        """
-        Get curated project ideas matching the given skills.
-        Returns projects that match any of the provided skills.
-        """
-        self._ensure_projects_loaded()
-        if self._projects_df is None or self._projects_df.empty:
-            return []
-        
-        skills_lower = set(s.lower().strip() for s in skills)
-        matched_projects = []
-        
-        for _, row in self._projects_df.iterrows():
-            project_skills = row.get('skills', '')
-            if project_skills:
-                project_skill_set = set(s.strip().lower() for s in str(project_skills).split(','))
-                # Check if any skill matches
-                if skills_lower & project_skill_set:
-                    matched_projects.append({
-                        'title': row.get('title', ''),
-                        'description': row.get('description', ''),
-                        'difficulty': row.get('difficulty', 'intermediate'),
-                        'skills': [s.strip() for s in str(project_skills).split(',')],
-                        'repo_url': row.get('repo_url', '')
-                    })
-        
-        # If no matches, return projects based on difficulty mix
-        if not matched_projects:
-            for _, row in self._projects_df.head(limit).iterrows():
-                matched_projects.append({
-                    'title': row.get('title', ''),
-                    'description': row.get('description', ''),
-                    'difficulty': row.get('difficulty', 'intermediate'),
-                    'skills': [s.strip() for s in str(row.get('skills', '')).split(',')],
-                    'repo_url': row.get('repo_url', '')
-                })
-        
-        return matched_projects[:limit]
-    
-    def get_all_projects(self) -> List[Dict]:
-        """Get all available projects."""
-        self._ensure_projects_loaded()
-        if self._projects_df is None or self._projects_df.empty:
-            return []
-        
-        projects = []
-        for _, row in self._projects_df.iterrows():
-            projects.append({
-                'title': row.get('title', ''),
-                'description': row.get('description', ''),
-                'difficulty': row.get('difficulty', 'intermediate'),
-                'skills': [s.strip() for s in str(row.get('skills', '')).split(',')],
-                'repo_url': row.get('repo_url', '')
-            })
-        return projects
-    
-    # ==================== LEARNING PATH RETRIEVAL ====================
-    
-    def get_learning_path_for_skill(self, skill: str, days: int = 7) -> Dict:
-        """
-        Get a structured learning path for a skill.
-        Returns phases with tasks, scaled to the given number of days.
-        """
-        self._ensure_learning_paths_loaded()
-        if self._learning_paths_df is None or self._learning_paths_df.empty:
-            return self._generate_fallback_path(skill, days)
-        
-        skill_lower = skill.lower().strip()
-        
-        # Find learning path phases for this skill
-        mask = self._learning_paths_df['skill'].str.lower().str.contains(skill_lower, na=False)
-        matched = self._learning_paths_df[mask].sort_values('phase')
-        
-        if matched.empty:
-            # Try partial match on related terms
-            for _, row in self._learning_paths_df.iterrows():
-                if skill_lower in str(row.get('target_role', '')).lower():
-                    matched = self._learning_paths_df[
-                        self._learning_paths_df['skill'] == row['skill']
-                    ].sort_values('phase')
-                    break
-        
-        if matched.empty:
-            return self._generate_fallback_path(skill, days)
-        
-        # Build learning path from matched phases
-        total_phases = len(matched)
-        days_per_phase = max(1, days // total_phases)
-        
-        steps = []
-        day_counter = 1
-        
-        for i, (_, row) in enumerate(matched.iterrows()):
-            phase_days = days_per_phase if i < total_phases - 1 else days - day_counter + 1
-            
-            tasks_str = row.get('tasks', '')
-            tasks = [t.strip() for t in str(tasks_str).split('|') if t.strip()]
-            if not tasks:
-                tasks = [f"Learn {skill} fundamentals", f"Practice {skill}", f"Build project"]
-            
-            steps.append({
-                'day_from': day_counter,
-                'day_to': day_counter + phase_days - 1,
-                'title': row.get('phase_title', f"Phase {i+1}"),
-                'tasks': tasks,
-                'project': f"{skill} hands-on project"
-            })
-            
-            day_counter += phase_days
-        
-        return {
-            'summary': f"Master {skill} in {days} days",
-            'steps': steps
-        }
-    
-    def _generate_fallback_path(self, skill: str, days: int) -> Dict:
-        """Generate a generic learning path when no curated data exists."""
-        if days >= 21:
-            phase1_days = days // 3
-            phase2_days = days // 3
-            phase3_days = days - phase1_days - phase2_days
-            
-            return {
-                'summary': f"Master {skill} in {days} days",
-                'steps': [
-                    {
-                        'day_from': 1,
-                        'day_to': phase1_days,
-                        'title': f"{skill} Fundamentals",
-                        'tasks': [f"Learn core {skill} concepts", "Complete tutorials", "Practice exercises"],
-                        'project': f"Simple {skill} starter project"
-                    },
-                    {
-                        'day_from': phase1_days + 1,
-                        'day_to': phase1_days + phase2_days,
-                        'title': f"Intermediate {skill}",
-                        'tasks': ["Build practical projects", "Learn advanced features", "Study best practices"],
-                        'project': f"{skill} intermediate project"
-                    },
-                    {
-                        'day_from': phase1_days + phase2_days + 1,
-                        'day_to': days,
-                        'title': f"Advanced {skill}",
-                        'tasks': ["Master advanced concepts", "Real-world integration", "Portfolio project"],
-                        'project': f"{skill} portfolio project"
-                    }
-                ]
-            }
-        else:
-            return {
-                'summary': f"Learn {skill} in {days} days",
-                'steps': [
-                    {
-                        'day_from': 1,
-                        'day_to': days,
-                        'title': f"Learn {skill}",
-                        'tasks': [f"Study {skill} basics", "Complete tutorials", "Build mini-project"],
-                        'project': f"{skill} practice project"
-                    }
-                ]
-            }
 
 
 # Singleton instance
@@ -437,8 +299,12 @@ hf_loader = HFDataLoader()
 def get_all_job_titles():
     return hf_loader.get_all_job_titles()
 
+
+@functools.lru_cache(maxsize=256)
 def find_matching_jobs(query: str, limit: int = 10):
+    """Cached wrapper — same role query returns instantly on repeat calls."""
     return hf_loader.find_matching_jobs(query, limit)
+
 
 def get_required_skills(query: str, limit_jobs: int = 20):
     return hf_loader.get_required_skills(query, limit_jobs)

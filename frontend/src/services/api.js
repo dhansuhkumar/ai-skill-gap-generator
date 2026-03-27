@@ -78,8 +78,12 @@ export const api = {
     getDashboardData: (data) => apiClient.post('/api/get_dashboard_data', data),
     saveLearningProgress: (data) => apiClient.post('/api/save_learning_progress', data),
 
+    // Task Progress Tracking
+    updateTaskProgress: (data) => apiClient.post('/api/update_task_progress', data),
+    getTaskProgress: (pathId) => apiClient.get('/api/get_task_progress', { params: { path_id: pathId } }),
+
     // GitHub Analysis
-    analyzeGitHub: (username) => apiClient.post('/api/analyze-github', { username }),
+    analyzeGitHub: (username) => apiClient.post('/api/analyze-github', { github_username: username }),
 
     // Starter Project Download URL helper
     getStarterProjectUrl: (skillName) => `${API_URL}/api/starter/${encodeURIComponent(skillName)}`

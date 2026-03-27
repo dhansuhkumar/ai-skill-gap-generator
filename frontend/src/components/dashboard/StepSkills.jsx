@@ -1,26 +1,26 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowRight, CheckCircle2, Loader2, Github } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Loader2, Github, Plus, Sparkles } from 'lucide-react';
 import ResumeUpload from '../ResumeUpload';
 import SkillInput from '../SkillInput';
 import SkillRadar from './SkillRadar';
 import axios from 'axios';
 
 const StepSkills = ({ skills, setSkills, onConfirm, loading, skillsSaved, error, githubUsername, setGithubUsername }) => {
-    // githubUsername and setGithubUsername come from parent (Dashboard) so the value
     const [githubLoading, setGithubLoading] = useState(false);
     const [githubError, setGithubError] = useState('');
     const [radarData, setRadarData] = useState(null);
     const [detectedLanguages, setDetectedLanguages] = useState([]);
+    const [githubSuccess, setGithubSuccess] = useState(false);
 
     const handleGithubVerify = async () => {
         if (!githubUsername.trim()) {
             setGithubError('Please enter a GitHub username');
             return;
         }
-
         setGithubLoading(true);
         setGithubError('');
+        setGithubSuccess(false);
 
         try {
             const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
@@ -33,11 +33,9 @@ const StepSkills = ({ skills, setSkills, onConfirm, loading, skillsSaved, error,
                 setRadarData(null);
             } else {
                 setRadarData(response.data.chart_data);
-                // Extract language names for adding to skills
                 const languages = Object.keys(response.data.skills || {});
                 setDetectedLanguages(languages);
-
-                // Username is already stored in parent via setGithubUsername
+                setGithubSuccess(true);
             }
         } catch (err) {
             setGithubError(err.response?.data?.error || 'Failed to analyze GitHub profile');
@@ -56,107 +54,139 @@ const StepSkills = ({ skills, setSkills, onConfirm, loading, skillsSaved, error,
     return (
         <motion.div
             key="step1"
-            initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
+            initial={{ opacity: 0, x: 24 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -24 }}
+            transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
             className="glass-panel"
-            style={{ maxWidth: '800px', margin: '0 auto', padding: '2.5rem' }}
+            style={{ maxWidth: '760px', margin: '0 auto', padding: '2.5rem 3rem' }}
         >
-            <h2 style={{ marginBottom: '0.5rem' }}>What skills do you have?</h2>
-            <p style={{ color: 'var(--color-text-muted)', marginBottom: '2rem' }}>Add your technical skills or upload your resume</p>
+            {/* Step header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: '1.75rem' }}>
+                <span className="section-label"><Sparkles size={11} /> Step 1 of 5</span>
+            </div>
 
             <div style={{ marginBottom: '2rem' }}>
+                <h2 style={{ marginBottom: '0.5rem' }}>What skills do you have?</h2>
+                <p style={{ fontSize: '0.9rem' }}>Add your technical skills manually, upload your resume, or connect GitHub to auto-detect them.</p>
+            </div>
+
+            {/* Skill input */}
+            <div style={{ marginBottom: '1.5rem' }}>
                 <SkillInput skills={skills} onSkillsChange={setSkills} />
             </div>
 
-            <p style={{ textAlign: 'center', margin: '1rem 0', fontSize: '0.9rem', color: 'var(--color-text-muted)' }}>or upload resume</p>
+            {/* Or divider */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
+                <div style={{ flex: 1, height: '1px', background: 'var(--color-border)' }} />
+                <span style={{ fontSize: '0.78rem', color: 'var(--color-text-dim)', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}>or</span>
+                <div style={{ flex: 1, height: '1px', background: 'var(--color-border)' }} />
+            </div>
 
-            <ResumeUpload onSkillsExtracted={(newSkills) => setSkills(prev => [...new Set([...prev, ...newSkills])])} />
+            {/* Resume Upload */}
+            <div style={{ marginBottom: '2rem' }}>
+                <ResumeUpload onSkillsExtracted={(newSkills) => setSkills(prev => [...new Set([...prev, ...newSkills])])} />
+            </div>
 
-            {/* GitHub Integration Section */}
+            {/* GitHub Integration */}
             <div style={{
-                marginTop: '2rem',
                 padding: '1.5rem',
-                background: 'rgba(102, 126, 234, 0.05)',
-                border: '1px solid rgba(102, 126, 234, 0.2)',
-                borderRadius: '12px'
+                background: 'rgba(99,102,241,0.05)',
+                border: '1px solid rgba(99,102,241,0.18)',
+                borderRadius: 'var(--radius-xl)',
+                marginBottom: '2rem'
             }}>
-                <div style={{ display: 'flex', alignItems: 'center', marginBottom: '1rem' }}>
-                    <Github size={20} style={{ marginRight: '0.5rem', color: '#667eea' }} />
-                    <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Connect GitHub</h3>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', marginBottom: '0.625rem' }}>
+                    <div style={{
+                        width: '34px', height: '34px', borderRadius: '9px',
+                        background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.25)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    }}>
+                        <Github size={17} color="var(--color-primary-light)" />
+                    </div>
+                    <div>
+                        <h4 style={{ margin: 0, fontSize: '0.95rem' }}>Connect GitHub</h4>
+                        <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--color-text-dim)' }}>
+                            Auto-detect language proficiency from your repos
+                        </p>
+                    </div>
                 </div>
-                <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', marginBottom: '1rem' }}>
-                    Analyze your repositories to auto-detect language proficiency
-                </p>
 
-                <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem' }}>
+                <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem' }}>
                     <input
                         type="text"
-                        placeholder="Enter GitHub username"
+                        placeholder="Enter your GitHub username"
                         value={githubUsername}
                         onChange={(e) => setGithubUsername(e.target.value)}
                         onKeyPress={(e) => e.key === 'Enter' && handleGithubVerify()}
                         disabled={githubLoading}
-                        style={{
-                            flex: 1,
-                            padding: '0.75rem',
-                            borderRadius: '8px',
-                            border: '1px solid rgba(255, 255, 255, 0.2)',
-                            background: 'rgba(255, 255, 255, 0.05)',
-                            color: 'var(--color-text)',
-                            fontSize: '0.95rem'
-                        }}
+                        className="input-field"
+                        style={{ flex: 1 }}
                     />
                     <button
                         onClick={handleGithubVerify}
                         disabled={githubLoading}
-                        className="btn btn-primary"
-                        style={{ padding: '0.75rem 1.5rem', whiteSpace: 'nowrap' }}
+                        className="btn btn-outline"
+                        style={{ padding: '0.75rem 1.25rem', flexShrink: 0 }}
                     >
-                        {githubLoading ? <Loader2 className="animate-spin" size={18} /> : 'Verify'}
+                        {githubLoading ? <Loader2 size={16} className="animate-spin" /> : 'Verify'}
                     </button>
                 </div>
 
                 {githubError && (
-                    <p style={{ color: 'var(--color-error)', fontSize: '0.85rem', marginTop: '0.5rem' }}>
+                    <div className="alert alert-error" style={{ marginTop: '0.75rem', padding: '0.625rem 0.875rem' }}>
                         {githubError}
-                    </p>
+                    </div>
                 )}
 
-                {radarData && (
-                    <>
+                {githubSuccess && radarData && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        style={{ marginTop: '1rem' }}
+                    >
                         <SkillRadar data={radarData} />
                         {detectedLanguages.length > 0 && (
                             <button
                                 onClick={handleAddDetectedSkills}
-                                className="btn"
-                                style={{
-                                    marginTop: '1rem',
-                                    width: '100%',
-                                    background: 'rgba(102, 126, 234, 0.1)',
-                                    border: '1px solid rgba(102, 126, 234, 0.3)'
-                                }}
+                                className="btn btn-secondary"
+                                style={{ marginTop: '0.875rem', width: '100%', justifyContent: 'center' }}
                             >
-                                Add Detected Languages to Skills
+                                <Plus size={15} /> Add {detectedLanguages.length} detected languages to skills
                             </button>
                         )}
-                    </>
+                    </motion.div>
                 )}
             </div>
 
-            <div style={{ marginTop: '2rem', textAlign: 'right' }}>
+            {/* Actions */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                    {skillsSaved && !error && (
+                        <span style={{ fontSize: '0.85rem', color: 'var(--color-success)', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                            <CheckCircle2 size={15} /> Skills saved
+                        </span>
+                    )}
+                    {error && (
+                        <span style={{ fontSize: '0.85rem', color: 'var(--color-error)' }}>{error}</span>
+                    )}
+                </div>
                 <button
                     className="btn btn-primary"
                     onClick={onConfirm}
-                    disabled={loading || skillsSaved}
-                    style={{ padding: '0.75rem 2rem', opacity: skillsSaved ? 0.7 : 1 }}
+                    disabled={loading || skills.length === 0}
+                    style={{ minWidth: '150px' }}
                 >
-                    {loading ? <Loader2 className="animate-spin" /> : skillsSaved ? <>Saved <CheckCircle2 size={18} /></> : <>Next <ArrowRight size={18} /></>}
+                    {loading
+                        ? <Loader2 size={16} className="animate-spin" />
+                        : skillsSaved
+                            ? <><CheckCircle2 size={16} /> Saved — Next</>
+                            : <>Save & Continue <ArrowRight size={16} /></>
+                    }
                 </button>
             </div>
-            {error && <p style={{ color: 'var(--color-error)', marginTop: '1rem' }}>{error}</p>}
-            {skillsSaved && !error && <p style={{ color: 'var(--color-success)', marginTop: '1rem', fontSize: '0.9rem' }}>✓ Skills saved successfully</p>}
         </motion.div>
     );
 };
 
 export default StepSkills;
-

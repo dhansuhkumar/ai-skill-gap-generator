@@ -12,6 +12,7 @@ const StepResults = ({ results, onReset, userSkills, roleAnalysis, githubUsernam
                 <button onClick={onReset} style={{ background: 'none', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer' }}>← Start Over</button>
             </div>
 
+            {/* Sticky Progress Bar - rendered inside DynamicDashboard, accessible via callback */}
             <DynamicDashboard
                 results={results}
                 userSkills={userSkills}

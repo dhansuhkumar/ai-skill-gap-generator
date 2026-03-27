@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { BarChart3, TrendingUp, Github, Loader2 } from 'lucide-react';
 import SkillComparisonChart from './SkillComparisonChart';
 import LearningTimeline from './LearningTimeline';
+import CircularProgress from '../ui/CircularProgress';
 import axios from 'axios';
 
 /**
@@ -25,7 +26,37 @@ const DynamicDashboard = ({ results, userSkills, roleAnalysis, githubUsername })
     const [githubLoading, setGithubLoading] = useState(false);
     const [githubError, setGithubError] = useState('');
 
+    // Path-based progress tracking state
+    const [pathProgress, setPathProgress] = useState({});
+    const [overallProgress, setOverallProgress] = useState({ completed: 0, total: 0, percentage: 0 });
+
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+
+    // Compute overall progress from dashboard data
+    useEffect(() => {
+        if (dashboardData?.learning_timeline) {
+            let total = 0;
+            let completed = 0;
+            dashboardData.learning_timeline.forEach(skill => {
+                total += skill.total_steps || 0;
+                completed += skill.completed_steps || 0;
+            });
+            setOverallProgress({
+                completed,
+                total,
+                percentage: total > 0 ? Math.round((completed / total) * 100) : 0
+            });
+        }
+    }, [dashboardData]);
+
+    // Determine path_id from results
+    const getPathId = () => {
+        // Use target role + selected skills as a stable path identifier
+        const role = results?.learning_path?.target_role || results?.target_role || 'default';
+        const skills = results?.learning_path?.skills || {};
+        const skillsKey = Object.keys(skills).sort().join('-');
+        return `path-${role}-${skillsKey}`.replace(/\s+/g, '-').toLowerCase();
+    };
 
     useEffect(() => {
         fetchDashboardData();
@@ -93,7 +124,8 @@ const DynamicDashboard = ({ results, userSkills, roleAnalysis, githubUsername })
                 `${API_URL}/api/get_dashboard_data`,
                 {
                     role_analysis: roleAnalysis || {},
-                    learning_path: results?.learning_path || {}
+                    learning_path: results?.learning_path || {},
+                    user_skills: userSkills || []
                 },
                 {
                     headers: {
@@ -198,14 +230,84 @@ const DynamicDashboard = ({ results, userSkills, roleAnalysis, githubUsername })
     };
 
     const handleToggleProgress = async (skill, stepIndex, completed) => {
+        // Determine week_number and day_number from the step data
+        const skillData = dashboardData?.learning_timeline?.find(s => s.skill === skill);
+        const stepData = skillData?.milestones?.[stepIndex];
+        const weekNumber = stepData?.day_from || 1;
+        const dayNumber = stepData?.day_to || stepIndex + 1;
+        const pathId = getPathId();
+
+        // Update UI immediately (optimistic update)
+        setDashboardData(prev => {
+            if (!prev) return prev;
+            const newTimeline = prev.learning_timeline.map(item => {
+                if (item.skill === skill) {
+                    const newMilestones = item.milestones.map((m, idx) =>
+                        idx === stepIndex ? { ...m, completed } : m
+                    );
+                    const completedCount = newMilestones.filter(m => m.completed).length;
+                    return {
+                        ...item,
+                        milestones: newMilestones,
+                        completed_steps: completedCount,
+                        progress_percentage: Math.round((completedCount / newMilestones.length) * 100)
+                    };
+                }
+                return item;
+            });
+
+            // Recalculate overall progress
+            let total = 0;
+            let comp = 0;
+            newTimeline.forEach(s => {
+                total += s.total_steps || 0;
+                comp += s.completed_steps || 0;
+            });
+
+            return {
+                ...prev,
+                learning_timeline: newTimeline,
+                _overallProgress: {
+                    completed: comp,
+                    total,
+                    percentage: total > 0 ? Math.round((comp / total) * 100) : 0
+                }
+            };
+        });
+
+        // Update local path progress tracking
+        const taskKey = `${weekNumber}-${dayNumber}-${stepIndex}`;
+        setPathProgress(prev => {
+            const newProgress = { ...prev };
+            if (completed) {
+                newProgress[taskKey] = true;
+            } else {
+                delete newProgress[taskKey];
+            }
+            return newProgress;
+        });
+
+        // Update overall progress state
+        setOverallProgress(prev => {
+            const delta = completed ? 1 : -1;
+            const newCompleted = Math.max(0, prev.completed + delta);
+            return {
+                ...prev,
+                completed: newCompleted,
+                percentage: prev.total > 0 ? Math.round((newCompleted / prev.total) * 100) : 0
+            };
+        });
+
+        // Call API in background
         try {
             const token = localStorage.getItem('jwtToken');
-
             await axios.post(
-                `${API_URL}/api/save_learning_progress`,
+                `${API_URL}/api/update_task_progress`,
                 {
-                    skill_name: skill,
-                    step_index: stepIndex,
+                    path_id: pathId,
+                    week_number: weekNumber,
+                    day_number: dayNumber,
+                    task_index: stepIndex,
                     completed: completed
                 },
                 {
@@ -214,13 +316,15 @@ const DynamicDashboard = ({ results, userSkills, roleAnalysis, githubUsername })
                     }
                 }
             );
-
-            // Update local state
+        } catch (err) {
+            console.error('Failed to save progress:', err);
+            // Revert optimistic update on failure
             setDashboardData(prev => {
+                if (!prev) return prev;
                 const newTimeline = prev.learning_timeline.map(item => {
                     if (item.skill === skill) {
                         const newMilestones = item.milestones.map((m, idx) =>
-                            idx === stepIndex ? { ...m, completed } : m
+                            idx === stepIndex ? { ...m, completed: !completed } : m
                         );
                         const completedCount = newMilestones.filter(m => m.completed).length;
                         return {
@@ -232,11 +336,8 @@ const DynamicDashboard = ({ results, userSkills, roleAnalysis, githubUsername })
                     }
                     return item;
                 });
-
                 return { ...prev, learning_timeline: newTimeline };
             });
-        } catch (err) {
-            console.error('Failed to save progress:', err);
         }
     };
 
@@ -248,91 +349,167 @@ const DynamicDashboard = ({ results, userSkills, roleAnalysis, githubUsername })
 
     if (loading) {
         return (
-            <div className="glass-panel" style={{ padding: '3rem', textAlign: 'center' }}>
-                <div className="loader" style={{ margin: '0 auto' }}></div>
-                <p style={{ color: 'var(--color-text-muted)', marginTop: '1rem' }}>
-                    Loading dashboard data...
-                </p>
+            <div className="glass-panel" style={{ padding: '4rem', textAlign: 'center' }}>
+                <div className="loader" style={{ margin: '0 auto 1.25rem', width: '44px', height: '44px' }} />
+                <p style={{ color: 'var(--color-text-muted)', fontSize: '0.95rem' }}>Building your dashboard...</p>
             </div>
         );
     }
 
     if (error && !dashboardData) {
         return (
-            <div className="glass-panel" style={{ padding: '2rem', textAlign: 'center' }}>
-                <p style={{ color: 'var(--color-error)' }}>{error}</p>
+            <div className="glass-panel" style={{ padding: '2.5rem', textAlign: 'center' }}>
+                <p style={{ color: 'var(--color-error)', fontSize: '0.95rem' }}>{error}</p>
             </div>
         );
     }
 
+    const githubConnected = githubData?.available || dashboardData?.github_insights?.available;
+
+    // Calculate week info for progress bar
+    const getWeekInfo = () => {
+        if (!dashboardData?.learning_timeline?.length) return null;
+        let totalSteps = 0;
+        let completedSteps = 0;
+        let currentWeek = 1;
+        let totalWeeks = 1;
+
+        dashboardData.learning_timeline.forEach(skill => {
+            totalSteps += skill.total_steps || 0;
+            completedSteps += skill.completed_steps || 0;
+        });
+
+        // Estimate weeks from steps (roughly 5 steps per week)
+        totalWeeks = Math.max(1, Math.ceil(totalSteps / 5));
+        currentWeek = Math.max(1, Math.min(totalWeeks, Math.ceil((completedSteps / Math.max(1, totalSteps)) * totalWeeks)));
+
+        return { currentWeek, totalWeeks, completedSteps, totalSteps };
+    };
+
+    const weekInfo = getWeekInfo();
+    const weekPercentage = weekInfo ? Math.round((weekInfo.completedSteps / weekInfo.totalSteps) * 100) : 0;
+
     return (
         <div>
-            {/* Summary Stats */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
-                <div className="glass-panel" style={{ padding: '1.5rem' }}>
-                    <h4 style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)', marginBottom: '0.5rem' }}>
-                        Skills to Learn
-                    </h4>
-                    <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: 'var(--color-primary)' }}>
-                        {dashboardData?.summary?.total_skills || 0}
+            {/* Sticky Progress Bar at top of results page */}
+            {weekInfo && (
+                <motion.div
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    style={{
+                        position: 'sticky',
+                        top: 0,
+                        zIndex: 100,
+                        background: 'rgba(15, 15, 35, 0.95)',
+                        backdropFilter: 'blur(12px)',
+                        borderBottom: '1px solid var(--color-border)',
+                        padding: '0.875rem 1.25rem',
+                        marginBottom: '1.5rem',
+                        borderRadius: 'var(--radius-lg)'
+                    }}
+                >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', maxWidth: '1200px', margin: '0 auto' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                            <CircularProgress percentage={weekPercentage} size={48} strokeWidth={4} showLabel={false} />
+                            <div>
+                                <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--color-text-main)' }}>
+                                    Week {weekInfo.currentWeek} of {weekInfo.totalWeeks} — {weekPercentage}% Complete
+                                </div>
+                                <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
+                                    {weekInfo.completedSteps} of {weekInfo.totalSteps} tasks completed
+                                </div>
+                            </div>
+                        </div>
+                        {/* Week progress bar */}
+                        <div style={{ flex: 1, maxWidth: '300px', marginLeft: '2rem' }}>
+                            <div style={{ height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden' }}>
+                                <motion.div
+                                    initial={{ width: 0 }}
+                                    animate={{ width: `${weekPercentage}%` }}
+                                    transition={{ duration: 0.5 }}
+                                    style={{
+                                        height: '100%',
+                                        background: 'linear-gradient(90deg, var(--color-primary), var(--color-secondary))',
+                                        borderRadius: '3px'
+                                    }}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </motion.div>
+            )}
+
+            {/* Summary Stats with Circular Progress Ring */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
+                {/* Circular Progress Ring Widget */}
+                <div className="stat-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }}>
+                    <CircularProgress percentage={weekPercentage} size={80} strokeWidth={6} />
+                    <div style={{ marginTop: '0.75rem', fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-text-main)' }}>
+                        Overall Progress
                     </div>
                 </div>
-                <div className="glass-panel" style={{ padding: '1.5rem' }}>
-                    <h4 style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)', marginBottom: '0.5rem' }}>
-                        Portfolio Projects
-                    </h4>
-                    <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: 'var(--color-secondary)' }}>
-                        {dashboardData?.summary?.projects || 0}
+                {[
+                    { label: 'Skills to Learn', value: dashboardData?.summary?.total_skills || 0, suffix: '' },
+                    { label: 'Portfolio Projects', value: dashboardData?.summary?.projects || 0, suffix: '' },
+                    { label: 'Video Resources', value: dashboardData?.summary?.videos || 0, suffix: '' },
+                    { label: 'Match Score', value: results?.matching_score ?? '—', suffix: results?.matching_score != null ? '%' : '' },
+                ].map(stat => (
+                    <div className="stat-card" key={stat.label}>
+                        <div className="stat-value">{stat.value}{stat.suffix}</div>
+                        <div className="stat-label">{stat.label}</div>
                     </div>
-                </div>
-                <div className="glass-panel" style={{ padding: '1.5rem' }}>
-                    <h4 style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)', marginBottom: '0.5rem' }}>
-                        Video Resources
-                    </h4>
-                    <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#ef4444' }}>
-                        {dashboardData?.summary?.videos || 0}
-                    </div>
-                </div>
-                <div className="glass-panel" style={{ padding: '1.5rem' }}>
-                    <h4 style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)', marginBottom: '0.5rem' }}>
-                        GitHub Status
-                    </h4>
-                    <div style={{ fontSize: '1.25rem', fontWeight: 'bold', color: dashboardData?.github_insights?.available ? 'var(--color-success)' : 'var(--color-text-muted)' }}>
-                        {dashboardData?.github_insights?.available ? '✓ Connected' : 'Not Connected'}
-                    </div>
-                </div>
+                ))}
             </div>
+
+            {/* GitHub connected badge */}
+            {githubConnected && (
+                <div style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
+                    padding: '0.4rem 0.875rem', marginBottom: '1.5rem',
+                    background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)',
+                    borderRadius: '999px', fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-success)'
+                }}>
+                    <Github size={13} /> @{githubData?.username || githubUsername} · Connected
+                </div>
+            )}
 
             {/* Tab Navigation */}
             <div style={{
                 display: 'flex',
-                gap: '1rem',
+                gap: '0.375rem',
                 marginBottom: '2rem',
-                borderBottom: '1px solid var(--color-border)',
-                paddingBottom: '0'
+                background: 'rgba(255,255,255,0.03)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 'var(--radius-lg)',
+                padding: '0.375rem',
+                width: 'fit-content'
             }}>
                 {tabs.map(tab => {
                     const Icon = tab.icon;
+                    const isActive = activeTab === tab.id;
                     return (
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
                             style={{
-                                background: 'none',
-                                border: 'none',
-                                padding: '1rem 1.5rem',
-                                color: activeTab === tab.id ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                                background: isActive
+                                    ? 'linear-gradient(135deg, rgba(99,102,241,0.2), rgba(6,182,212,0.1))'
+                                    : 'transparent',
+                                border: isActive ? '1px solid rgba(99,102,241,0.3)' : '1px solid transparent',
+                                padding: '0.5rem 1.125rem',
+                                color: isActive ? 'var(--color-primary-light)' : 'var(--color-text-muted)',
                                 cursor: 'pointer',
-                                borderBottom: activeTab === tab.id ? '2px solid var(--color-primary)' : '2px solid transparent',
+                                borderRadius: 'var(--radius-md)',
                                 display: 'flex',
                                 alignItems: 'center',
-                                gap: '0.5rem',
-                                fontSize: '1rem',
-                                fontWeight: activeTab === tab.id ? 600 : 400,
-                                transition: 'all 0.2s'
+                                gap: '0.45rem',
+                                fontSize: '0.875rem',
+                                fontWeight: isActive ? 600 : 500,
+                                transition: 'all 0.2s',
+                                fontFamily: 'var(--font-main)'
                             }}
                         >
-                            <Icon size={20} />
+                            <Icon size={16} />
                             {tab.label}
                         </button>
                     );
@@ -363,7 +540,7 @@ const DynamicDashboard = ({ results, userSkills, roleAnalysis, githubUsername })
                 )}
 
                 {activeTab === 'github' && (
-                    <div className="glass-panel" style={{ padding: '2rem' }}>
+                    <div className="glass-panel" style={{ padding: '2.25rem' }}>
                         {/* Loading state */}
                         {githubLoading && (
                             <div style={{ textAlign: 'center', padding: '2rem' }}>

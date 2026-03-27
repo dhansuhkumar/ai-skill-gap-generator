@@ -1,82 +1,99 @@
 import React, { useState } from 'react';
-import { CheckCircle2, Circle, ArrowRight, AlertCircle } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { CheckCircle2, Circle, ArrowRight, ArrowLeft, ListChecks, CheckCheck, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const StepMissingSkills = ({ missingSkills, matchData, onNext, onBack }) => {
-    // Start with no skills selected - user chooses what to learn
     const [selected, setSelected] = useState([]);
 
     const toggleSkill = (skill) => {
-        if (selected.includes(skill)) {
-            setSelected(selected.filter(s => s !== skill));
-        } else {
-            setSelected([...selected, skill]);
-        }
+        setSelected(prev => prev.includes(skill) ? prev.filter(s => s !== skill) : [...prev, skill]);
     };
+
+    const selectAll = () => setSelected([...missingSkills]);
+    const clearAll = () => setSelected([]);
 
     const handleContinue = () => {
         if (selected.length === 0) return;
         onNext(selected);
     };
 
+    const matchPct = matchData?.match_score ?? 0;
+    const matchColor = matchPct >= 70 ? 'var(--color-success)' : matchPct >= 40 ? '#F59E0B' : '#EF4444';
+
     return (
-        <div className="glass-panel slide-up" style={{ padding: '2rem', maxWidth: '700px', margin: '0 auto' }}>
-            <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-                <h2 style={{ fontSize: '1.8rem', marginBottom: '0.5rem' }}>
-                    What do you want to learn?
-                </h2>
-
-                {/* Match Score Display */}
-                {matchData && (
-                    <div style={{
-                        background: 'rgba(139, 92, 246, 0.1)',
-                        border: '1px solid rgba(139, 92, 246, 0.3)',
-                        borderRadius: '0.75rem',
-                        padding: '1rem',
-                        marginBottom: '1rem'
-                    }}>
-                        <div style={{ fontSize: '2rem', fontWeight: 'bold', color: 'var(--color-primary)' }}>
-                            {matchData.match_score}% Match
-                        </div>
-                        <div style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>
-                            You have {matchData.user_skills_count} out of {matchData.required_skills_count} required skills
-                        </div>
-                        {matchData.matched_jobs_count > 0 && (
-                            <div style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem', marginTop: '0.25rem' }}>
-                                Based on {matchData.matched_jobs_count} job postings
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                <p style={{ color: 'var(--color-text-muted)' }}>
-                    These skills are typically required for this role. Select the ones you want to focus on now.
-                </p>
+        <motion.div
+            key="step3"
+            initial={{ opacity: 0, x: 24 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -24 }}
+            transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+            className="glass-panel"
+            style={{ maxWidth: '760px', margin: '0 auto', padding: '2.5rem 3rem' }}
+        >
+            {/* Header row */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.75rem' }}>
+                <button onClick={onBack} className="back-btn">← Back</button>
+                <span className="section-label"><ListChecks size={11} /> Step 3 of 5</span>
             </div>
 
+            <div style={{ marginBottom: '1.75rem' }}>
+                <h2 style={{ marginBottom: '0.5rem' }}>Skills to learn</h2>
+                <p style={{ fontSize: '0.9rem' }}>Select the skills you want your learning path to cover.</p>
+            </div>
+
+            {/* Match score card */}
+            {matchData && (
+                <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr 1fr',
+                    gap: '0.875rem',
+                    marginBottom: '2rem',
+                }}>
+                    {[
+                        { value: `${matchPct}%`, label: 'Role Match', color: matchColor },
+                        { value: matchData.user_skills_count, label: 'Skills You Have', color: 'var(--color-primary-light)' },
+                        { value: matchData.required_skills_count, label: 'Skills Required', color: 'var(--color-text-muted)' },
+                    ].map(stat => (
+                        <div className="stat-card" key={stat.label}>
+                            <div style={{ fontSize: '1.75rem', fontWeight: 800, color: stat.color, lineHeight: 1 }}>{stat.value}</div>
+                            <div className="stat-label" style={{ marginTop: '0.375rem' }}>{stat.label}</div>
+                        </div>
+                    ))}
+                </div>
+            )}
+
             {missingSkills.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '2rem' }}>
-                    <div style={{ marginBottom: '1rem', color: 'var(--color-success)' }}>
-                        <CheckCircle2 size={48} style={{ margin: '0 auto' }} />
-                    </div>
-                    <h3>You match this role perfectly!</h3>
-                    <p style={{ color: 'var(--color-text-muted)', marginBottom: '2rem' }}>
-                        You already have the core skills we track for this role.
-                    </p>
-                    <button
-                        onClick={() => onNext([])}
-                        className="btn btn-primary"
-                    >
-                        Continue to Practice Projects <ArrowRight size={18} />
+                <div style={{ textAlign: 'center', padding: '3rem 2rem' }}>
+                    <CheckCircle2 size={52} color="var(--color-success)" style={{ margin: '0 auto 1rem', display: 'block' }} />
+                    <h3 style={{ marginBottom: '0.75rem' }}>You're a perfect match!</h3>
+                    <p style={{ marginBottom: '2rem' }}>You already have the core skills required for this role.</p>
+                    <button onClick={() => onNext([])} className="btn btn-primary">
+                        Continue to Projects <ArrowRight size={16} />
                     </button>
                 </div>
             ) : (
                 <>
+                    {/* Select / clear */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                        <p style={{ fontSize: '0.85rem', color: 'var(--color-text-dim)' }}>
+                            {selected.length} of {missingSkills.length} selected
+                        </p>
+                        <div style={{ display: 'flex', gap: '0.875rem' }}>
+                            <button onClick={selectAll} style={{ background: 'none', border: 'none', color: 'var(--color-primary-light)', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                                <CheckCheck size={13} /> Select all
+                            </button>
+                            <button onClick={clearAll} style={{ background: 'none', border: 'none', color: 'var(--color-text-dim)', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                                <X size={13} /> Clear
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Skills grid */}
                     <div style={{
                         display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-                        gap: '1rem',
-                        marginBottom: '2rem'
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))',
+                        gap: '0.75rem',
+                        marginBottom: '2.5rem'
                     }}>
                         {missingSkills.map(skill => {
                             const isSelected = selected.includes(skill);
@@ -84,50 +101,50 @@ const StepMissingSkills = ({ missingSkills, matchData, onNext, onBack }) => {
                                 <motion.div
                                     key={skill}
                                     whileHover={{ scale: 1.02 }}
-                                    whileTap={{ scale: 0.98 }}
+                                    whileTap={{ scale: 0.97 }}
                                     onClick={() => toggleSkill(skill)}
                                     style={{
-                                        padding: '1rem',
-                                        borderRadius: '0.75rem',
-                                        background: isSelected ? 'rgba(139, 92, 246, 0.2)' : 'rgba(255,255,255,0.05)',
-                                        border: isSelected ? '1px solid var(--color-primary)' : '1px solid rgba(255,255,255,0.1)',
+                                        padding: '0.875rem 1rem',
+                                        borderRadius: 'var(--radius-lg)',
+                                        background: isSelected ? 'rgba(99,102,241,0.12)' : 'rgba(255,255,255,0.03)',
+                                        border: isSelected ? '1px solid rgba(99,102,241,0.5)' : '1px solid var(--color-border)',
                                         cursor: 'pointer',
                                         display: 'flex',
                                         alignItems: 'center',
                                         gap: '0.75rem',
-                                        transition: 'all 0.2s'
+                                        transition: 'all 0.18s',
+                                        boxShadow: isSelected ? '0 0 10px rgba(99,102,241,0.12)' : 'none'
                                     }}
                                 >
-                                    {isSelected ? (
-                                        <CheckCircle2 size={20} color="var(--color-primary)" />
-                                    ) : (
-                                        <Circle size={20} color="var(--color-text-muted)" />
-                                    )}
-                                    <span style={{ fontWeight: 500 }}>{skill}</span>
+                                    {isSelected
+                                        ? <CheckCircle2 size={18} color="var(--color-primary-light)" />
+                                        : <Circle size={18} color="var(--color-text-dim)" />
+                                    }
+                                    <span style={{ fontWeight: 500, fontSize: '0.9rem', color: isSelected ? 'var(--color-text)' : 'var(--color-text-muted)' }}>
+                                        {skill}
+                                    </span>
                                 </motion.div>
                             );
                         })}
                     </div>
 
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 'auto' }}>
-                        <button
-                            onClick={onBack}
-                            className="btn btn-secondary"
-                        >
-                            Back
+                    {/* Actions */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <button onClick={onBack} className="btn btn-secondary">
+                            <ArrowLeft size={16} /> Back
                         </button>
                         <button
                             onClick={handleContinue}
                             className="btn btn-primary"
                             disabled={selected.length === 0}
-                            style={{ opacity: selected.length === 0 ? 0.5 : 1 }}
+                            style={{ minWidth: '160px' }}
                         >
-                            Next Step <ArrowRight size={18} />
+                            Next Step ({selected.length}) <ArrowRight size={16} />
                         </button>
                     </div>
                 </>
             )}
-        </div>
+        </motion.div>
     );
 };
 

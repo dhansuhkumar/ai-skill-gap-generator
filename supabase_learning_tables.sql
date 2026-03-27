@@ -16,12 +16,19 @@ CREATE TABLE IF NOT EXISTS learning_paths (
 CREATE TABLE IF NOT EXISTS learning_progress (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-    skill_name TEXT NOT NULL,
+    skill_name TEXT,
     completed_steps INTEGER[] DEFAULT '{}',
+    path_id TEXT,
+    week_number INTEGER,
+    day_number INTEGER,
+    completed_tasks INTEGER[] DEFAULT '{}',
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(user_id, skill_name)
 );
+
+-- Add unique constraint for path-based progress if columns are present
+-- This will be handled by the application logic
 
 -- Enable RLS
 ALTER TABLE learning_paths ENABLE ROW LEVEL SECURITY;
