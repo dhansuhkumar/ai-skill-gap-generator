@@ -25,6 +25,7 @@ def _supabase_available():
         return False
 
 
+
 @dashboard.route('/get_dashboard_data', methods=['POST'])
 @token_required
 def get_dashboard_data():
@@ -186,51 +187,48 @@ def save_learning_progress():
     if _supabase_available():
         try:
             supabase = current_app.supabase
-            
-            # Get or create progress record
+
+            # Get or create progress record (uses completed_steps int4 array)
             existing = supabase.table('learning_progress').select('*').match({
                 'user_id': user_id,
                 'skill_name': skill_name
             }).execute()
-            
+
             if existing.data:
-                # Update existing record
                 record = existing.data[0]
                 completed_steps = set(record.get('completed_steps', []) or [])
-                
                 if completed:
                     completed_steps.add(step_index)
                 else:
                     completed_steps.discard(step_index)
-                
                 supabase.table('learning_progress').update({
                     'completed_steps': list(completed_steps)
                 }).eq('id', record['id']).execute()
             else:
-                # Create new record
                 completed_steps = [step_index] if completed else []
                 supabase.table('learning_progress').insert({
                     'user_id': user_id,
                     'skill_name': skill_name,
                     'completed_steps': completed_steps
                 }).execute()
-            
+
             return jsonify({'status': 'ok', 'message': 'Progress saved to database'})
-            
+
         except Exception as e:
             logger.warning(f"Supabase save failed (table may not exist), using in-memory: {e}")
-    
+
     # Fallback to in-memory storage
     key = f"{user_id}:{skill_name}"
     if key not in _local_progress:
         _local_progress[key] = set()
-    
+
     if completed:
         _local_progress[key].add(step_index)
     else:
         _local_progress[key].discard(step_index)
-    
+
     return jsonify({'status': 'ok', 'message': 'Progress saved (in-memory)', 'note': 'Run SQL migration for persistence'})
+
 
 
 @dashboard.route('/save_learning_path', methods=['POST'])
@@ -252,41 +250,39 @@ def save_learning_path():
     if not target_role:
         return jsonify({'error': 'target_role is required'}), 400
     
-    # Try Supabase first
+    # Try Supabase first — table is 'learning_paths'
     if _supabase_available():
         try:
             supabase = current_app.supabase
-            
-            # Check if user already has a learning path
+
             existing = supabase.table('learning_paths').select('id').eq('user_id', user_id).execute()
-            
+
             path_data = {
                 'user_id': user_id,
                 'target_role': target_role,
                 'selected_skills': selected_skills,
                 'learning_path': learning_path.get('learning_path', learning_path)
             }
-            
+
             if existing.data:
-                # Update existing
                 supabase.table('learning_paths').update(path_data).eq('id', existing.data[0]['id']).execute()
             else:
-                # Insert new
                 supabase.table('learning_paths').insert(path_data).execute()
-            
+
             return jsonify({'status': 'ok', 'message': 'Learning path saved to database'})
-            
+
         except Exception as e:
             logger.warning(f"Supabase save failed (table may not exist), using in-memory: {e}")
-    
+
     # Fallback to in-memory storage
     _local_paths[user_id] = {
         'target_role': target_role,
         'selected_skills': selected_skills,
         'learning_path': learning_path.get('learning_path', learning_path)
     }
-    
+
     return jsonify({'status': 'ok', 'message': 'Learning path saved (in-memory)', 'note': 'Run SQL migration for persistence'})
+
 
 
 @dashboard.route('/get_saved_learning_path', methods=['GET'])
@@ -298,13 +294,12 @@ def get_saved_learning_path():
     """
     user_id = g.user['id']
     
-    # Try Supabase first
+    # Try Supabase first — table is 'learning_paths'
     if _supabase_available():
         try:
             supabase = current_app.supabase
-            
             result = supabase.table('learning_paths').select('*').eq('user_id', user_id).execute()
-            
+
             if result.data:
                 record = result.data[0]
                 return jsonify({
@@ -319,7 +314,7 @@ def get_saved_learning_path():
                 })
         except Exception as e:
             logger.warning(f"Supabase query failed (table may not exist): {e}")
-    
+
     # Check in-memory storage
     if user_id in _local_paths:
         return jsonify({
@@ -327,7 +322,7 @@ def get_saved_learning_path():
             'has_saved_path': True,
             'data': _local_paths[user_id]
         })
-    
+
     # No saved path found
     return jsonify({
         'status': 'ok',
@@ -335,9 +330,9 @@ def get_saved_learning_path():
     })
 
 
+
 def _get_learning_progress(user_id: str, skill_name: str) -> dict:
     """Helper to get learning progress for a skill."""
-    # Try Supabase first
     if _supabase_available():
         try:
             supabase = current_app.supabase
@@ -345,7 +340,6 @@ def _get_learning_progress(user_id: str, skill_name: str) -> dict:
                 'user_id': user_id,
                 'skill_name': skill_name
             }).execute()
-
             if result.data:
                 return result.data[0]
         except Exception:
@@ -357,6 +351,8 @@ def _get_learning_progress(user_id: str, skill_name: str) -> dict:
         return {'completed_steps': list(_local_progress[key])}
 
     return {'completed_steps': []}
+
+
 
 
 # Learning path progress tracking (week/day/task based)
@@ -458,7 +454,8 @@ def get_task_progress():
         try:
             supabase = current_app.supabase
 
-            result = supabase.table('learning_progress').select('*').eq({
+            # Fix: use .match() instead of .eq(dict) which is invalid
+            result = supabase.table('learning_progress').select('*').match({
                 'user_id': user_id,
                 'path_id': path_id
             }).execute()
@@ -530,8 +527,15 @@ def role_chat():
         return jsonify({'error': 'AI chat is currently unavailable. Please try again.'}), 500
 
 
-# ── BUG 2 FIX: GitHub Analysis route ───────────────────────────────────────
-@dashboard.route('/analyze-github', methods=['POST', 'OPTIONS'])
+# ── GitHub Analysis route ───────────────────────────────────────────────────
+# Handle OPTIONS preflight BEFORE @token_required so it doesn't return 401
+@dashboard.route('/analyze-github', methods=['OPTIONS'])
+def analyze_github_preflight():
+    """Handle CORS preflight for /api/analyze-github without auth."""
+    return jsonify({'status': 'ok'}), 200
+
+
+@dashboard.route('/analyze-github', methods=['POST'])
 @token_required
 def analyze_github():
     """
@@ -539,9 +543,6 @@ def analyze_github():
     Body: { github_username }
     Returns: GitHub analysis result dict
     """
-    if request.method == 'OPTIONS':
-        return jsonify({'status': 'ok'}), 200
-
     data = request.get_json()
     if not data:
         return jsonify({'error': 'Invalid JSON body', 'available': False}), 400
@@ -563,3 +564,4 @@ def analyze_github():
     except Exception as e:
         logger.error(f'GitHub analysis error: {e}')
         return jsonify({'error': str(e), 'available': False}), 500
+

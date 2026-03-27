@@ -14,8 +14,11 @@ logger = logging.getLogger(__name__)
 
 bp = Blueprint("phase2", __name__)
 
-# Import Supabase client
-from supabase_client import get_supabase
+# Import Supabase client safely
+try:
+    from backend.supabase_client import get_supabase
+except ImportError:
+    from supabase_client import get_supabase
 
 def get_supabase_client():
     """Get Supabase client, with fallback to app context if available."""

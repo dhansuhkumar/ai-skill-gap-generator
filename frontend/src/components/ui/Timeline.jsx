@@ -27,29 +27,51 @@ const Timeline = ({ steps, youtubeVideos, onToggleStep }) => {
                         viewport={{ once: true }}
                         transition={{ delay: idx * 0.1 }}
                     >
-                        {/* Node circle */}
-                        <div
+                        {/* Node circle with clickable checkbox */}
+                        <motion.button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onToggleStep && onToggleStep(idx, !isCompleted);
+                            }}
                             style={{
                                 position: 'absolute',
                                 left: 0,
                                 top: '4px',
-                                width: '18px',
-                                height: '18px',
+                                width: '22px',
+                                height: '22px',
                                 borderRadius: '50%',
                                 border: `2px solid ${isCompleted ? 'var(--color-success)' : 'var(--color-border)'}`,
                                 background: 'var(--color-bg-app)',
                                 display: 'flex',
                                 alignItems: 'center',
-                                justifyContent: 'center'
+                                justifyContent: 'center',
+                                cursor: 'pointer',
+                                padding: 0,
+                                transition: 'all 0.2s'
                             }}
+                            whileTap={{ scale: 0.9 }}
+                            whileHover={{ scale: 1.1 }}
                         >
-                            <div style={{
-                                width: '8px',
-                                height: '8px',
-                                borderRadius: '50%',
-                                background: isCompleted ? 'var(--color-success)' : 'var(--color-border)'
-                            }} />
-                        </div>
+                            <motion.div
+                                initial={{ scale: 0, opacity: 0 }}
+                                animate={{ scale: isCompleted ? 1 : 0, opacity: isCompleted ? 1 : 0 }}
+                                transition={{ type: 'spring', stiffness: 500, damping: 25 }}
+                                style={{
+                                    width: '12px',
+                                    height: '12px',
+                                    borderRadius: '50%',
+                                    background: 'var(--color-success)'
+                                }}
+                            />
+                            {!isCompleted && (
+                                <div style={{
+                                    width: '8px',
+                                    height: '8px',
+                                    borderRadius: '50%',
+                                    background: 'var(--color-border)'
+                                }} />
+                            )}
+                        </motion.button>
 
                         {/* Card Content */}
                         <div
@@ -96,14 +118,32 @@ const Timeline = ({ steps, youtubeVideos, onToggleStep }) => {
                                                 <Gift size={10} /> Project
                                             </span>
                                         )}
+                                        {/* Checkbox indicator */}
+                                        <motion.span
+                                            initial={{ scale: 0 }}
+                                            animate={{ scale: isCompleted ? 1 : 0 }}
+                                            transition={{ type: 'spring', stiffness: 500, damping: 25 }}
+                                            style={{
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                width: '18px',
+                                                height: '18px',
+                                                borderRadius: '4px',
+                                                background: 'var(--color-success)',
+                                                color: 'white'
+                                            }}
+                                        >
+                                            <CheckCircle2 size={12} />
+                                        </motion.span>
                                     </div>
                                     <h3 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--color-text-main)' }}>
                                         {step.title}
                                     </h3>
                                 </div>
 
-                                {/* Improved Mark Complete Button */}
-                                <button
+                                {/* Mark Complete Button */}
+                                <motion.button
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         onToggleStep && onToggleStep(idx, !isCompleted);
@@ -127,22 +167,12 @@ const Timeline = ({ steps, youtubeVideos, onToggleStep }) => {
                                             ? '0 0 0 1px rgba(16,185,129,0.3)'
                                             : '0 0 0 1px rgba(139, 92, 246, 0.3)'
                                     }}
-                                    onMouseEnter={(e) => {
-                                        e.target.style.transform = 'scale(1.05)';
-                                        e.target.style.boxShadow = isCompleted
-                                            ? '0 0 12px rgba(16,185,129,0.4)'
-                                            : '0 0 12px rgba(139, 92, 246, 0.4)';
-                                    }}
-                                    onMouseLeave={(e) => {
-                                        e.target.style.transform = 'scale(1)';
-                                        e.target.style.boxShadow = isCompleted
-                                            ? '0 0 0 1px rgba(16,185,129,0.3)'
-                                            : '0 0 0 1px rgba(139, 92, 246, 0.3)';
-                                    }}
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
                                 >
                                     {isCompleted ? <CheckCircle2 size={16} /> : <Circle size={16} />}
                                     {isCompleted ? 'Completed' : 'Mark Complete'}
-                                </button>
+                                </motion.button>
                             </div>
 
                             {/* Tasks List */}

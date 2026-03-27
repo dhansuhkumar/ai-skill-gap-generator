@@ -8,18 +8,25 @@ const Login = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
+    const [infoMsg, setInfoMsg] = useState(''); // non-error informational messages
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
+        setInfoMsg('');
         setLoading(true);
         try {
             await authService.login(email, password);
             navigate('/');
         } catch (err) {
-            setError(typeof err === 'string' ? err : 'Login failed. Please check your credentials.');
+            const msg = typeof err === 'string' ? err : (err?.message || 'Login failed.');
+            if (msg.toLowerCase().includes('email not confirmed')) {
+                setInfoMsg('Your email is not confirmed yet. Please check your inbox and click the confirmation link, then try signing in again.');
+            } else {
+                setError(msg);
+            }
         } finally {
             setLoading(false);
         }
@@ -84,6 +91,26 @@ const Login = () => {
                             style={{ marginBottom: '1.25rem' }}
                         >
                             {error}
+                        </motion.div>
+                    )}
+
+                    {/* Info message (e.g. email not confirmed) */}
+                    {infoMsg && (
+                        <motion.div
+                            initial={{ opacity: 0, y: -8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            style={{
+                                background: 'rgba(6,182,212,0.1)',
+                                border: '1px solid rgba(6,182,212,0.3)',
+                                borderRadius: '8px',
+                                padding: '0.875rem 1rem',
+                                marginBottom: '1.25rem',
+                                color: '#22D3EE',
+                                fontSize: '0.875rem',
+                                lineHeight: 1.6
+                            }}
+                        >
+                            📧 {infoMsg}
                         </motion.div>
                     )}
 

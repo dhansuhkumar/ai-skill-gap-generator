@@ -97,10 +97,11 @@ def register():
             logger.info(f"New user registered via Supabase: {email}")
             
             # Create profile entry in profiles table
+            # Schema: profiles(user_id UUID, display_name TEXT, resume_parsed_json TEXT)
+            # Note: 'user_id' references auth_users.id — no 'email' column on profiles
             try:
                 supabase.table('profiles').insert({
-                    "id": response.user.id,
-                    "email": email
+                    "user_id": response.user.id
                 }).execute()
             except Exception as e:
                 logger.warning(f"Failed to create profile for {email}: {e}")
@@ -118,10 +119,16 @@ def register():
         logger.error(f"Supabase registration error: {error_msg}")
         
         # Handle common Supabase errors
-        if "already registered" in error_msg.lower() or "already exists" in error_msg.lower():
-            return jsonify({"error": "Email already exists"}), 409
+        if "already registered" in error_msg.lower() or "already exists" in error_msg.lower() or "user already registered" in error_msg.lower():
+            return jsonify({"error": "An account with this email already exists. Please sign in."}), 409
+        elif ("invalid" in error_msg.lower() and "email" in error_msg.lower()) or "email address" in error_msg.lower():
+            return jsonify({"error": f"Email rejected: {error_msg}"}), 400
+        elif "password" in error_msg.lower() and "weak" in error_msg.lower():
+            return jsonify({"error": "Password is too weak. Use at least 8 characters with letters and numbers."}), 400
+        elif "signup" in error_msg.lower() and "disabled" in error_msg.lower():
+            return jsonify({"error": "New registrations are currently disabled."}), 403
         
-        return jsonify({"error": "Registration failed"}), 500
+        return jsonify({"error": f"Registration failed: {error_msg}"}), 500
 
 # Login Endpoint - Supabase Auth
 @auth.route('/login', methods=['POST', 'OPTIONS'])
@@ -206,6 +213,10 @@ def token_required(f):
     """
     @wraps(f)
     def decorated(*args, **kwargs):
+        # Allow CORS preflight requests to pass without authentication
+        if request.method == 'OPTIONS':
+            return jsonify({"status": "ok"}), 200
+
         auth_header = request.headers.get("authorization")
 
         if not auth_header or not auth_header.lower().startswith("bearer "):
