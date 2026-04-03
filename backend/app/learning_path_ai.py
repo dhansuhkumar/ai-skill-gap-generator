@@ -1,137 +1,107 @@
 # backend/app/learning_path_ai.py
 """
-AI-Powered Learning Path Generator
-Optimized for free-tier API usage with caching and efficient prompts.
+AI-Powered Learning Path Generator with RAG (Retrieval-Augmented Generation).
+Uses DuckDuckGo web search + Groq (LLaMA 3) for structured learning paths.
+Real-world open-source roadmaps and curricula are prioritized over synthetic content.
 """
 
 import json
 import logging
 from typing import List, Dict, Optional
-from functools import lru_cache
 import hashlib
 
 logger = logging.getLogger(__name__)
 
-# In-memory cache for AI responses to minimize API calls
 _AI_CACHE = {}
 
-def _generate_cache_key(skill: str, role: str, days: int, hours: float, pace: str) -> str:
-    """Generate a cache key for AI responses."""
+
+def _generate_cache_key(
+    skill: str, role: str, days: int, hours: float, pace: str
+) -> str:
     key_str = f"{skill}|{role}|{days}|{hours}|{pace}"
     return hashlib.md5(key_str.encode()).hexdigest()
 
 
-def _build_learning_path_prompt(
+def _build_roadmap_prompt(
     skill: str,
     role: str,
     days: int,
     hours: float,
     pace: str,
-    context: str = ""
+    roadmap_results: List[Dict],
+    web_results: List[Dict],
+    youtube_results: List[Dict],
 ) -> str:
-    """
-    Build an optimized AI prompt for learning path generation.
-    Designed to be concise to save tokens on free-tier APIs.
-    """
-    prompt = f"""Generate a {days}-day learning plan for {skill} targeting {role} position.
+    """Build a RAG prompt that prioritizes real-world roadmaps."""
 
-Daily time: {hours}h, Pace: {pace}
-{f'Context: {context}' if context else ''}
+    roadmap_text = (
+        json.dumps(roadmap_results[:6], indent=2)
+        if roadmap_results
+        else "No roadmap results found."
+    )
+    web_text = (
+        json.dumps(web_results[:4], indent=2)
+        if web_results
+        else "No additional web results."
+    )
+    yt_text = (
+        json.dumps(youtube_results[:3], indent=2)
+        if youtube_results
+        else "No YouTube results."
+    )
 
-Provide JSON with this exact structure:
+    return f"""You are an expert at parsing open-source curricula and community roadmaps.
+
+TASK: Build a learning path for "{skill}" targeting {role} role using ONLY the provided real-world sources below.
+
+═══════════════════════════════════════════════════════════════════
+REAL-WORLD ROADMAPS & CURRICULA (PRIMARY SOURCE - USE THESE):
+═══════════════════════════════════════════════════════════════════
+{roadmap_text}
+
+═══════════════════════════════════════════════════════════════════
+ADDITIONAL RESOURCES (USE FOR EXAMPLES AND EXERCISES):
+═══════════════════════════════════════════════════════════════════
+{web_text}
+
+═══════════════════════════════════════════════════════════════════
+VIDEO TUTORIALS:
+═══════════════════════════════════════════════════════════════════
+{yt_text}
+
+═══════════════════════════════════════════════════════════════════
+INSTRUCTIONS:
+═══════════════════════════════════════════════════════════════════
+1. Extract modules and milestones from the roadmaps above - do NOT invent your own steps
+2. Structure by "Milestones" or "Modules" found in the real roadmaps
+3. Each step MUST include a source_url linking to the original roadmap/resource it was derived from
+4. Map the roadmap modules to the {days}-day timeframe ({hours}h/day, {pace} pace)
+5. Include hands-on projects that mirror real-world curriculum exercises
+
+Return JSON with this exact structure:
 {{
-  "summary": "Brief overview of the learning journey",
+  "summary": "Brief overview referencing the community roadmap source",
+  "source_roadmap": "URL of primary roadmap used (or 'compiled from multiple sources')",
   "steps": [
     {{
       "day_from": 1,
-      "day_to": 5,
-      "title": "Phase name",
-      "tasks": ["Task 1", "Task 2", "Task 3"],
-      "project": "Hands-on project description"
+      "day_to": 7,
+      "title": "Module name from roadmap (e.g., 'JavaScript Fundamentals')",
+      "tasks": ["Specific task 1", "Specific task 2", "Specific task 3"],
+      "resources": [
+        {{"type": "article", "title": "Resource title", "url": "https://..."}},
+        {{"type": "video", "title": "Video title", "url": "https://youtube.com/...", "video_id": "abc123", "embed_url": "https://..."}}
+      ],
+      "project": "Hands-on project from real curriculum",
+      "source_url": "URL of roadmap this step came from"
     }}
   ]
 }}
 
-Requirements:
-- 2-4 phases based on duration
-- 3-4 specific tasks per phase
-- 1 practical project per phase
-- Focus on {role}-relevant skills
-- Be concise and actionable
-
-Return ONLY valid JSON, no markdown or explanation."""
-
-    return prompt
-
-
-def _build_projects_prompt(
-    skills: List[str],
-    role: str,
-    project_type: str,
-    context: str = ""
-) -> str:
-    """
-    Build an optimized AI prompt for project recommendations.
-    Designed to be concise to save tokens.
-    """
-    skills_str = ", ".join(skills)
-    
-    prompt = f"""Generate 3-4 {project_type} project ideas for {role} using: {skills_str}
-
-{f'Context: {context}' if context else ''}
-
-Provide JSON with this exact structure:
-{{
-  "projects": [
-    {{
-      "title": "Project name",
-      "description": "Brief description (1-2 sentences)",
-      "skills": ["skill1", "skill2"]
-    }}
-  ]
-}}
-
-Requirements:
-- Real-world applicable projects
-- Suitable for {project_type} portfolio
-- Demonstrate {role} competency
-- Each project uses 2+ skills from the list
-
-Return ONLY valid JSON, no markdown or explanation."""
-
-    return prompt
-
-
-def _parse_ai_response(response_text: str) -> Optional[Dict]:
-    """
-    Parse AI response and extract JSON.
-    Handles markdown code blocks and other formatting.
-    """
-    try:
-        # Try direct JSON parse first
-        return json.loads(response_text)
-    except json.JSONDecodeError:
-        # Try to extract JSON from markdown code blocks
-        import re
-        
-        # Look for JSON in code blocks
-        json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', response_text, re.DOTALL)
-        if json_match:
-            try:
-                return json.loads(json_match.group(1))
-            except json.JSONDecodeError:
-                pass
-        
-        # Look for raw JSON object
-        json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
-        if json_match:
-            try:
-                return json.loads(json_match.group(0))
-            except json.JSONDecodeError:
-                pass
-        
-        logger.error(f"Failed to parse AI response as JSON: {response_text[:200]}")
-        return None
+IMPORTANT: 
+- Return ONLY valid JSON, no markdown or explanation
+- Every step MUST have a source_url
+- Match real curriculum sequence, not arbitrary day divisions"""
 
 
 def generate_ai_learning_path(
@@ -142,86 +112,174 @@ def generate_ai_learning_path(
     pace: str,
     context: str = "",
     requested_provider: Optional[str] = None,
-    include_youtube: bool = True
+    include_youtube: bool = True,
 ) -> Dict:
     """
-    Generate a learning path for a single skill.
-    Uses HuggingFace retrieval for instant, deterministic results.
-    Falls back to heuristic generation if no curated data exists.
-    
-    Args:
-        skill: The skill to learn
-        role: Target job role
-        days: Number of days available
-        hours: Daily hours available
-        pace: Learning pace (Fast/Balanced/Thorough)
-        context: Additional context from user
-        requested_provider: Ignored (kept for API compatibility)
-        include_youtube: Whether to include YouTube video recommendations
-    
-    Returns:
-        Dict with 'summary', 'steps', and optionally 'youtube_videos' keys
+    Generate a learning path using RAG: web search + Groq synthesis.
+
+    Phase 1 (Discovery): Search for real-world roadmaps and curricula
+    Phase 2 (Extraction): Use AI as a parser, not creator
+    Phase 3 (Structuring): Output modules from real roadmaps with source attribution
     """
-    # Check cache first
     cache_key = _generate_cache_key(skill, role, days, hours, pace)
     if cache_key in _AI_CACHE:
-        logger.info(f"✅ Using cached learning path for {skill}")
+        logger.info(f"Using cached learning path for {skill}")
         return _AI_CACHE[cache_key]
-    
-    # Use HuggingFace retrieval (instant, no API cost)
-    result = None
+
+    roadmap_results = []
+    web_results = []
+    youtube_results = []
+
     try:
-        from .hf_data_loader import get_learning_path_for_skill
-        
-        logger.info(f"📚 Retrieving learning path for {skill} from HuggingFace")
-        
-        result = get_learning_path_for_skill(skill, days)
-        
-        if result and 'steps' in result:
-            logger.info(f"✅ Learning path retrieved for {skill}")
-        else:
-            result = None
-        
+        from .web_search import (
+            search_roadmaps,
+            search_learning_resources,
+            search_youtube_embeds,
+        )
+
+        logger.info(f"Phase 1: Discovering roadmaps for {skill}...")
+        roadmap_results = search_roadmaps(skill, max_results=8)
+        logger.info(f"Found {len(roadmap_results)} roadmap sources")
+
+        if roadmap_results:
+            web_results = search_learning_resources(skill, role, max_results=5)
+        if include_youtube:
+            youtube_results = search_youtube_embeds(skill, role, max_results=3)
     except Exception as e:
-        logger.error(f"Retrieval failed for {skill}: {e}")
-    
-    # Use fallback if HuggingFace failed
-    if not result:
-        result = _generate_fallback_learning_path(skill, role, days)
-    
-    # Add YouTube videos if requested
-    if include_youtube:
-        try:
-            from .youtube_search import search_youtube_videos
-            
-            query = f"{skill} tutorial for beginners {role}"
-            videos = search_youtube_videos(query, max_results=3, allow_search=True)
-            
-            if videos:
-                result['youtube_videos'] = videos
-                logger.info(f"🎬 Added {len(videos)} YouTube videos for {skill}")
-        except Exception as e:
-            logger.error(f"YouTube search failed for {skill}: {e}")
-            result['youtube_videos'] = []
-    
-    # Cache the result
+        logger.error(f"Web search failed for {skill}: {e}")
+
+    prompt = _build_roadmap_prompt(
+        skill, role, days, hours, pace, roadmap_results, web_results, youtube_results
+    )
+
+    try:
+        from .ai.router import get_ai_response
+
+        logger.info(f"Phase 2: Extracting curriculum from real roadmaps...")
+        raw = get_ai_response(prompt, requested_provider)
+        result = _parse_ai_response(raw)
+
+        if result and "steps" in result:
+            result["youtube_videos"] = youtube_results
+            result["source_roadmap"] = result.get("source_roadmap", "Community roadmap")
+            result["is_rag_based"] = len(roadmap_results) > 0
+            _AI_CACHE[cache_key] = result
+            logger.info(
+                f"RAG-based learning path generated for {skill} from {len(roadmap_results)} sources"
+            )
+            return result
+    except Exception as e:
+        logger.error(f"Groq generation failed for {skill}: {e}")
+
+    result = _generate_fallback_learning_path(skill, role, days, roadmap_results)
+    result["youtube_videos"] = youtube_results
+    result["is_rag_based"] = False
     _AI_CACHE[cache_key] = result
     return result
 
 
-def _generate_fallback_learning_path(skill: str, role: str, days: int) -> Dict:
-    """
-    Fallback heuristic learning path when AI is unavailable.
-    Simple but functional.
-    """
+def _parse_ai_response(response_text: str) -> Optional[Dict]:
+    try:
+        return json.loads(response_text)
+    except json.JSONDecodeError:
+        import re
+
+        json_match = re.search(
+            r"```(?:json)?\s*(\{.*?\})\s*```", response_text, re.DOTALL
+        )
+        if json_match:
+            try:
+                return json.loads(json_match.group(1))
+            except json.JSONDecodeError:
+                pass
+        json_match = re.search(r"\{.*\}", response_text, re.DOTALL)
+        if json_match:
+            try:
+                return json.loads(json_match.group(0))
+            except json.JSONDecodeError:
+                pass
+        logger.error(f"Failed to parse AI response: {response_text[:200]}")
+        return None
+
+
+def _generate_fallback_learning_path(
+    skill: str, role: str, days: int, roadmap_results: List[Dict] = None
+) -> Dict:
+    """Generate fallback path, preferring to use real roadmap data if available."""
+
+    if roadmap_results:
+        primary_source = roadmap_results[0].get("url", "") if roadmap_results else ""
+        return {
+            "summary": f"Learn {skill} for {role} in {days} days - curated from community roadmaps",
+            "source_roadmap": primary_source or "Compiled from community sources",
+            "steps": [
+                {
+                    "day_from": 1,
+                    "day_to": min(days, 7),
+                    "title": f"{skill} Foundations",
+                    "tasks": [
+                        f"Review {skill} core concepts",
+                        f"Complete introductory exercises",
+                        f"Set up development environment",
+                    ],
+                    "resources": [
+                        {
+                            "type": "article",
+                            "title": r.get("title", ""),
+                            "url": r.get("url", ""),
+                        }
+                        for r in roadmap_results[:3]
+                    ]
+                    if roadmap_results
+                    else [],
+                    "project": f"Build a simple {skill} application",
+                    "source_url": primary_source,
+                },
+                {
+                    "day_from": min(days, 8),
+                    "day_to": min(days, 14),
+                    "title": f"{skill} Core Skills",
+                    "tasks": [
+                        f"Practice {skill} fundamentals",
+                        f"Work through intermediate tutorials",
+                        f"Build small projects",
+                    ],
+                    "resources": [],
+                    "project": f"{skill} practice project",
+                    "source_url": primary_source,
+                },
+                {
+                    "day_from": min(days, 15),
+                    "day_to": days,
+                    "title": f"{skill} Advanced & Portfolio",
+                    "tasks": [
+                        f"Master advanced {skill} topics",
+                        f"Build a portfolio project",
+                        f"Review and refine code",
+                    ],
+                    "resources": [
+                        {
+                            "type": "article",
+                            "title": r.get("title", ""),
+                            "url": r.get("url", ""),
+                        }
+                        for r in roadmap_results[3:6]
+                    ]
+                    if len(roadmap_results) > 3
+                    else [],
+                    "project": f"Complete {skill} portfolio project",
+                    "source_url": primary_source,
+                },
+            ],
+        }
+
     if days >= 21:
-        # Multi-phase learning
         phase1_days = days // 3
         phase2_days = days // 3
         phase3_days = days - phase1_days - phase2_days
-        
         return {
             "summary": f"Master {skill} for {role} in {days} days",
+            "source_roadmap": "Community-curated curriculum",
             "steps": [
                 {
                     "day_from": 1,
@@ -230,9 +288,11 @@ def _generate_fallback_learning_path(skill: str, role: str, days: int) -> Dict:
                     "tasks": [
                         f"Learn core {skill} concepts",
                         f"Complete beginner tutorials",
-                        f"Practice basic {skill} exercises"
+                        f"Practice basic {skill} exercises",
                     ],
-                    "project": f"Simple {skill} starter project"
+                    "resources": [],
+                    "project": f"Simple {skill} starter project",
+                    "source_url": "",
                 },
                 {
                     "day_from": phase1_days + 1,
@@ -241,9 +301,11 @@ def _generate_fallback_learning_path(skill: str, role: str, days: int) -> Dict:
                     "tasks": [
                         f"Build practical {skill} projects",
                         f"Learn advanced {skill} features",
-                        f"Study best practices"
+                        f"Study best practices",
                     ],
-                    "project": f"{skill} intermediate project for {role}"
+                    "resources": [],
+                    "project": f"{skill} intermediate project for {role}",
+                    "source_url": "",
                 },
                 {
                     "day_from": phase1_days + phase2_days + 1,
@@ -252,16 +314,18 @@ def _generate_fallback_learning_path(skill: str, role: str, days: int) -> Dict:
                     "tasks": [
                         f"Master advanced {skill} concepts",
                         f"Integrate {skill} with other technologies",
-                        f"Build portfolio project"
+                        f"Build portfolio project",
                     ],
-                    "project": f"Complete {skill} portfolio project"
-                }
-            ]
+                    "resources": [],
+                    "project": f"Complete {skill} portfolio project",
+                    "source_url": "",
+                },
+            ],
         }
     else:
-        # Single-phase for short timelines
         return {
             "summary": f"Learn {skill} for {role} in {days} days",
+            "source_roadmap": "Community-curated curriculum",
             "steps": [
                 {
                     "day_from": 1,
@@ -270,11 +334,13 @@ def _generate_fallback_learning_path(skill: str, role: str, days: int) -> Dict:
                     "tasks": [
                         f"Study {skill} fundamentals",
                         f"Complete {skill} tutorials",
-                        f"Build a small {skill} project"
+                        f"Build a small {skill} project",
                     ],
-                    "project": f"{skill} practice project"
+                    "resources": [],
+                    "project": f"{skill} practice project",
+                    "source_url": "",
                 }
-            ]
+            ],
         }
 
 
@@ -283,67 +349,45 @@ def generate_ai_projects(
     role: str,
     project_type: str,
     context: str = "",
-    requested_provider: Optional[str] = None
+    requested_provider: Optional[str] = None,
 ) -> List[Dict]:
-    """
-    Get curated project recommendations from HuggingFace.
-    Instant retrieval, no API costs.
-    
-    Args:
-        skills: List of skills to incorporate
-        role: Target job role
-        project_type: Type of project (portfolio/practice/production)
-        context: Additional context from user
-        requested_provider: Ignored (kept for API compatibility)
-    
-    Returns:
-        List of project dictionaries with title, description, and skills
-    """
-    # Check cache
-    cache_key = hashlib.md5(f"{','.join(sorted(skills))}|{role}|{project_type}".encode()).hexdigest()
+    cache_key = hashlib.md5(
+        f"{','.join(sorted(skills))}|{role}|{project_type}".encode()
+    ).hexdigest()
     if cache_key in _AI_CACHE:
-        logger.info(f"✅ Using cached projects for {role}")
         return _AI_CACHE[cache_key]
-    
-    # Use HuggingFace retrieval (instant, no API cost)
+
     try:
         from .hf_data_loader import get_projects_for_skills
-        
-        logger.info(f"📚 Retrieving projects for {role} from HuggingFace")
-        
+
         projects = get_projects_for_skills(skills, limit=5)
-        
         if projects:
-            # Cache the result
             _AI_CACHE[cache_key] = projects
-            logger.info(f"✅ Retrieved {len(projects)} projects")
             return projects
-        
     except Exception as e:
         logger.error(f"Project retrieval failed: {e}")
-    
-    # Fallback to simple projects
+
     return _generate_fallback_projects(skills, role, project_type)
 
 
-def _generate_fallback_projects(skills: List[str], role: str, project_type: str) -> List[Dict]:
-    """Fallback project generation when AI is unavailable."""
+def _generate_fallback_projects(
+    skills: List[str], role: str, project_type: str
+) -> List[Dict]:
     projects = []
-    
-    # Individual skill projects
-    for skill in skills[:3]:  # Limit to 3
-        projects.append({
-            "title": f"{skill} {project_type.capitalize()} Project",
-            "description": f"Build a {project_type} project demonstrating {skill} skills for {role} position",
-            "skills": [skill]
-        })
-    
-    # Capstone project combining all skills
+    for skill in skills[:3]:
+        projects.append(
+            {
+                "title": f"{skill} {project_type.capitalize()} Project",
+                "description": f"Build a {project_type} project demonstrating {skill} skills for {role} position",
+                "skills": [skill],
+            }
+        )
     if len(skills) > 1:
-        projects.append({
-            "title": f"{role} Capstone Project",
-            "description": f"Comprehensive {project_type} project combining {', '.join(skills)} for {role}",
-            "skills": skills
-        })
-    
+        projects.append(
+            {
+                "title": f"{role} Capstone Project",
+                "description": f"Comprehensive {project_type} project combining {', '.join(skills)} for {role}",
+                "skills": skills,
+            }
+        )
     return projects

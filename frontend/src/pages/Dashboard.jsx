@@ -31,6 +31,8 @@ const Dashboard = () => {
     const [matchData, setMatchData] = useState(null);
     const [selectedToLearn, setSelectedToLearn] = useState([]);
     const [githubUsername, setGithubUsername] = useState('');
+    const [jobMatches, setJobMatches] = useState([]);
+    const [experienceLevel, setExperienceLevel] = useState('neutral');
     const [learningPrefs, setLearningPrefs] = useState({
         time_commitment: '1 hour',
         learning_pace: 'Balanced',
@@ -69,6 +71,7 @@ const Dashboard = () => {
         setMatchData(null);
         setSelectedToLearn([]);
         setGithubUsername('');
+        setJobMatches([]);
         setResults(null);
         setHasSavedPath(false);
     };
@@ -296,6 +299,8 @@ const Dashboard = () => {
                                     error={error}
                                     githubUsername={githubUsername}
                                     setGithubUsername={setGithubUsername}
+                                    experienceLevel={experienceLevel}
+                                    setExperienceLevel={setExperienceLevel}
                                 />
                             )}
 
@@ -340,6 +345,9 @@ const Dashboard = () => {
                                     userSkills={skills}
                                     roleAnalysis={matchData}
                                     githubUsername={githubUsername}
+                                    jobMatches={jobMatches}
+                                    targetRole={role}
+                                    experienceLevel={experienceLevel}
                                 />
                             )}
                         </AnimatePresence>

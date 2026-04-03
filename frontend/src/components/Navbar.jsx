@@ -5,7 +5,8 @@ import { LayoutDashboard, User, MessageSquare, LogOut, BrainCircuit } from 'luci
 
 const Navbar = () => {
     const location = useLocation();
-    const username = authService.getCurrentUser() || '';
+    const sessionId = authService.getSessionId() || '';
+    const shortId = sessionId ? sessionId.slice(0, 8) : '';
 
     const handleLogout = () => {
         authService.logout();
@@ -21,13 +22,10 @@ const Navbar = () => {
         );
     };
 
-    const initial = username ? username[0].toUpperCase() : '?';
-
     return (
         <nav className="navbar">
             <div className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
 
-                {/* Logo */}
                 <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', textDecoration: 'none', flexShrink: 0 }}>
                     <div style={{
                         background: 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))',
@@ -53,27 +51,21 @@ const Navbar = () => {
                     </span>
                 </Link>
 
-                {/* Right side */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                     <NavLink to="/" icon={LayoutDashboard}>Dashboard</NavLink>
                     <NavLink to="/chat" icon={MessageSquare}>AI Chat</NavLink>
                     <NavLink to="/profile" icon={User}>Profile</NavLink>
 
-                    {/* Divider */}
                     <div style={{ width: '1px', height: '20px', background: 'var(--color-border)', margin: '0 0.625rem' }} />
 
-                    {/* User area */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <div className="user-avatar">{initial}</div>
-                            <span style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                {username}
-                            </span>
-                        </div>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontFamily: 'monospace' }}>
+                            Session: {shortId}
+                        </span>
 
                         <button
                             onClick={handleLogout}
-                            title="Sign out"
+                            title="Reset session"
                             style={{
                                 display: 'flex',
                                 alignItems: 'center',

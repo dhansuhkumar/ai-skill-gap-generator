@@ -232,62 +232,89 @@ const Timeline = ({ steps, youtubeVideos, onToggleStep }) => {
                             Recommended Videos
                         </h4>
                     </div>
-                    <div style={{ display: 'grid', gap: '0.75rem' }}>
+                    <div style={{ display: 'grid', gap: '1rem' }}>
                         {youtubeVideos.map((video, idx) => (
-                            <a
-                                key={idx}
-                                href={video.url || `https://youtube.com/watch?v=${video.video_id}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.75rem',
-                                    padding: '0.75rem',
-                                    background: 'rgba(255,255,255,0.03)',
-                                    borderRadius: '8px',
-                                    textDecoration: 'none',
-                                    transition: 'all 0.2s',
-                                    border: '1px solid transparent'
-                                }}
-                                onMouseEnter={(e) => {
-                                    e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
-                                    e.currentTarget.style.borderColor = 'rgba(255, 0, 0, 0.2)';
-                                }}
-                                onMouseLeave={(e) => {
-                                    e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
-                                    e.currentTarget.style.borderColor = 'transparent';
-                                }}
-                            >
-                                {video.thumbnail && (
-                                    <img
-                                        src={video.thumbnail}
-                                        alt=""
-                                        style={{
-                                            width: '80px',
-                                            height: '45px',
-                                            objectFit: 'cover',
-                                            borderRadius: '6px'
-                                        }}
-                                    />
-                                )}
-                                <div style={{ flex: 1 }}>
+                            <div key={idx}>
+                                {video.embed_url ? (
                                     <div style={{
-                                        fontSize: '0.9rem',
-                                        color: 'var(--color-text-main)',
-                                        marginBottom: '0.25rem',
-                                        fontWeight: 500
+                                        position: 'relative',
+                                        paddingBottom: '56.25%',
+                                        height: 0,
+                                        overflow: 'hidden',
+                                        borderRadius: '12px',
+                                        marginBottom: '0.5rem'
                                     }}>
-                                        {video.title}
+                                        <iframe
+                                            src={video.embed_url}
+                                            title={video.title}
+                                            style={{
+                                                position: 'absolute',
+                                                top: 0, left: 0,
+                                                width: '100%', height: '100%',
+                                                border: 'none',
+                                                borderRadius: '12px'
+                                            }}
+                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                            allowFullScreen
+                                        />
                                     </div>
-                                    {video.channel && (
-                                        <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
-                                            {video.channel}
+                                ) : (
+                                    <a
+                                        href={video.url || `https://youtube.com/watch?v=${video.video_id}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.75rem',
+                                            padding: '0.75rem',
+                                            background: 'rgba(255,255,255,0.03)',
+                                            borderRadius: '8px',
+                                            textDecoration: 'none',
+                                            transition: 'all 0.2s',
+                                            border: '1px solid transparent',
+                                            marginBottom: '0.5rem'
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
+                                            e.currentTarget.style.borderColor = 'rgba(255, 0, 0, 0.2)';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
+                                            e.currentTarget.style.borderColor = 'transparent';
+                                        }}
+                                    >
+                                        {video.thumbnail && (
+                                            <img
+                                                src={video.thumbnail}
+                                                alt=""
+                                                style={{
+                                                    width: '80px',
+                                                    height: '45px',
+                                                    objectFit: 'cover',
+                                                    borderRadius: '6px'
+                                                }}
+                                            />
+                                        )}
+                                        <div style={{ flex: 1 }}>
+                                            <div style={{
+                                                fontSize: '0.9rem',
+                                                color: 'var(--color-text-main)',
+                                                marginBottom: '0.25rem',
+                                                fontWeight: 500
+                                            }}>
+                                                {video.title}
+                                            </div>
+                                            {video.channel && (
+                                                <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                                                    {video.channel}
+                                                </div>
+                                            )}
                                         </div>
-                                    )}
-                                </div>
-                                <ExternalLink size={16} style={{ color: 'var(--color-text-muted)' }} />
-                            </a>
+                                        <ExternalLink size={16} style={{ color: 'var(--color-text-muted)' }} />
+                                    </a>
+                                )}
+                            </div>
                         ))}
                     </div>
                 </motion.div>

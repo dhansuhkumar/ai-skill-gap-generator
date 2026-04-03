@@ -6,7 +6,7 @@ Works gracefully even if Supabase tables don't exist yet.
 
 import logging
 from flask import Blueprint, request, jsonify, g, current_app
-from .auth import token_required
+from .auth import session_required
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +27,7 @@ def _supabase_available():
 
 
 @dashboard.route('/get_dashboard_data', methods=['POST'])
-@token_required
+@session_required
 def get_dashboard_data():
     """
     Get formatted dashboard data combining role analysis and learning path.
@@ -165,7 +165,7 @@ def get_dashboard_data():
 
 
 @dashboard.route('/save_learning_progress', methods=['POST'])
-@token_required
+@session_required
 def save_learning_progress():
     """
     Save learning step completion status.
@@ -232,7 +232,7 @@ def save_learning_progress():
 
 
 @dashboard.route('/save_learning_path', methods=['POST'])
-@token_required
+@session_required
 def save_learning_path():
     """
     Save full learning path for persistence across sessions.
@@ -286,7 +286,7 @@ def save_learning_path():
 
 
 @dashboard.route('/get_saved_learning_path', methods=['GET'])
-@token_required
+@session_required
 def get_saved_learning_path():
     """
     Get user's saved learning path if exists.
@@ -360,7 +360,7 @@ _local_path_progress = {}
 
 
 @dashboard.route('/update_task_progress', methods=['POST'])
-@token_required
+@session_required
 def update_task_progress():
     """
     Upsert learning path task progress.
@@ -436,7 +436,7 @@ def update_task_progress():
 
 
 @dashboard.route('/get_task_progress', methods=['GET'])
-@token_required
+@session_required
 def get_task_progress():
     """
     Get all completed task indices for a given learning path.
@@ -500,7 +500,7 @@ def get_task_progress():
 
 # ── BUG 1 FIX: Role Chat route ─────────────────────────────────────────────
 @dashboard.route('/role-chat', methods=['POST', 'OPTIONS'])
-@token_required
+@session_required
 def role_chat():
     """
     POST /api/role-chat
@@ -528,7 +528,7 @@ def role_chat():
 
 
 # ── GitHub Analysis route ───────────────────────────────────────────────────
-# Handle OPTIONS preflight BEFORE @token_required so it doesn't return 401
+# Handle OPTIONS preflight BEFORE @session_required so it doesn't return 401
 @dashboard.route('/analyze-github', methods=['OPTIONS'])
 def analyze_github_preflight():
     """Handle CORS preflight for /api/analyze-github without auth."""
@@ -536,7 +536,7 @@ def analyze_github_preflight():
 
 
 @dashboard.route('/analyze-github', methods=['POST'])
-@token_required
+@session_required
 def analyze_github():
     """
     POST /api/analyze-github

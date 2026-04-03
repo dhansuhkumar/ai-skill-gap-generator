@@ -49,35 +49,31 @@ def ensure_skill_exists_supabase(supabase, skill_name):
     
     raise RuntimeError(f"Failed to create skill: {skill_name}")
 
-def verify_jwt_token(authorization_header):
+def get_session_id():
     """
-    Verify JWT token using Supabase's server-side token validation.
-    Returns user_id on success, None on failure.
-
-    Uses supabase.auth.get_user(token) — the same approach as the
-    token_required decorator in app/auth.py. Signature IS verified
-    by Supabase itself; we do NOT decode locally to avoid the
-    verify_signature=False security hole.
+    Get session ID from X-Session-ID header.
+    Falls back to 'anonymous' if not provided.
+    No authentication required — this is a session-based app.
     """
-    if not authorization_header:
-        return None
+    return request.headers.get("X-Session-ID") or "anonymous"
 
-    if not authorization_header.startswith("Bearer "):
-        return None
 
-    token = authorization_header.split(" ")[1]
-
-    # Primary: verify via Supabase (proper server-side validation)
+def ensure_auth_user_supabase(supabase, user_id):
+    """Ensure a user exists in auth.users by utilizing admin api if they don't exist"""
+    if user_id == "anonymous":
+        return
     try:
-        supabase = get_supabase_client()
-        user_response = supabase.auth.get_user(token)
-        if user_response and user_response.user:
-            return user_response.user.id
-        logger.warning("Supabase token verification returned no user")
-        return None
-    except Exception as e:
-        logger.error(f"Supabase token verification failed: {e}")
-        return None
+        supabase.auth.admin.create_user({
+            'id': user_id,
+            'email': f'{user_id}@temp.com',
+            'password': 'password123',
+            'email_confirm': True
+        })
+    except Exception:
+        # If user already exists, it will throw an exception which we can ignore
+        pass
+
+
 
 
 from backend.app.role_manager import role_manager
@@ -85,15 +81,13 @@ from backend.app.role_manager import role_manager
 @bp.route("/sync_profile", methods=["POST", "OPTIONS"])
 def sync_profile():
     """
-    Sync user profile after Supabase authentication.
+    Sync user profile — session-based, no auth required.
     Creates Supabase profile if it doesn't exist.
     """
     if request.method == "OPTIONS":
         return jsonify({"status": "ok"}), 200
     
-    user_id = verify_jwt_token(request.headers.get("Authorization"))
-    if not user_id:
-        return jsonify({"error": "Unauthorized"}), 401
+    user_id = get_session_id()
     
     try:
         supabase = get_supabase_client()
@@ -104,6 +98,9 @@ def sync_profile():
         if result.data:
             profile_id = result.data[0]["id"]
         else:
+            # Create dummy auth user first to prevent foreign key errors
+            ensure_auth_user_supabase(supabase, user_id)
+            
             # Create new profile
             insert_result = supabase.table("profiles").insert({"user_id": user_id}).execute()
             if insert_result.data:
@@ -181,9 +178,7 @@ def confirm_skills():
     if request.method == "OPTIONS":
         return jsonify({"status": "ok"}), 200
 
-    user_id = verify_jwt_token(request.headers.get("Authorization"))
-    if not user_id:
-        return jsonify({"error": "Unauthorized"}), 401
+    user_id = get_session_id()
 
     data = request.get_json()
     if not data:
@@ -202,6 +197,9 @@ def confirm_skills():
         if result.data:
             profile_id = result.data[0]["id"]
         else:
+            # Create dummy auth user first to prevent foreign key errors
+            ensure_auth_user_supabase(supabase, user_id)
+            
             # Create new profile if it doesn't exist
             insert_result = supabase.table("profiles").insert({"user_id": user_id}).execute()
             if insert_result.data:
@@ -242,9 +240,7 @@ def confirm_skills():
 
 @bp.route("/generate_learning_path", methods=["POST"])
 def generate_learning_path():
-    user_id = verify_jwt_token(request.headers.get("Authorization"))
-    if not user_id:
-        return jsonify({"error": "Unauthorized"}), 401
+    user_id = get_session_id()
 
     req = request.get_json()
     if not req:
@@ -310,6 +306,7 @@ def generate_learning_path():
                 profile_id = result.data[0]["id"]
             else:
                 # Create profile if it doesn't exist
+                ensure_auth_user_supabase(supabase, user_id)
                 insert_result = supabase.table("profiles").insert({"user_id": user_id}).execute()
                 if insert_result.data:
                     profile_id = insert_result.data[0]["id"]
@@ -725,15 +722,12 @@ def upload_resume_with_context():
 @bp.route("/update_github_data", methods=["POST", "OPTIONS"])
 def update_github_data():
     """
-    Manually refresh GitHub analysis data for a user.
-    Stores results in Supabase for persistence.
+    Refresh GitHub analysis data for a user — session-based, no auth required.
     """
     if request.method == "OPTIONS":
         return jsonify({"status": "ok"}), 200
     
-    user_id = verify_jwt_token(request.headers.get("Authorization"))
-    if not user_id:
-        return jsonify({"error": "Unauthorized"}), 401
+    user_id = get_session_id()
     
     data = request.get_json()
     if not data:
@@ -756,6 +750,7 @@ def update_github_data():
         profile_res = supabase.table("profiles").select("id").eq("user_id", user_id).execute()
         if not profile_res.data:
             # Create profile
+            ensure_auth_user_supabase(supabase, user_id)
             profile_res = supabase.table("profiles").insert({"user_id": user_id}).execute()
             profile_id = profile_res.data[0]["id"]
         else:

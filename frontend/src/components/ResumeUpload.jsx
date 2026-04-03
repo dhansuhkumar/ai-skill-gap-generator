@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { Upload, FileText, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import api from '../services/api';
 
-const ResumeUpload = ({ onSkillsExtracted }) => {
+const ResumeUpload = ({ onSkillsExtracted, onExperienceLevelExtracted }) => {
     const [isDragging, setIsDragging] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -27,9 +27,13 @@ const ResumeUpload = ({ onSkillsExtracted }) => {
             // Handle new structured response format
             const parsed = response.data.parsed || {};
             const extractedSkills = parsed.skills || response.data.extracted_skills || [];
+            const experienceLevel = parsed.global_context || 'neutral';
 
             onSkillsExtracted(extractedSkills);
-            setSuccess(`Successfully extracted ${extractedSkills.length} skills!`);
+            if (onExperienceLevelExtracted) {
+                onExperienceLevelExtracted(experienceLevel);
+            }
+            setSuccess(`Successfully extracted ${extractedSkills.length} skills! (${experienceLevel})`);
         } catch (err) {
             setError('Failed to process resume. Please try again.');
         } finally {

@@ -6,7 +6,7 @@ import SkillInput from '../SkillInput';
 import SkillRadar from './SkillRadar';
 import axios from 'axios';
 
-const StepSkills = ({ skills, setSkills, onConfirm, loading, skillsSaved, error, githubUsername, setGithubUsername }) => {
+const StepSkills = ({ skills, setSkills, onConfirm, loading, skillsSaved, error, githubUsername, setGithubUsername, experienceLevel, setExperienceLevel }) => {
     const [githubLoading, setGithubLoading] = useState(false);
     const [githubError, setGithubError] = useState('');
     const [radarData, setRadarData] = useState(null);
@@ -85,7 +85,10 @@ const StepSkills = ({ skills, setSkills, onConfirm, loading, skillsSaved, error,
 
             {/* Resume Upload */}
             <div style={{ marginBottom: '2rem' }}>
-                <ResumeUpload onSkillsExtracted={(newSkills) => setSkills(prev => [...new Set([...prev, ...newSkills])])} />
+                <ResumeUpload 
+                    onSkillsExtracted={(newSkills) => setSkills(prev => [...new Set([...prev, ...newSkills])])} 
+                    onExperienceLevelExtracted={(expLevel) => setExperienceLevel(expLevel)}
+                />
             </div>
 
             {/* GitHub Integration */}
