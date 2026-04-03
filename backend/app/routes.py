@@ -262,19 +262,19 @@ def profile():
 def get_job_matches():
     """
     Get matching jobs with success rate based on user skills and experience level.
-    Uses real-time web search only (no HuggingFace).
+    Uses Job API Client (Remotive/Jooble/Adzuna) for REAL job posting URLs.
     """
     if request.method == "OPTIONS":
         return jsonify({"status": "ok"}), 200
 
     data = request.get_json()
-    logger.info(f"job_matches request: {list(data.keys()) if data else 'None'}")
     if not data:
         return jsonify({"error": "Invalid JSON body"}), 400
 
     user_skills = data.get("skills", [])
     target_role = data.get("role", "")
     experience_level = data.get("experience_level", "neutral")
+
     logger.info(
         f"job_matches: role='{target_role}', exp='{experience_level}', skills={len(user_skills)}"
     )
@@ -282,70 +282,44 @@ def get_job_matches():
     if not target_role:
         return jsonify({"error": "Role is required"}), 400
 
-    from .web_search import search_live_jobs
+    try:
+        from .job_api_client import search_jobs, get_job_match_stats
 
-    matched_jobs = search_live_jobs(
-        role=target_role,
-        experience_level=experience_level,
-        skills=user_skills,
-        max_results=30,
-    )
-    logger.info(f"job_matches: found {len(matched_jobs)} live jobs for '{target_role}'")
+        result = search_jobs(
+            skills=user_skills,
+            role=target_role,
+            experience_level=experience_level,
+            max_results=20,
+        )
 
-    results = []
+        jobs = result.get("jobs", [])
+        logger.info(
+            f"job_matches: found {len(jobs)} jobs from sources: {result.get('sources', [])}"
+        )
 
-    for job in matched_jobs:
-        job_link = job.get("job_link", "")
-        job_title = job.get("job_title", "")
-        company = job.get("company", "")
-        location = job.get("job_location", "")
-        snippet = job.get("snippet", "")
+        stats = get_job_match_stats(jobs, user_skills)
 
-        required_skills = extract_skills_from_snippet(snippet, user_skills)
-
-        if not required_skills:
-            required_skills = user_skills[:5]
-
-        if required_skills:
-            user_skills_lower = [s.lower().strip() for s in user_skills]
-            required_lower = [s.lower().strip() for s in required_skills]
-            matched = len(
-                [
-                    s
-                    for s in required_lower
-                    if any(us in s or s in us for us in user_skills_lower)
-                ]
-            )
-            success_rate = (
-                round((matched / len(required_lower)) * 100) if required_lower else 50
-            )
-        else:
-            success_rate = 50
-            matched = 0
-
-        results.append(
+        return jsonify(
             {
-                "job_title": job_title,
-                "company": company,
-                "location": location,
-                "job_link": job_link,
-                "success_rate": success_rate,
-                "required_skills": required_skills[:10],
-                "matched_skills_count": matched,
-                "total_required": len(required_skills),
+                "jobs": jobs,
+                "total_found": result.get("total_found", len(jobs)),
+                "sources": result.get("sources", []),
+                "experience_filter": experience_level,
+                "stats": stats,
             }
         )
 
-    results.sort(key=lambda x: x["success_rate"], reverse=True)
-
-    return jsonify(
-        {
-            "jobs": results[:20],
-            "total_found": len(matched_jobs),
-            "source": "live_search",
-            "experience_filter": experience_level,
-        }
-    )
+    except Exception as e:
+        logger.error(f"Job search failed: {e}")
+        return jsonify(
+            {
+                "jobs": [],
+                "total_found": 0,
+                "sources": ["error"],
+                "experience_filter": experience_level,
+                "error": str(e),
+            }
+        )
 
 
 @main.app_errorhandler(500)
