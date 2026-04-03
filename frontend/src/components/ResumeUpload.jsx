@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { motion } from 'framer-motion';
 import { Upload, FileText, CheckCircle2, AlertCircle, Loader2, GraduationCap, Briefcase, Award, Languages, Github, Linkedin } from 'lucide-react';
 import api from '../services/api';
 
