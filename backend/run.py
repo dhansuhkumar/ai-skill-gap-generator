@@ -6,7 +6,7 @@ from flask import request, jsonify
 from pathlib import Path
 
 # Ensure project root is on sys.path so package imports work when running this file
-root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if root_dir not in sys.path:
     sys.path.insert(0, root_dir)
 
@@ -63,18 +63,19 @@ app = create_app()
 # Add security headers to all responses
 from backend.app.security_config import add_security_headers
 
+
 @app.after_request
 def set_response_headers(response):
     """Add content type and security headers to all responses"""
     # Set content type headers
-    if response.content_type.startswith('application/json'):
-        response.headers['Content-Type'] = 'application/json; charset=utf-8'
-    elif response.mimetype == 'text/html':
-        response.headers['Content-Type'] = 'text/html; charset=utf-8'
-    
+    if response.content_type.startswith("application/json"):
+        response.headers["Content-Type"] = "application/json; charset=utf-8"
+    elif response.mimetype == "text/html":
+        response.headers["Content-Type"] = "text/html; charset=utf-8"
+
     # Add security headers (production-safe)
     response = add_security_headers(response)
-    
+
     return response
 
 
@@ -82,34 +83,40 @@ if __name__ == "__main__":
     # Detect production mode
     flask_env = os.getenv("FLASK_ENV", "development")
     is_production = flask_env == "production"
-   
+
     # Validate required environment variables
     required_vars = []
     missing_vars = [var for var in required_vars if not os.getenv(var)]
-    
+
     if missing_vars:
-        print(f"ERROR: Missing required environment variables: {', '.join(missing_vars)}")
+        print(
+            f"ERROR: Missing required environment variables: {', '.join(missing_vars)}"
+        )
         print("Please check your .env file. Use .env.example as a template.")
         sys.exit(1)
-    
+
     # Warn about missing optional variables
     optional_vars = {
         "GEMINI_API_KEY": "AI features will use fallback heuristics",
         "OPENAI_API_KEY": "OpenAI fallback unavailable",
-        "YOUTUBE_API_KEY": "Video recommendations disabled"
+        "YOUTUBE_API_KEY": "Video recommendations disabled",
     }
-    
+
     for var, impact in optional_vars.items():
         if not os.getenv(var):
             print(f"WARNING: {var} not set - {impact}")
-    
+
     # Production warnings
     if is_production:
         print("Starting in PRODUCTION mode")
         print("   - Debug mode: DISABLED")
         print("   - Security headers: ENABLED")
         print("   - CORS wildcard: BLOCKED")
-        
+
+        # Log CORS config
+        cors_origins = os.getenv("CORS_ALLOWED_ORIGINS", "")
+        print(f"   - CORS allowed origins: {cors_origins}")
+
         # Run with production settings
         port = int(os.getenv("PORT", 8080))
         app.run(host="0.0.0.0", port=port, debug=False)
@@ -117,8 +124,6 @@ if __name__ == "__main__":
         print("Starting in DEVELOPMENT mode")
         print("   - Debug mode: ENABLED")
         print("   - Auto-reload: ENABLED")
-        
+
         # Run with development settings
         app.run(host="0.0.0.0", port=8080, debug=True)
-
-

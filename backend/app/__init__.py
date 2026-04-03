@@ -69,7 +69,8 @@ def create_app():
             origin.strip() for origin in raw_origins.split(",") if origin.strip()
         ]
 
-    logging.info(f"CORS allowed origins: {allowed_origins}")
+    logging.warning(f"CORS allowed origins: {allowed_origins}")
+    logging.warning(f"FLASK_ENV: {flask_env}, is_production: {is_production}")
 
     # Initialize CORS with comprehensive settings for Supabase JWT auth
     CORS(
