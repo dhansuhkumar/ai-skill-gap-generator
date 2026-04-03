@@ -89,6 +89,9 @@ class HFDataLoader:
 
         except Exception as e:
             print(f"❌ Failed to load HuggingFace datasets: {e}")
+            import traceback
+
+            print(f"   Stack trace: {traceback.format_exc()}")
             import pandas as pd
 
             self._jobs_df = pd.DataFrame()
@@ -121,6 +124,9 @@ class HFDataLoader:
 
         except Exception as e:
             print(f"⚠️ Failed to load projects dataset: {e}")
+            import traceback
+
+            print(f"   Stack trace: {traceback.format_exc()}")
             import pandas as pd
 
             self._projects_df = pd.DataFrame()
