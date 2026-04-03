@@ -136,16 +136,25 @@ def _search_remotive(
     jobs = []
     search_queries = []
 
-    for skill in skills[:3]:
-        search_queries.append(f"{skill} {role}")
-    search_queries.append(role)
+    if experience_level == "fresher":
+        for skill in skills[:2]:
+            search_queries.append(f"{skill} junior")
+            search_queries.append(f"{skill} entry level")
+        search_queries.append("junior software developer")
+        search_queries.append("entry level software engineer")
+    else:
+        for skill in skills[:2]:
+            search_queries.append(f"{skill} developer")
+        search_queries.append(role)
+
+    seen = set()
 
     for query in search_queries:
         if len(jobs) >= max_results:
             break
 
         try:
-            params = {"search": query, "limit": max_results, "category": "software-dev"}
+            params = {"search": query, "limit": max_results}
 
             response = requests.get(REMOTIVE_BASE, params=params, timeout=10)
 
@@ -155,10 +164,9 @@ def _search_remotive(
 
                 for j in job_list:
                     job_url = j.get("url", "")
-                    if not job_url or any(
-                        existing.get("job_link") == job_url for existing in jobs
-                    ):
+                    if not job_url or job_url in seen:
                         continue
+                    seen.add(job_url)
 
                     desc = j.get("description", "")[:2000]
                     match_score = _calculate_match_score(desc, skills)
@@ -267,7 +275,7 @@ def _search_adzuna(
     skills: List[str],
     role: str,
     experience_level: str,
-    country: str = "in",  # India
+    country: str = "in",
     max_results: int = 15,
 ) -> List[Dict]:
     """
@@ -284,9 +292,25 @@ def _search_adzuna(
     jobs = []
     search_queries = []
 
-    for skill in skills[:3]:
-        search_queries.append(f"{skill} {role}")
-    search_queries.append(role)
+    top_skills = skills[:3] if skills else []
+
+    if experience_level == "fresher":
+        if top_skills:
+            search_queries.append(f"{top_skills[0]} developer fresher")
+            if len(top_skills) > 1:
+                search_queries.append(f"{top_skills[0]} {top_skills[1]} fresher")
+        search_queries.append("software engineer fresher")
+        search_queries.append("developer fresher")
+        search_queries.append("fresher software developer")
+    else:
+        if top_skills:
+            search_queries.append(f"{top_skills[0]} developer")
+            if len(top_skills) > 1:
+                search_queries.append(f"{top_skills[0]} {top_skills[1]} developer")
+        search_queries.append(role)
+        search_queries.append("software engineer")
+
+    seen = set()
 
     for query in search_queries:
         if len(jobs) >= max_results:
@@ -299,7 +323,6 @@ def _search_adzuna(
                 "what": query,
                 "where": country,
                 "results_per_page": max_results,
-                "content-type": "application/json",
             }
 
             response = requests.get(
@@ -310,29 +333,42 @@ def _search_adzuna(
                 data = response.json()
                 results = data.get("results", [])
 
+                logger.info(f"Adzuna query '{query}': {len(results)} results")
+
                 for j in results:
                     job_url = j.get("redirect_url", "")
-                    if not job_url:
+                    if not job_url or job_url in seen:
                         continue
+                    seen.add(job_url)
 
-                    desc = j.get("description", "")[:2000]
+                    title = j.get("title", "")
+                    desc = (
+                        j.get("description", "")[:2000] if j.get("description") else ""
+                    )
                     match_score = _calculate_match_score(desc, skills)
+
+                    company = j.get("company", "")
+                    if isinstance(company, dict):
+                        company = company.get("display_name", "")
+                    else:
+                        company = str(company) if company else ""
+
+                    location = j.get("location", "")
+                    if isinstance(location, dict):
+                        location = location.get("display_name", "")
+                    else:
+                        location = str(location) if location else ""
 
                     jobs.append(
                         {
                             "job_link": job_url,
-                            "job_title": j.get("title", ""),
-                            "company": j.get("company", {}).get("display_name", "")
-                            if isinstance(j.get("company"), dict)
-                            else str(j.get("company", "")),
-                            "job_location": j.get("location", {}).get(
-                                "display_name", ""
-                            )
-                            if isinstance(j.get("location"), dict)
-                            else str(j.get("location", "")),
+                            "job_title": title,
+                            "company": company,
+                            "job_location": location,
                             "description": desc,
-                            "salary": j.get("salary_min", "")
-                            or j.get("salary_max", ""),
+                            "salary": str(
+                                j.get("salary_min", "") or j.get("salary_max", "") or ""
+                            ),
                             "source": "adzuna",
                             "success_rate": match_score,
                             "required_skills": _extract_skills_from_text(desc),
@@ -392,11 +428,13 @@ def search_jobs(
     sources_used = []
 
     with ThreadPoolExecutor(max_workers=3) as executor:
-        futures = {
+        futures = {}
+
+        futures[
             executor.submit(
                 _search_remotive, skills, role, experience_level, max_results
-            ): "remotive",
-        }
+            )
+        ] = "remotive"
 
         if _get_jooble_key():
             futures[
