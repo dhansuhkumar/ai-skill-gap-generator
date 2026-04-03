@@ -2,17 +2,20 @@
 """
 AI-Powered Learning Path Generator with RAG (Retrieval-Augmented Generation).
 Uses DuckDuckGo web search + Groq (LLaMA 3) for structured learning paths.
-Real-world open-source roadmaps and curricula are prioritized over synthetic content.
+Parallelizes web searches for speed.
 """
 
 import json
 import logging
 from typing import List, Dict, Optional
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import hashlib
 
 logger = logging.getLogger(__name__)
 
 _AI_CACHE = {}
+
+MAX_WORKERS = 3
 
 
 def _generate_cache_key(
@@ -104,6 +107,39 @@ IMPORTANT:
 - Match real curriculum sequence, not arbitrary day divisions"""
 
 
+def _parallel_search_roadmaps(skill: str) -> List[Dict]:
+    """Search for roadmaps."""
+    try:
+        from .web_search import search_roadmaps
+
+        return search_roadmaps(skill, max_results=8)
+    except Exception as e:
+        logger.error(f"Roadmap search failed: {e}")
+        return []
+
+
+def _parallel_search_resources(skill: str, role: str) -> List[Dict]:
+    """Search for learning resources."""
+    try:
+        from .web_search import search_learning_resources
+
+        return search_learning_resources(skill, role, max_results=5)
+    except Exception as e:
+        logger.error(f"Resource search failed: {e}")
+        return []
+
+
+def _parallel_search_youtube(skill: str, role: str) -> List[Dict]:
+    """Search for YouTube videos."""
+    try:
+        from .web_search import search_youtube_embeds
+
+        return search_youtube_embeds(skill, role, max_results=3)
+    except Exception as e:
+        logger.error(f"YouTube search failed: {e}")
+        return []
+
+
 def generate_ai_learning_path(
     skill: str,
     role: str,
@@ -115,11 +151,7 @@ def generate_ai_learning_path(
     include_youtube: bool = True,
 ) -> Dict:
     """
-    Generate a learning path using RAG: web search + Groq synthesis.
-
-    Phase 1 (Discovery): Search for real-world roadmaps and curricula
-    Phase 2 (Extraction): Use AI as a parser, not creator
-    Phase 3 (Structuring): Output modules from real roadmaps with source attribution
+    Generate a learning path using RAG: parallel web search + Groq synthesis.
     """
     cache_key = _generate_cache_key(skill, role, days, hours, pace)
     if cache_key in _AI_CACHE:
@@ -131,22 +163,25 @@ def generate_ai_learning_path(
     youtube_results = []
 
     try:
-        from .web_search import (
-            search_roadmaps,
-            search_learning_resources,
-            search_youtube_embeds,
-        )
+        logger.info(f"Phase 1: Parallel web searches for {skill}...")
 
-        logger.info(f"Phase 1: Discovering roadmaps for {skill}...")
-        roadmap_results = search_roadmaps(skill, max_results=8)
-        logger.info(f"Found {len(roadmap_results)} roadmap sources")
+        with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+            future_roadmaps = executor.submit(_parallel_search_roadmaps, skill)
+            future_resources = executor.submit(_parallel_search_resources, skill, role)
+            future_youtube = executor.submit(_parallel_search_youtube, skill, role)
 
-        if roadmap_results:
-            web_results = search_learning_resources(skill, role, max_results=5)
-        if include_youtube:
-            youtube_results = search_youtube_embeds(skill, role, max_results=3)
+            roadmap_results = future_roadmaps.result()
+            logger.info(f"Found {len(roadmap_results)} roadmap sources")
+
+            web_results = future_resources.result()
+            logger.info(f"Found {len(web_results)} web resources")
+
+            if include_youtube:
+                youtube_results = future_youtube.result()
+                logger.info(f"Found {len(youtube_results)} YouTube videos")
+
     except Exception as e:
-        logger.error(f"Web search failed for {skill}: {e}")
+        logger.error(f"Parallel web search failed for {skill}: {e}")
 
     prompt = _build_roadmap_prompt(
         skill, role, days, hours, pace, roadmap_results, web_results, youtube_results
@@ -164,9 +199,7 @@ def generate_ai_learning_path(
             result["source_roadmap"] = result.get("source_roadmap", "Community roadmap")
             result["is_rag_based"] = len(roadmap_results) > 0
             _AI_CACHE[cache_key] = result
-            logger.info(
-                f"RAG-based learning path generated for {skill} from {len(roadmap_results)} sources"
-            )
+            logger.info(f"RAG-based learning path generated for {skill}")
             return result
     except Exception as e:
         logger.error(f"Groq generation failed for {skill}: {e}")
@@ -351,23 +384,43 @@ def generate_ai_projects(
     context: str = "",
     requested_provider: Optional[str] = None,
 ) -> List[Dict]:
+    """Generate project recommendations using AI."""
     cache_key = hashlib.md5(
         f"{','.join(sorted(skills))}|{role}|{project_type}".encode()
     ).hexdigest()
     if cache_key in _AI_CACHE:
         return _AI_CACHE[cache_key]
 
-    try:
-        from .hf_data_loader import get_projects_for_skills
+    prompt = f"""Generate {project_type} project ideas for someone targeting {role} role with skills: {", ".join(skills)}.
 
-        projects = get_projects_for_skills(skills, limit=5)
-        if projects:
+Return ONLY valid JSON array:
+[
+  {{
+    "title": "Project Title",
+    "description": "Brief description",
+    "skills": ["Skill1", "Skill2"]
+  }}
+]
+
+Return only the JSON array:"""
+
+    try:
+        from .ai.router import get_ai_response
+
+        raw = get_ai_response(prompt, requested_provider)
+
+        json_match = re.search(r"\[.*\]", raw, re.DOTALL)
+        if json_match:
+            projects = json.loads(json_match.group(0))
             _AI_CACHE[cache_key] = projects
             return projects
     except Exception as e:
-        logger.error(f"Project retrieval failed: {e}")
+        logger.error(f"Project generation failed: {e}")
 
     return _generate_fallback_projects(skills, role, project_type)
+
+
+import re
 
 
 def _generate_fallback_projects(

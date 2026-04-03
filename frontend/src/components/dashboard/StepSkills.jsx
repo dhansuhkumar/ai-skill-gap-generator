@@ -88,6 +88,7 @@ const StepSkills = ({ skills, setSkills, onConfirm, loading, skillsSaved, error,
                 <ResumeUpload 
                     onSkillsExtracted={(newSkills) => setSkills(prev => [...new Set([...prev, ...newSkills])])} 
                     onExperienceLevelExtracted={(expLevel) => setExperienceLevel(expLevel)}
+                    onResumeDataExtracted={() => {}}
                 />
             </div>
 
