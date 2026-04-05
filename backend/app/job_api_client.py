@@ -138,13 +138,12 @@ def _search_remotive(
 
     if experience_level == "fresher":
         for skill in skills[:2]:
-            search_queries.append(f"{skill} junior")
-            search_queries.append(f"{skill} entry level")
-        search_queries.append("junior software developer")
-        search_queries.append("entry level software engineer")
+            search_queries.append(skill)
+        search_queries.append("junior")
+        search_queries.append("entry")
     else:
         for skill in skills[:2]:
-            search_queries.append(f"{skill} developer")
+            search_queries.append(skill)
         search_queries.append(role)
 
     seen = set()
@@ -384,12 +383,66 @@ def _search_adzuna(
     return jobs[:max_results]
 
 
+def _is_job_nearby(job_location: str, user_location: Dict) -> bool:
+    """Check if job location is near user's location."""
+    if not job_location or not user_location:
+        return False
+
+    user_city = user_location.get("city", "").lower()
+    user_state = user_location.get("state", "").lower()
+    job_loc_lower = job_location.lower()
+
+    nearby_cities = {
+        "bangalore": ["bengaluru", "bengalore", "mysore", "hubli"],
+        "bengaluru": ["bangalore", "bengalore", "mysore", "hubli"],
+        "mumbai": ["navi mumbai", "thane", "pune", "nashik"],
+        "delhi": [
+            "new delhi",
+            "gurgaon",
+            "gurugram",
+            "noida",
+            "faridabad",
+            "ghaziabad",
+        ],
+        "new delhi": [
+            "delhi",
+            "gurgaon",
+            "gurugram",
+            "noida",
+            "faridabad",
+            "ghaziabad",
+        ],
+        "gurgaon": ["gurugram", "delhi", "new delhi", "noida", "faridabad"],
+        "gurugram": ["gurgaon", "delhi", "new delhi", "noida", "faridabad"],
+        "noida": ["greater noida", "delhi", "new delhi", "gurgaon", "gurugram"],
+        "hyderabad": ["secunderabad", "warangal"],
+        "secunderabad": ["hyderabad", "warangal"],
+        "chennai": ["coimbatore", "madurai", "trichy"],
+        "pune": ["mumbai", "nagpur"],
+        "kolkata": ["howrah", "siliguri", "durgapur"],
+        "kochi": ["trivandrum", "thiruvananthapuram", "kozhikode"],
+    }
+
+    if user_city:
+        metro_cities = nearby_cities.get(user_city, [])
+        if user_city in job_loc_lower or any(
+            city in job_loc_lower for city in metro_cities
+        ):
+            return True
+
+        if user_state and user_state in job_loc_lower:
+            return True
+
+    return False
+
+
 def search_jobs(
     skills: List[str],
     role: str,
     experience_level: str = "neutral",
     location: str = "India",
     max_results: int = 20,
+    user_location: Dict = None,
 ) -> Dict:
     """
     Search all job APIs and return combined, deduplicated results.
@@ -400,6 +453,7 @@ def search_jobs(
         experience_level: "fresher", "experienced", or "neutral"
         location: Geographic location filter
         max_results: Maximum jobs to return
+        user_location: Dict with city, state, country extracted from resume
 
     Returns:
         Dict with:
@@ -407,7 +461,11 @@ def search_jobs(
             - total_found: Total jobs found across all sources
             - sources: Which APIs were used
     """
-    cache_key = f"{','.join(sorted(skills[:5]))}|{role}|{experience_level}|{location}|{max_results}"
+    if user_location is None:
+        user_location = {}
+
+    user_city = user_location.get("city", "").lower()
+    cache_key = f"{','.join(sorted(skills[:5]))}|{role}|{experience_level}|{location}|{max_results}|{user_city}"
 
     if cache_key in _JOB_CACHE:
         cached_jobs, cached_time = _JOB_CACHE[cache_key]
@@ -421,7 +479,7 @@ def search_jobs(
             }
 
     logger.info(
-        f"Searching jobs: role={role}, exp={experience_level}, skills={len(skills)}"
+        f"Searching jobs: role={role}, exp={experience_level}, city={user_city}, skills={len(skills)}"
     )
 
     all_jobs = []
@@ -472,17 +530,43 @@ def search_jobs(
         url = job.get("job_link", "")
         if url and url not in seen_urls:
             seen_urls.add(url)
+
+            job_location = job.get("job_location", "").lower()
+            is_remote = "remote" in job_location or "work from home" in job_location
+
+            if user_location and not is_remote:
+                is_nearby = _is_job_nearby(job.get("job_location", ""), user_location)
+                job["location_match"] = is_nearby
+            else:
+                job["location_match"] = is_remote
+
             unique_jobs.append(job)
 
-    unique_jobs.sort(key=lambda x: x.get("success_rate", 0), reverse=True)
+    def _sort_jobs_key(job):
+        score = job.get("success_rate", 0)
+        location_match = job.get("location_match", False)
+        is_remote = "remote" in job.get("job_location", "").lower()
+
+        if location_match:
+            score += 30
+        elif is_remote:
+            score += 15
+
+        return score
+
+    unique_jobs.sort(key=_sort_jobs_key, reverse=True)
+
+    nearby_count = sum(1 for j in unique_jobs if j.get("location_match", False))
+    logger.info(
+        f"Total unique jobs: {len(unique_jobs)}, nearby: {nearby_count}, sources: {sources_used}"
+    )
 
     _JOB_CACHE[cache_key] = (unique_jobs, time.time())
-
-    logger.info(f"Total unique jobs: {len(unique_jobs)} from sources: {sources_used}")
 
     return {
         "jobs": unique_jobs[:max_results],
         "total_found": len(unique_jobs),
+        "nearby_count": nearby_count,
         "sources": sources_used or ["remotive"],
         "cached": False,
     }

@@ -37,6 +37,7 @@ const StepRole = ({ role, setRole, onConfirm, onBack, loading, error }) => {
             <div style={{ position: 'relative', marginBottom: '1.75rem' }}>
                 <input
                     type="text"
+                    id="role-input"
                     className="input-field"
                     value={role}
                     onChange={(e) => setRole(e.target.value)}

@@ -462,7 +462,7 @@ def _count_skill_frequency(snippets: List[str]) -> Dict[str, int]:
 
 def search_role_skills(role: str, top_n: int = 15) -> Tuple[List[str], int]:
     """
-    Search DuckDuckGo for skills required for a role.
+    Extract skills for a role using LLM (primary) or predefined fallback.
 
     Args:
         role: Target job role (e.g., "Python Developer")
@@ -476,67 +476,182 @@ def search_role_skills(role: str, top_n: int = 15) -> Tuple[List[str], int]:
         logger.info(f"Using cached skills for role: {role}")
         return _SKILL_CACHE[cache_key]
 
-    logger.info(f"Searching skills for role: {role}")
-
-    all_snippets = []
-    sources_analyzed = 0
+    logger.info(f"Extracting skills for role: {role} via LLM")
 
     try:
-        from ddgs import DDGS
+        from .llm_skill_extractor import extract_skills_with_llm
 
-        queries = [
-            f'"{role}" job requirements skills 2025 2026',
-            f'"{role}" job description required qualifications',
-            f'"{role}" hiring skills needed tech',
-            f'site:linkedin.com "{role}" job skills required',
-            f'site:indeed.com "{role}" qualifications skills',
-        ]
-
-        with DDGS() as ddgs:
-            seen = set()
-            for query in queries:
-                if len(all_snippets) >= 100:
-                    break
-
-                try:
-                    for r in ddgs.text(query, max_results=15):
-                        url = r.get("href", "")
-                        body = r.get("body", "")
-                        title = r.get("title", "")
-
-                        content_hash = hashlib.md5(body.encode()).hexdigest()
-                        if content_hash in seen or len(body) < 50:
-                            continue
-
-                        seen.add(content_hash)
-                        all_snippets.append(body)
-                        all_snippets.append(title)
-                        sources_analyzed += 1
-
-                except Exception as e:
-                    logger.warning(f"Query failed: {query[:50]} - {e}")
-                    continue
-
-        logger.info(f"Found {sources_analyzed} sources for {role}")
-
+        skills, source = extract_skills_with_llm(role, top_n)
+        if skills:
+            logger.info(f"LLM extracted {len(skills)} skills for {role}")
+            _SKILL_CACHE[cache_key] = (skills, 1)
+            return (skills, 1)
     except Exception as e:
-        logger.error(f"Web search failed for {role}: {e}")
-        return ([], 0)
+        logger.warning(f"LLM extraction failed: {e}, using fallback")
 
-    if not all_snippets:
-        logger.warning(f"No snippets found for role: {role}")
-        _SKILL_CACHE[cache_key] = ([], 0)
-        return ([], 0)
+    logger.warning(f"Using predefined fallback skills for {role}")
+    fallback_skills = _get_role_fallback_skills(role)
+    _SKILL_CACHE[cache_key] = (fallback_skills, 0)
+    return (fallback_skills, 0)
 
-    skill_freq = _count_skill_frequency(all_snippets)
 
-    sorted_skills = sorted(skill_freq.items(), key=lambda x: x[1], reverse=True)
-    top_skills = [skill for skill, count in sorted_skills[:top_n]]
+def _get_role_fallback_skills(role: str) -> List[str]:
+    """Get fallback skills based on role keywords."""
+    role_lower = role.lower()
 
-    logger.info(f"Top {len(top_skills)} skills for {role}: {top_skills[:5]}...")
+    role_skill_map = {
+        "backend": [
+            "Python",
+            "Java",
+            "Node.js",
+            "SQL",
+            "REST API",
+            "Git",
+            "Linux",
+            "Docker",
+        ],
+        "frontend": [
+            "JavaScript",
+            "React",
+            "HTML",
+            "CSS",
+            "TypeScript",
+            "Git",
+            "REST API",
+        ],
+        "full stack": [
+            "JavaScript",
+            "React",
+            "Python",
+            "SQL",
+            "REST API",
+            "Git",
+            "Docker",
+        ],
+        "python": ["Python", "Django", "Flask", "SQL", "Git", "REST API", "Docker"],
+        "java": ["Java", "Spring", "SQL", "Git", "REST API", "Docker", "Maven"],
+        "javascript": [
+            "JavaScript",
+            "Node.js",
+            "React",
+            "TypeScript",
+            "Git",
+            "REST API",
+        ],
+        "react": [
+            "React",
+            "JavaScript",
+            "TypeScript",
+            "HTML",
+            "CSS",
+            "REST API",
+            "Git",
+        ],
+        "machine learning": [
+            "Python",
+            "Machine Learning",
+            "TensorFlow",
+            "PyTorch",
+            "SQL",
+            "Data Science",
+        ],
+        "ml": [
+            "Python",
+            "Machine Learning",
+            "TensorFlow",
+            "PyTorch",
+            "SQL",
+            "Data Science",
+        ],
+        "data science": [
+            "Python",
+            "Data Science",
+            "SQL",
+            "Machine Learning",
+            "Pandas",
+            "Statistics",
+        ],
+        "devops": ["Docker", "Kubernetes", "AWS", "Linux", "CI/CD", "Terraform", "Git"],
+        "cloud": [
+            "AWS",
+            "Azure",
+            "Docker",
+            "Kubernetes",
+            "Linux",
+            "Terraform",
+            "CI/CD",
+        ],
+        "web developer": ["JavaScript", "React", "HTML", "CSS", "Python", "SQL", "Git"],
+        "software engineer": [
+            "Python",
+            "Java",
+            "SQL",
+            "Git",
+            "Docker",
+            "REST API",
+            "Data Structures",
+        ],
+        "software developer": [
+            "Python",
+            "Java",
+            "SQL",
+            "Git",
+            "Docker",
+            "REST API",
+            "Data Structures",
+        ],
+        "backend engineer": [
+            "Python",
+            "Java",
+            "SQL",
+            "REST API",
+            "Git",
+            "Linux",
+            "Docker",
+            "Redis",
+        ],
+        "frontend engineer": [
+            "JavaScript",
+            "React",
+            "TypeScript",
+            "CSS",
+            "HTML",
+            "Git",
+            "REST API",
+        ],
+        "full stack engineer": [
+            "JavaScript",
+            "React",
+            "Python",
+            "SQL",
+            "REST API",
+            "Docker",
+            "Git",
+        ],
+        "data engineer": [
+            "Python",
+            "SQL",
+            "Spark",
+            "Airflow",
+            "Kafka",
+            "AWS",
+            "Data Engineering",
+        ],
+        "security": [
+            "Security",
+            "Cybersecurity",
+            "Python",
+            "Network Security",
+            "Penetration Testing",
+        ],
+        "mobile": ["React Native", "Flutter", "iOS", "Android", "JavaScript", "API"],
+    }
 
-    _SKILL_CACHE[cache_key] = (top_skills, sources_analyzed)
-    return (top_skills, sources_analyzed)
+    for key, skills in role_skill_map.items():
+        if key in role_lower:
+            return skills
+
+    return ["Python", "JavaScript", "SQL", "Git", "REST API", "Docker", "Linux"]
 
 
 def get_role_skills_from_job_listings(

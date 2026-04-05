@@ -6,6 +6,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 const apiClient = axios.create({
     baseURL: API_URL,
     withCredentials: true,
+    timeout: 30000,
     headers: {
         'Content-Type': 'application/json',
     },
@@ -38,9 +39,9 @@ export const api = {
 
     analyzeGaps: (skills, target_role) => apiClient.post('/api/recommend', { role: target_role, skills }),
 
-    analyzeRoleGaps: (skills, target_role) => apiClient.post('/api/analyze_role_gaps', { role: target_role, skills }),
+    analyzeRoleGaps: (skills, target_role) => apiClient.post('/api/analyze_role_gaps', { role: target_role, skills }, { timeout: 25000 }),
 
-    generateLearningPath: (params) => apiClient.post('/api/generate_learning_path', params),
+    generateLearningPath: (params) => apiClient.post('/api/generate_learning_path', params, { timeout: 60000 }),
 
     recommend: (role, skills, provider, includeYoutube) =>
         apiClient.post('/api/recommend', { role, skills, provider, include_youtube: includeYoutube }),

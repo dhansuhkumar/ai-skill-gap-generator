@@ -388,6 +388,7 @@ Provide helpful, concise, and encouraging responses. Focus on practical advice.
                             }}>
                                 <input
                                     type="text"
+                                    id="chat-input"
                                     value={input}
                                     onChange={(e) => setInput(e.target.value)}
                                     placeholder="Ask anything..."

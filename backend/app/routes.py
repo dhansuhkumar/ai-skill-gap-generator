@@ -14,8 +14,9 @@ logger = logging.getLogger(__name__)
 
 main = Blueprint("main", __name__)
 
+_local_profiles = {}
 
-@main.route("/")
+
 def home():
     return jsonify({"message": "Skill Gap API v3 (Web-Search Mode) is running!"})
 
@@ -97,6 +98,9 @@ def upload_resume():
             "total_experience_years": deep_result.get("total_experience_years"),
             "github_url": deep_result.get("github_url", ""),
             "linkedin_url": deep_result.get("linkedin_url", ""),
+            "location": deep_result.get(
+                "location", {"city": "", "state": "", "country": ""}
+            ),
             "filled_boxes": deep_result.get("filled_boxes", 0),
             "total_boxes": deep_result.get("total_boxes", 7),
             "filled_percentage": deep_result.get("filled_percentage", 0),
@@ -212,21 +216,37 @@ def save_profile():
 
     try:
         supabase = current_app.supabase
-        supabase.table("profiles").upsert(
-            {
-                "user_id": user_id,
-                "role": role,
-                "skills": json.dumps(skills),
-                "recommendations": json.dumps(recommendations),
-                "experience_level": experience_level,
-                "estimated_years": estimated_years,
-            },
-            on_conflict="user_id",
-        ).execute()
-        return jsonify({"message": "Profile saved"}), 200
+        if supabase:
+            supabase.table("profiles").upsert(
+                {
+                    "user_id": user_id,
+                    "role": role,
+                    "skills": json.dumps(skills),
+                    "recommendations": json.dumps(recommendations),
+                    "experience_level": experience_level,
+                    "estimated_years": estimated_years,
+                },
+                on_conflict="user_id",
+            ).execute()
+            return jsonify({"message": "Profile saved"}), 200
     except Exception as e:
-        logger.error(f"Save profile failed: {e}")
-        return jsonify({"error": "Failed to save profile"}), 500
+        logger.warning(
+            f"Supabase save failed (table may not exist), using in-memory: {e}"
+        )
+
+    _local_profiles[user_id] = {
+        "role": role,
+        "skills": skills,
+        "recommendations": recommendations,
+        "experience_level": experience_level,
+        "estimated_years": estimated_years,
+    }
+    return jsonify(
+        {
+            "message": "Profile saved (in-memory)",
+            "note": "Run SQL migration for persistence",
+        }
+    ), 200
 
 
 @main.route("/profile", methods=["GET"])
@@ -235,27 +255,52 @@ def profile():
     user_id = g.user["id"]
     try:
         supabase = current_app.supabase
-        result = supabase.table("profiles").select("*").eq("user_id", user_id).execute()
-        if not result.data:
-            return jsonify({"error": "Not found"}), 404
-        row = result.data[0]
+        if supabase:
+            result = (
+                supabase.table("profiles").select("*").eq("user_id", user_id).execute()
+            )
+            if result.data:
+                row = result.data[0]
+                return jsonify(
+                    {
+                        "user_id": user_id,
+                        "role": row.get("role"),
+                        "skills": json.loads(row.get("skills", "[]"))
+                        if isinstance(row.get("skills"), str)
+                        else row.get("skills", []),
+                        "recommendations": json.loads(row.get("recommendations", "[]"))
+                        if isinstance(row.get("recommendations"), str)
+                        else row.get("recommendations", []),
+                        "experience_level": row.get("experience_level", "neutral"),
+                        "estimated_years": row.get("estimated_years"),
+                    }
+                ), 200
+    except Exception as e:
+        logger.warning(f"Supabase query failed (table may not exist): {e}")
+
+    if user_id in _local_profiles:
+        local = _local_profiles[user_id]
         return jsonify(
             {
                 "user_id": user_id,
-                "role": row.get("role"),
-                "skills": json.loads(row.get("skills", "[]"))
-                if isinstance(row.get("skills"), str)
-                else row.get("skills", []),
-                "recommendations": json.loads(row.get("recommendations", "[]"))
-                if isinstance(row.get("recommendations"), str)
-                else row.get("recommendations", []),
-                "experience_level": row.get("experience_level", "neutral"),
-                "estimated_years": row.get("estimated_years"),
+                "role": local.get("role"),
+                "skills": local.get("skills", []),
+                "recommendations": local.get("recommendations", []),
+                "experience_level": local.get("experience_level", "neutral"),
+                "estimated_years": local.get("estimated_years"),
             }
         ), 200
-    except Exception as e:
-        logger.error(f"Get profile failed: {e}")
-        return jsonify({"error": "Failed to get profile"}), 500
+
+    return jsonify(
+        {
+            "user_id": user_id,
+            "role": None,
+            "skills": [],
+            "recommendations": [],
+            "experience_level": "neutral",
+            "estimated_years": None,
+        }
+    ), 200
 
 
 @main.route("/job_matches", methods=["POST", "OPTIONS"])
@@ -274,9 +319,10 @@ def get_job_matches():
     user_skills = data.get("skills", [])
     target_role = data.get("role", "")
     experience_level = data.get("experience_level", "neutral")
+    user_location = data.get("location", {})
 
     logger.info(
-        f"job_matches: role='{target_role}', exp='{experience_level}', skills={len(user_skills)}"
+        f"job_matches: role='{target_role}', exp='{experience_level}', location={user_location}"
     )
 
     if not target_role:
@@ -290,6 +336,7 @@ def get_job_matches():
             role=target_role,
             experience_level=experience_level,
             max_results=20,
+            user_location=user_location,
         )
 
         jobs = result.get("jobs", [])
@@ -305,6 +352,7 @@ def get_job_matches():
                 "total_found": result.get("total_found", len(jobs)),
                 "sources": result.get("sources", []),
                 "experience_filter": experience_level,
+                "user_location": user_location,
                 "stats": stats,
             }
         )

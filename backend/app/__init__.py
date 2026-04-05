@@ -9,7 +9,7 @@ from flask_cors import CORS
 from logging.handlers import RotatingFileHandler
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
 # Optional phase2 routes may not exist in the committed tree (guard import)
 phase2_bp = None

@@ -15,9 +15,16 @@ except Exception:
     Groq = None
     GROQ_AVAILABLE = False
 
+try:
+    import google.generativeai as genai
+    GEMINI_AVAILABLE = True
+except Exception:
+    genai = None
+    GEMINI_AVAILABLE = False
+
 
 def get_ai_response(prompt: str, requested_provider: Optional[str] = None, is_json: bool = True) -> str:
-    """Try Groq first (LLaMA 3), then fallback to local heuristic."""
+    """Try Groq first (LLaMA 3), then fallback to Gemini, then local heuristic."""
     if not isinstance(prompt, str) or not prompt.strip():
         logger.warning("Invalid prompt provided to get_ai_response")
         return _get_fallback_response(is_json)
@@ -45,10 +52,32 @@ def get_ai_response(prompt: str, requested_provider: Optional[str] = None, is_js
             )
             raw = response.choices[0].message.content
             if raw and len(raw) > 10:
+                logger.info("Successfully used Groq API")
                 return raw
         except Exception as e:
             logger.error(f"Groq failed: {e}")
 
+    # Fallback to Gemini
+    gemini_key = os.getenv("GEMINI_API_KEY")
+    if gemini_key and GEMINI_AVAILABLE:
+        try:
+            genai.configure(api_key=gemini_key)
+            model = genai.GenerativeModel('gemini-1.5-flash')
+            
+            if is_json:
+                full_prompt = "You are a career development AI assistant. Always respond with valid JSON only.\n\n" + prompt
+            else:
+                full_prompt = "You are a helpful career development AI assistant. Be conversational, helpful, and keep it concise. Do not use JSON formatting.\n\n" + prompt
+                
+            response = model.generate_content(full_prompt)
+            raw = response.text
+            if raw and len(raw) > 10:
+                logger.info("Successfully used Gemini API as fallback")
+                return raw
+        except Exception as e:
+            logger.error(f"Gemini fallback failed: {e}")
+
+    logger.warning("All AI providers failed, using local heuristic fallback")
     return _get_fallback_response(is_json)
 
 

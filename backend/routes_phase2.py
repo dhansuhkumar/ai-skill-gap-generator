@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 # Do NOT import openai globally to avoid circular import crashes during app startup
 # from openai import AsyncOpenAI
 
-load_dotenv()
+load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
 logger = logging.getLogger(__name__)
 
@@ -477,23 +477,30 @@ def generate_learning_path():
                     flush=True,
                 )
 
-                for skill in selected_skills:
-                    # Search for skill-specific tutorials
-                    video_results = search_youtube_videos(
+                from concurrent.futures import ThreadPoolExecutor, as_completed
+
+                def fetch_videos_for_skill(skill):
+                    return skill, search_youtube_videos(
                         f"{skill} tutorial {target_role}",
-                        max_results=3,  # 3 videos per skill
+                        max_results=3,
                         allow_search=True,
                     )
 
-                    if video_results:
-                        # Store videos for this skill
-                        skill_videos[skill] = video_results[:3]
-                        logger.info(
-                            f"   ✅ Found {len(video_results)} videos for {skill}"
-                        )
-                    else:
-                        logger.warning(f"   ⚠️ No videos found for {skill}")
-                        skill_videos[skill] = []
+                with ThreadPoolExecutor(max_workers=5) as executor:
+                    futures = {
+                        executor.submit(fetch_videos_for_skill, skill): skill
+                        for skill in selected_skills
+                    }
+                    for future in as_completed(futures):
+                        skill, video_results = future.result()
+                        if video_results:
+                            skill_videos[skill] = video_results[:3]
+                            logger.info(
+                                f"   ✅ Found {len(video_results)} videos for {skill}"
+                            )
+                        else:
+                            logger.warning(f"   ⚠️ No videos found for {skill}")
+                            skill_videos[skill] = []
 
                 # Also collect all videos for general display
                 for vids in skill_videos.values():

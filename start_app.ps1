@@ -8,7 +8,7 @@ $backendProcess = Start-Process -FilePath "python" -ArgumentList "-m backend.run
 
 # 2. Start Frontend
 Write-Host "Starting Frontend..." -ForegroundColor Green
-$frontendProcess = Start-Process -FilePath "npm" -ArgumentList "run dev" -WorkingDirectory "$PSScriptRoot\frontend" -PassThru -NoNewWindow
+$frontendProcess = Start-Process -FilePath "npm.cmd" -ArgumentList "run dev" -WorkingDirectory "$PSScriptRoot\frontend" -PassThru -NoNewWindow
 
 Write-Host "Application started!" -ForegroundColor Yellow
 Write-Host "Backend: http://localhost:8080"

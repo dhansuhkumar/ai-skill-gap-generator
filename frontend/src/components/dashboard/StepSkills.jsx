@@ -119,6 +119,7 @@ const StepSkills = ({ skills, setSkills, onConfirm, loading, skillsSaved, error,
                 <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem' }}>
                     <input
                         type="text"
+                        id="github-username-input"
                         placeholder="Enter your GitHub username"
                         value={githubUsername}
                         onChange={(e) => setGithubUsername(e.target.value)}

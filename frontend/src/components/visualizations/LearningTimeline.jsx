@@ -1,18 +1,23 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle2, Circle, Clock, ChevronRight, Gift } from 'lucide-react';
-import Timeline from '../ui/Timeline';
+import { motion } from 'framer-motion';
+import { Trophy, Flame, Zap, Award, Clock, BookOpen, Star } from 'lucide-react';
+import EnhancedLearningCard from '../gamification/EnhancedLearningCard';
 
 /**
- * LearningTimeline - Interactive timeline showing learning path milestones
+ * LearningTimeline - Enhanced interactive timeline with gamification
  * 
  * Props:
- * - timelineData: Array of { skill, summary, milestones, total_steps, completed_steps, progress_percentage }
+ * - timelineData: Array of { skill, summary, milestones, total_steps, completed_steps, progress_percentage, youtube_videos }
  * - onToggleComplete: Callback when user marks step as complete (skill, stepIndex, completed)
+ * - onCompleteSkill: Callback when a skill is fully completed
+ * - gamification: { xp, level, streak, achievements, progressPercentage }
  */
-const LearningTimeline = ({ timelineData, onToggleComplete }) => {
-    const [expandedSkill, setExpandedSkill] = useState(null);
-
+const LearningTimeline = ({ 
+    timelineData, 
+    onToggleComplete, 
+    onCompleteSkill,
+    gamification 
+}) => {
     if (!timelineData || timelineData.length === 0) {
         return (
             <div className="glass-panel" style={{ padding: '2rem', textAlign: 'center' }}>
@@ -21,116 +26,112 @@ const LearningTimeline = ({ timelineData, onToggleComplete }) => {
         );
     }
 
-    const handleToggleComplete = (skill, stepIndex, currentCompleted) => {
+    const handleToggleComplete = (skill, stepIndex, completed) => {
         if (onToggleComplete) {
-            onToggleComplete(skill, stepIndex, !currentCompleted);
+            onToggleComplete(skill, stepIndex, completed);
         }
     };
 
+    const completedSkills = timelineData.filter(s => s.progress_percentage === 100).length;
+    const totalSkills = timelineData.length;
+    const totalTasks = timelineData.reduce((acc, s) => acc + s.total_steps, 0);
+    const completedTasks = timelineData.reduce((acc, s) => acc + s.completed_steps, 0);
+
     return (
-        <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            style={{ display: 'grid', gap: '1.5rem' }}
-        >
-            {timelineData.map((skillData, idx) => {
-                const isExpanded = expandedSkill === skillData.skill;
+        <div>
+            {/* Summary Header */}
+            <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+                gap: '1rem',
+                marginBottom: '1.5rem'
+            }}>
+                <SummaryCard 
+                    icon={<Trophy size={20} color="#fbbf24" />}
+                    value={completedSkills}
+                    label="Skills Mastered"
+                    color="#fbbf24"
+                />
+                <SummaryCard 
+                    icon={<Award size={20} color="#8b5cf6" />}
+                    value={`${completedTasks}/${totalTasks}`}
+                    label="Tasks Done"
+                    color="#8b5cf6"
+                />
+                <SummaryCard 
+                    icon={<Zap size={20} color="#f97316" />}
+                    value={gamification?.xp || 0}
+                    label="XP Earned"
+                    color="#f97316"
+                />
+                <SummaryCard 
+                    icon={<Flame size={20} color="#ef4444" />}
+                    value={gamification?.streak || 0}
+                    label="Day Streak"
+                    color="#ef4444"
+                />
+            </div>
 
-                return (
-                    <div
+            {/* Learning Path Cards */}
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                style={{ display: 'grid', gap: '1.5rem' }}
+            >
+                {timelineData.map((skillData, idx) => (
+                    <motion.div
                         key={skillData.skill}
-                        className="glass-panel"
-                        style={{ padding: '1.5rem', overflow: 'hidden' }}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: idx * 0.1 }}
                     >
-                        {/* Skill Header */}
-                        <div
-                            style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                cursor: 'pointer',
-                                marginBottom: isExpanded ? '1.5rem' : 0
-                            }}
-                            onClick={() => setExpandedSkill(isExpanded ? null : skillData.skill)}
-                        >
-                            <div style={{ flex: 1 }}>
-                                <h4 style={{ fontSize: '1.25rem', marginBottom: '0.5rem', color: 'var(--color-primary)' }}>
-                                    {skillData.skill}
-                                </h4>
-                                <p style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)', marginBottom: '0.75rem' }}>
-                                    {skillData.summary}
-                                </p>
-
-                                {/* Progress Bar */}
-                                <div style={{ marginBottom: '0.5rem' }}>
-                                    <div style={{
-                                        display: 'flex',
-                                        justifyContent: 'space-between',
-                                        fontSize: '0.85rem',
-                                        marginBottom: '0.5rem'
-                                    }}>
-                                        <span style={{ color: 'var(--color-text-muted)' }}>
-                                            {skillData.completed_steps} of {skillData.total_steps} steps completed
-                                        </span>
-                                        <span style={{ color: 'var(--color-primary)', fontWeight: 600 }}>
-                                            {skillData.progress_percentage}%
-                                        </span>
-                                    </div>
-                                    <div style={{
-                                        width: '100%',
-                                        height: '8px',
-                                        background: 'rgba(255,255,255,0.1)',
-                                        borderRadius: '4px',
-                                        overflow: 'hidden'
-                                    }}>
-                                        <motion.div
-                                            initial={{ width: 0 }}
-                                            animate={{ width: `${skillData.progress_percentage}%` }}
-                                            transition={{ duration: 0.5, delay: idx * 0.1 }}
-                                            style={{
-                                                height: '100%',
-                                                background: 'linear-gradient(90deg, #667eea 0%, #f093fb 100%)',
-                                                borderRadius: '4px'
-                                            }}
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-
-                            <motion.div
-                                animate={{ rotate: isExpanded ? 90 : 0 }}
-                                transition={{ duration: 0.2 }}
-                                style={{ marginLeft: '1rem' }}
-                            >
-                                <ChevronRight size={24} color="var(--color-text-muted)" />
-                            </motion.div>
-                        </div>
-
-                        {/* Milestones (Expandable) */}
-                        <AnimatePresence>
-                            {isExpanded && (
-                                <motion.div
-                                    initial={{ height: 0, opacity: 0 }}
-                                    animate={{ height: 'auto', opacity: 1 }}
-                                    exit={{ height: 0, opacity: 0 }}
-                                    transition={{ duration: 0.3 }}
-                                    style={{ overflow: 'hidden' }}
-                                >
-                                    <div style={{ paddingTop: '1rem' }}>
-                                        <Timeline
-                                            steps={skillData.milestones}
-                                            youtubeVideos={skillData.youtube_videos}
-                                            onToggleStep={(stepIdx, completed) => handleToggleComplete(skillData.skill, stepIdx, completed)}
-                                        />
-                                    </div>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
-                    </div>
-                );
-            })}
-        </motion.div>
+                        <EnhancedLearningCard
+                            skillData={skillData}
+                            onToggleComplete={handleToggleComplete}
+                            onCompleteSkill={onCompleteSkill}
+                        />
+                    </motion.div>
+                ))}
+            </motion.div>
+        </div>
     );
 };
+
+const SummaryCard = ({ icon, value, label, color }) => (
+    <div className="glass-panel" style={{ 
+        padding: '1rem',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        textAlign: 'center',
+        gap: '0.5rem'
+    }}>
+        <div style={{
+            width: '48px',
+            height: '48px',
+            borderRadius: '12px',
+            background: `${color}15`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+        }}>
+            {icon}
+        </div>
+        <div style={{ 
+            fontSize: '1.5rem', 
+            fontWeight: 800, 
+            color: 'var(--color-text-main)',
+            lineHeight: 1
+        }}>
+            {value}
+        </div>
+        <div style={{ 
+            fontSize: '0.75rem', 
+            color: 'var(--color-text-muted)'
+        }}>
+            {label}
+        </div>
+    </div>
+);
 
 export default LearningTimeline;

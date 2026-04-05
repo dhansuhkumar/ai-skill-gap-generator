@@ -10,7 +10,7 @@ root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if root_dir not in sys.path:
     sys.path.insert(0, root_dir)
 
-load_dotenv()
+load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
 # Import local backend bootstrap (database init) after adjusting sys.path
 # Prefer Supabase when configured; otherwise initialize local SQLite

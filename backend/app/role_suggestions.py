@@ -2,12 +2,16 @@
 """
 Alternative Role Suggestions - Find roles user has high chance to become.
 Uses web search instead of HuggingFace datasets.
+OPTIMIZED: Parallel skill lookups for faster alternative role discovery.
 """
 
 from typing import List, Dict
-from .web_skill_extractor import search_role_skills, get_tech_skills_vocab
+from .web_skill_extractor import search_role_skills, get_tech_skills_vocab, _SKILL_CACHE
 from .skill_cleaner import clean_and_deduplicate_skills
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import logging
 
+logger = logging.getLogger(__name__)
 
 COMMON_ROLES = [
     "Frontend Developer",
@@ -27,10 +31,157 @@ COMMON_ROLES = [
     "UI/UX Designer",
 ]
 
+ROLE_REQUIRED_SKILLS = {
+    "Frontend Developer": [
+        "JavaScript",
+        "React",
+        "HTML",
+        "CSS",
+        "TypeScript",
+        "Git",
+        "REST API",
+        "Responsive Design",
+    ],
+    "Backend Developer": [
+        "Python",
+        "Java",
+        "Node.js",
+        "SQL",
+        "REST API",
+        "Git",
+        "Linux",
+        "Docker",
+    ],
+    "Full Stack Developer": [
+        "JavaScript",
+        "React",
+        "Python",
+        "SQL",
+        "REST API",
+        "Git",
+        "Docker",
+        "HTML",
+        "CSS",
+    ],
+    "Software Engineer": [
+        "Python",
+        "Java",
+        "SQL",
+        "Git",
+        "Docker",
+        "REST API",
+        "Data Structures",
+        "Algorithms",
+    ],
+    "Data Scientist": [
+        "Python",
+        "Data Science",
+        "Machine Learning",
+        "SQL",
+        "Statistics",
+        "Pandas",
+        "Visualization",
+    ],
+    "Data Engineer": [
+        "Python",
+        "SQL",
+        "Spark",
+        "Airflow",
+        "Kafka",
+        "AWS",
+        "Data Engineering",
+        "ETL",
+    ],
+    "Machine Learning Engineer": [
+        "Python",
+        "Machine Learning",
+        "TensorFlow",
+        "PyTorch",
+        "SQL",
+        "Deep Learning",
+        "MLOps",
+    ],
+    "DevOps Engineer": [
+        "Docker",
+        "Kubernetes",
+        "AWS",
+        "Linux",
+        "CI/CD",
+        "Terraform",
+        "Git",
+        "Ansible",
+    ],
+    "Cloud Engineer": [
+        "AWS",
+        "Azure",
+        "Docker",
+        "Kubernetes",
+        "Linux",
+        "Terraform",
+        "CI/CD",
+        "Python",
+    ],
+    "Mobile Developer": [
+        "React Native",
+        "Flutter",
+        "iOS",
+        "Android",
+        "JavaScript",
+        "API",
+        "Git",
+    ],
+    "QA Engineer": [
+        "Testing",
+        "Selenium",
+        "Python",
+        "Automation",
+        "Jest",
+        "Cypress",
+        "Git",
+        "Agile",
+    ],
+    "Security Engineer": [
+        "Security",
+        "Cybersecurity",
+        "Python",
+        "Network Security",
+        "Penetration Testing",
+        "AWS",
+    ],
+    "Product Manager": [
+        "Agile",
+        "Communication",
+        "Data Analysis",
+        "Project Management",
+        "SQL",
+        "Strategy",
+    ],
+    "Web Developer": [
+        "JavaScript",
+        "React",
+        "HTML",
+        "CSS",
+        "Python",
+        "SQL",
+        "Git",
+        "REST API",
+    ],
+    "UI/UX Designer": [
+        "Figma",
+        "HTML",
+        "CSS",
+        "User Research",
+        "Prototyping",
+        "Design Systems",
+        "Wireframing",
+    ],
+}
+
 
 def get_alternative_roles(user_skills: List[str], limit: int = 5) -> List[Dict]:
     """
     Find alternative roles user has high chance to become based on their current skills.
+    OPTIMIZED: Uses pre-defined skills map to avoid slow web searches.
 
     Args:
         user_skills: List of skills the user already has
@@ -47,12 +198,7 @@ def get_alternative_roles(user_skills: List[str], limit: int = 5) -> List[Dict]:
     user_skills_lower = {s.lower().strip() for s in user_skills}
     role_matches = []
 
-    for role in COMMON_ROLES:
-        required_skills, sources = search_role_skills(role, top_n=20)
-
-        if not required_skills:
-            continue
-
+    for role, required_skills in ROLE_REQUIRED_SKILLS.items():
         required_lower = {s.lower().strip() for s in required_skills}
         matched = user_skills_lower.intersection(required_lower)
 

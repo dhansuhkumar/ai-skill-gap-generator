@@ -81,6 +81,126 @@ PROJECT_KEYWORDS = [
     "portfolio",
 ]
 
+INDIAN_CITIES = [
+    "bangalore",
+    "bengaluru",
+    "mumbai",
+    "delhi",
+    "new delhi",
+    "hyderabad",
+    "chennai",
+    "pune",
+    "kolkata",
+    "ahmedabad",
+    "jaipur",
+    "chandigarh",
+    "gurgaon",
+    "gurugram",
+    "noida",
+    "lucknow",
+    "kochi",
+    "trivandrum",
+    "thiruvananthapuram",
+    "coimbatore",
+    "mysore",
+    "mangalore",
+    "bhubaneswar",
+    "nagpur",
+    "indore",
+    "surat",
+    "vadodara",
+    "navi mumbai",
+    "navi",
+    "secunderabad",
+    "visakhapatnam",
+    "vijayawada",
+    "tirupati",
+    "raipur",
+    "bhopal",
+    "ludhiana",
+    "jalandhar",
+    "amritsar",
+    "patna",
+    "ranchi",
+    "jamshedpur",
+    "dhanbad",
+    "dehradun",
+    "haridwar",
+    "rohtak",
+    "panipat",
+    "karnal",
+    "alwar",
+    "udaipur",
+    "jodhpur",
+    "kota",
+    "ajmer",
+    "bikaner",
+    "srinagar",
+    "jammu",
+    "shimla",
+    "manali",
+    "guwahati",
+    "siliguri",
+    "imphal",
+    "aizawl",
+    "agartala",
+    "itanagar",
+    "itanagar",
+    "gangtok",
+    "shillong",
+    "kohima",
+    "hyderabad",
+    "secunderabad",
+    "mysore",
+    "madurai",
+    "tiruchirappalli",
+    "vellore",
+    "salem",
+    "tirunelveli",
+    "thanjavur",
+    "dindigul",
+    "erode",
+    "karur",
+    "nagercoil",
+    "kanpur",
+    "varanasi",
+    "allahabad",
+    "agra",
+    "meerut",
+    "aligarh",
+    "bareilly",
+    "gorakhpur",
+    "muzaffarnagar",
+    "saharanpur",
+    "mathura",
+    "firozabad",
+    "etawah",
+    "aurangabad",
+    "nashik",
+    "solapur",
+    "kolhapur",
+    "akola",
+    "amravati",
+    "jalgaon",
+    "dhule",
+    "latur",
+    "osmanabad",
+    "wardha",
+    "yavatmal",
+    "buldhana",
+    "washim",
+]
+
+CITY_PATTERNS = [
+    r"(?:location|Located in|Current Location|Present Address|City)[:\s]*([A-Za-z\s]+?)(?:\.|,|\n|$)",
+    r"(?:bangalore|bengaluru|mumbai|delhi|hyderabad|chennai|pune|kolkata|gurgaon|gurugram|noida)",
+]
+
+COMMON_LOCATION_PATTERNS = [
+    r"(\d{6})",  # PIN code
+    r"(?:India|IN|usa|us|uk|canada|australia|germany|uae|dubai|sharjah)",  # Countries
+]
+
 DEGREE_PATTERNS = [
     r"(?:b\.?tech|bachelor(?:'s)?|b\.?e\.?|b\.?sc|b\.?a\.?|b\.?com|m\.?tech|master(?:'s)?|m\.?sc|m\.?ba|ph\.?d\.?|doctorate)(?:\s+(?:of|in|Engineering|Science|Arts|Commerce|Business|Computer Applications|Computer Science|Information Technology))?",
     r"(?:computer science|data science|information technology|electronics|electrical|mechanical|civil|chemical|biotechnology|business administration)(?:\s+(?:engineering|technology|science))?",
@@ -96,6 +216,92 @@ DATE_PATTERNS = [
     r"(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s*(\d{4})\s*[-–—to]+\s*(?:(present)|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s*(\d{4}))",
     r"(\d{4})\s+to\s+(present|\d{4})",
 ]
+
+
+def _extract_location_from_resume(text: str) -> Dict[str, str]:
+    """Extract location (city/state) from resume text."""
+    text_lower = text.lower()
+
+    for city in INDIAN_CITIES:
+        if city in text_lower:
+            return {
+                "city": city.title(),
+                "state": _get_state_for_city(city),
+                "country": "India",
+            }
+
+    location_patterns = [
+        r"(?:location|Located in|Current Location|Present Address|City)[:\s]*([A-Za-z\s,]+?)(?:\n|,|\.|$)",
+        r"([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?),\s*(?:India|Karnataka|Maharashtra|Tamil Nadu|Telangana|Gujarat|West Bengal|Uttar Pradesh|Rajasthan|Kerala|Madhya Pradesh|Punjab|Haryana|Bihar)",
+    ]
+
+    for pattern in location_patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            location = match.group(1).strip()
+            if len(location) > 2 and len(location) < 50:
+                return {"city": location, "state": "", "country": "India"}
+
+    return {"city": "", "state": "", "country": ""}
+
+
+def _get_state_for_city(city: str) -> str:
+    """Get Indian state for major cities."""
+    city_states = {
+        "bangalore": "Karnataka",
+        "bengaluru": "Karnataka",
+        "mysore": "Karnataka",
+        "mangalore": "Karnataka",
+        "mumbai": "Maharashtra",
+        "pune": "Maharashtra",
+        "nagpur": "Maharashtra",
+        "navi mumbai": "Maharashtra",
+        "hyderabad": "Telangana",
+        "secunderabad": "Telangana",
+        "warangal": "Telangana",
+        "chennai": "Tamil Nadu",
+        "coimbatore": "Tamil Nadu",
+        "madurai": "Tamil Nadu",
+        "trichy": "Tamil Nadu",
+        "delhi": "Delhi",
+        "new delhi": "Delhi",
+        "kolkata": "West Bengal",
+        "kochi": "Kerala",
+        "trivandrum": "Kerala",
+        "thiruvananthapuram": "Kerala",
+        "kozhikode": "Kerala",
+        "ahmedabad": "Gujarat",
+        "surat": "Gujarat",
+        "vadodara": "Gujarat",
+        "rajkot": "Gujarat",
+        "jaipur": "Rajasthan",
+        "jodhpur": "Rajasthan",
+        "udaipur": "Rajasthan",
+        "kota": "Rajasthan",
+        "chandigarh": "Punjab",
+        "ludhiana": "Punjab",
+        "jalandhar": "Punjab",
+        "gurgaon": "Haryana",
+        "gurugram": "Haryana",
+        "faridabad": "Haryana",
+        "rohtak": "Haryana",
+        "panipat": "Haryana",
+        "noida": "Uttar Pradesh",
+        "lucknow": "Uttar Pradesh",
+        "kanpur": "Uttar Pradesh",
+        "varanasi": "Uttar Pradesh",
+        "indore": "Madhya Pradesh",
+        "bhopal": "Madhya Pradesh",
+        "bhubaneswar": "Odisha",
+        "cuttack": "Odisha",
+        "raipur": "Chhattisgarh",
+        "bilaspur": "Chhattisgarh",
+        "dehradun": "Uttarakhand",
+        "haridwar": "Uttarakhand",
+        "guwahati": "Assam",
+        "siliguri": "West Bengal",
+    }
+    return city_states.get(city.lower(), "")
 
 
 def _extract_skills_keyword(text: str) -> List[str]:
@@ -413,6 +619,7 @@ def extract_resume_deep(file_stream) -> dict:
         urls = _extract_urls(text)
         github_url = ai_result.get("github_url") or urls.get("github_url", "")
         linkedin_url = ai_result.get("linkedin_url") or urls.get("linkedin_url", "")
+        location_data = _extract_location_from_resume(text)
 
         filled_boxes = sum(
             [
@@ -438,6 +645,7 @@ def extract_resume_deep(file_stream) -> dict:
             "has_projects": has_projects,
             "github_url": github_url,
             "linkedin_url": linkedin_url,
+            "location": location_data,
             "filled_boxes": filled_boxes,
             "total_boxes": 7,
             "filled_percentage": round((filled_boxes / 7) * 100),
@@ -468,6 +676,7 @@ def _empty_deep_result() -> dict:
         "has_projects": False,
         "github_url": "",
         "linkedin_url": "",
+        "location": {"city": "", "state": "", "country": ""},
         "filled_boxes": 0,
         "total_boxes": 7,
         "filled_percentage": 0,

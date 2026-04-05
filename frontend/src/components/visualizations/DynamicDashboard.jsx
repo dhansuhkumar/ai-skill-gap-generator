@@ -1,19 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { BarChart3, TrendingUp, Github, Loader2 } from 'lucide-react';
 import SkillComparisonChart from './SkillComparisonChart';
 import LearningTimeline from './LearningTimeline';
 import CircularProgress from '../ui/CircularProgress';
+import { XPProgressBar, AchievementsPanel, LevelUpNotification, AchievementNotification } from '../gamification/GamificationPanel';
+import { useGamification } from '../../hooks/useGamification';
 import axios from 'axios';
 
 /**
- * DynamicDashboard - Unified visualization dashboard combining all data sources
+ * DynamicDashboard - Enhanced visualization dashboard with gamification
  *
  * Props:
  * - results: Learning path data from backend
  * - userSkills: User's current skills
  * - roleAnalysis: Role gap analysis data
- * - githubUsername: GitHub username (optional) — now actually triggers API call
+ * - githubUsername: GitHub username (optional)
  */
 const DynamicDashboard = ({ results, userSkills, roleAnalysis, githubUsername }) => {
     const [activeTab, setActiveTab] = useState('overview');
@@ -21,14 +23,16 @@ const DynamicDashboard = ({ results, userSkills, roleAnalysis, githubUsername })
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
-    // GitHub-specific state — fetched independently so it doesn't block the main view
+    // GitHub-specific state
     const [githubData, setGithubData] = useState(null);
     const [githubLoading, setGithubLoading] = useState(false);
     const [githubError, setGithubError] = useState('');
 
     // Path-based progress tracking state
-    const [pathProgress, setPathProgress] = useState({});
     const [overallProgress, setOverallProgress] = useState({ completed: 0, total: 0, percentage: 0 });
+
+    // Gamification
+    const gamification = useGamification(overallProgress);
 
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
@@ -46,6 +50,8 @@ const DynamicDashboard = ({ results, userSkills, roleAnalysis, githubUsername })
                 total,
                 percentage: total > 0 ? Math.round((completed / total) * 100) : 0
             });
+            // Check achievements
+            gamification.checkAchievements(completed, total);
         }
     }, [dashboardData]);
 
@@ -275,18 +281,6 @@ const DynamicDashboard = ({ results, userSkills, roleAnalysis, githubUsername })
             };
         });
 
-        // Update local path progress tracking
-        const taskKey = `${weekNumber}-${dayNumber}-${stepIndex}`;
-        setPathProgress(prev => {
-            const newProgress = { ...prev };
-            if (completed) {
-                newProgress[taskKey] = true;
-            } else {
-                delete newProgress[taskKey];
-            }
-            return newProgress;
-        });
-
         // Update overall progress state
         setOverallProgress(prev => {
             const delta = completed ? 1 : -1;
@@ -297,6 +291,11 @@ const DynamicDashboard = ({ results, userSkills, roleAnalysis, githubUsername })
                 percentage: prev.total > 0 ? Math.round((newCompleted / prev.total) * 100) : 0
             };
         });
+
+        // Update gamification if task completed
+        if (completed) {
+            gamification.completeTask();
+        }
 
         // Call API in background
         try {
@@ -318,33 +317,19 @@ const DynamicDashboard = ({ results, userSkills, roleAnalysis, githubUsername })
             );
         } catch (err) {
             console.error('Failed to save progress:', err);
-            // Revert optimistic update on failure
-            setDashboardData(prev => {
-                if (!prev) return prev;
-                const newTimeline = prev.learning_timeline.map(item => {
-                    if (item.skill === skill) {
-                        const newMilestones = item.milestones.map((m, idx) =>
-                            idx === stepIndex ? { ...m, completed: !completed } : m
-                        );
-                        const completedCount = newMilestones.filter(m => m.completed).length;
-                        return {
-                            ...item,
-                            milestones: newMilestones,
-                            completed_steps: completedCount,
-                            progress_percentage: Math.round((completedCount / newMilestones.length) * 100)
-                        };
-                    }
-                    return item;
-                });
-                return { ...prev, learning_timeline: newTimeline };
-            });
         }
     };
+
+    const handleCompleteSkill = useCallback(() => {
+        gamification.completeSkill();
+    }, [gamification]);
+
+    const githubConnected = githubData?.available || dashboardData?.github_insights?.available;
 
     const tabs = [
         { id: 'overview', label: 'Overview', icon: BarChart3 },
         { id: 'timeline', label: 'Learning Path', icon: TrendingUp },
-        { id: 'github', label: 'GitHub Insights', icon: Github },
+        ...(githubConnected ? [{ id: 'github', label: 'GitHub Insights', icon: Github }] : []),
     ];
 
     if (loading) {
@@ -363,8 +348,6 @@ const DynamicDashboard = ({ results, userSkills, roleAnalysis, githubUsername })
             </div>
         );
     }
-
-    const githubConnected = githubData?.available || dashboardData?.github_insights?.available;
 
     // Calculate week info for progress bar
     const getWeekInfo = () => {
@@ -440,7 +423,7 @@ const DynamicDashboard = ({ results, userSkills, roleAnalysis, githubUsername })
             )}
 
             {/* Summary Stats with Circular Progress Ring */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
                 {/* Circular Progress Ring Widget */}
                 <div className="stat-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }}>
                     <CircularProgress percentage={weekPercentage} size={80} strokeWidth={6} />
@@ -459,6 +442,22 @@ const DynamicDashboard = ({ results, userSkills, roleAnalysis, githubUsername })
                         <div className="stat-label">{stat.label}</div>
                     </div>
                 ))}
+            </div>
+
+            {/* Gamification Section */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
+                <XPProgressBar 
+                    xp={gamification.xp}
+                    xpInCurrentLevel={gamification.xpInCurrentLevel}
+                    xpToNextLevel={gamification.xpToNextLevel}
+                    level={gamification.level}
+                    streak={gamification.streak}
+                />
+                <AchievementsPanel 
+                    achievements={gamification.achievements}
+                    unlockedAchievements={gamification.unlockedAchievements}
+                    progressPercentage={weekPercentage}
+                />
             </div>
 
             {/* GitHub connected badge */}
@@ -536,6 +535,8 @@ const DynamicDashboard = ({ results, userSkills, roleAnalysis, githubUsername })
                     <LearningTimeline
                         timelineData={dashboardData.learning_timeline}
                         onToggleComplete={handleToggleProgress}
+                        onCompleteSkill={handleCompleteSkill}
+                        gamification={gamification}
                     />
                 )}
 
@@ -632,8 +633,13 @@ const DynamicDashboard = ({ results, userSkills, roleAnalysis, githubUsername })
                         )}
                     </div>
                 )}
-
             </motion.div>
+
+            {/* Level Up Notification */}
+            <LevelUpNotification level={gamification.level} show={gamification.showLevelUp} />
+            
+            {/* Achievement Notification */}
+            <AchievementNotification achievement={gamification.newAchievement} show={!!gamification.newAchievement} />
         </div>
     );
 };

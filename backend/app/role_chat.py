@@ -4,7 +4,7 @@ from typing import List, Dict, Any
 
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
 # This module does not call Gemini directly. For interactive AI chat, integrate
 # with the central `ai_generator` entrypoint to avoid distributed Gemini calls.
@@ -22,17 +22,21 @@ def _build_role_chat_prompt(role: str, messages: List[Dict[str, Any]]) -> str:
         # Support both formats: {role, content} (standard) and {sender, text} (legacy)
         sender = msg.get("role") or msg.get("sender") or ""
         text = msg.get("content") or msg.get("text") or ""
-        
+
         sender = sender.lower()
         text = text.strip()
-        
+
         if not text:
             continue
-        
+
         tag = "User" if sender in ["user", "human"] else "Assistant"
         history_lines.append(f"{tag}: {text}")
 
-    history_block = "\n".join(history_lines[-12:]) if history_lines else "User: (no previous conversation)"
+    history_block = (
+        "\n".join(history_lines[-12:])
+        if history_lines
+        else "User: (no previous conversation)"
+    )
 
     prompt = f"""
 You are an expert career coach for technology roles.
@@ -56,13 +60,18 @@ Respond with a single conversational message only.
     return prompt
 
 
-def generate_role_chat_reply(role: str, messages: List[Dict[str, Any]], requested_provider: str = None) -> str:
+def generate_role_chat_reply(
+    role: str, messages: List[Dict[str, Any]], requested_provider: str = None
+) -> str:
     """
     Call central AI generator to generate the next chat reply for the role conversation.
     """
     from . import ai_generator
+
     prompt = _build_role_chat_prompt(role, messages)
     try:
-        return ai_generator.generate_chat_response(prompt, requested_provider=requested_provider)
+        return ai_generator.generate_chat_response(
+            prompt, requested_provider=requested_provider
+        )
     except Exception as e:
         return "I'm having trouble connecting to my AI brain. Please try again in a moment."
