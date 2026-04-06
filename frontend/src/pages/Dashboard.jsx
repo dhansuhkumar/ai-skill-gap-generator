@@ -250,11 +250,10 @@ const Dashboard = () => {
                 paddingTop: 'var(--header-height)'
             }}>
                 {/* Main Content Area */}
-                <div style={{
+                <div className="dashboard-main-content" style={{
                     flex: 1,
                     padding: '2rem',
                     paddingBottom: '5rem',
-                    marginRight: '400px' // Space for sidebar
                 }}>
                     {/* New Generation Button if viewing saved path */}
                     {hasSavedPath && step === 6 && (

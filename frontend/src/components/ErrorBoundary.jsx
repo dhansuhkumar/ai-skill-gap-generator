@@ -53,7 +53,7 @@ class ErrorBoundary extends React.Component {
                             </h2>
                             <p style={{ color: 'var(--color-text-muted)', lineHeight: 1.6 }}>
                                 We encountered an unexpected error while rendering this step.
-                                Don't worry, your progress is safe.
+                                Don&apos;t worry, your progress is safe.
                             </p>
                             <p style={{
                                 marginTop: '1rem',

@@ -55,7 +55,7 @@ const StepLearningQuestions = ({ onNext, onBack }) => {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -24 }}
             transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-            className="glass-panel"
+            className="glass-panel step-panel"
             style={{ maxWidth: '760px', margin: '0 auto', padding: '2.5rem 3rem' }}
         >
             {/* Header row */}
@@ -66,7 +66,7 @@ const StepLearningQuestions = ({ onNext, onBack }) => {
 
             <div style={{ marginBottom: '2rem' }}>
                 <h2 style={{ marginBottom: '0.5rem' }}>Tailor your learning plan</h2>
-                <p style={{ fontSize: '0.9rem' }}>We'll customize the schedule to fit your life and pace.</p>
+                <p style={{ fontSize: '0.9rem' }}>{`We'll customize the schedule to fit your life and pace.`}</p>
             </div>
 
             {/* Time commitment */}

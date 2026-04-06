@@ -52,13 +52,14 @@ const StepSkills = ({ skills, setSkills, onConfirm, loading, skillsSaved, error,
     };
 
     return (
+        <>
         <motion.div
             key="step1"
             initial={{ opacity: 0, x: 24 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -24 }}
             transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-            className="glass-panel"
+            className="glass-panel step-panel"
             style={{ maxWidth: '760px', margin: '0 auto', padding: '2.5rem 3rem' }}
         >
             {/* Step header */}
@@ -116,7 +117,7 @@ const StepSkills = ({ skills, setSkills, onConfirm, loading, skillsSaved, error,
                     </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem' }}>
+                <div className="github-input-row" style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem' }}>
                     <input
                         type="text"
                         id="github-username-input"
@@ -131,7 +132,7 @@ const StepSkills = ({ skills, setSkills, onConfirm, loading, skillsSaved, error,
                     <button
                         onClick={handleGithubVerify}
                         disabled={githubLoading}
-                        className="btn btn-outline"
+                        className="btn btn-outline github-verify-btn"
                         style={{ padding: '0.75rem 1.25rem', flexShrink: 0 }}
                     >
                         {githubLoading ? <Loader2 size={16} className="animate-spin" /> : 'Verify'}
@@ -191,6 +192,21 @@ const StepSkills = ({ skills, setSkills, onConfirm, loading, skillsSaved, error,
                 </button>
             </div>
         </motion.div>
+        <style>{`
+            @media (max-width: 768px) {
+                .step-panel {
+                    padding: 1.5rem !important;
+                }
+                .github-input-row {
+                    flex-direction: column !important;
+                }
+                .github-verify-btn {
+                    width: 100% !important;
+                    justify-content: center !important;
+                }
+            }
+        `}</style>
+        </>
     );
 };
 

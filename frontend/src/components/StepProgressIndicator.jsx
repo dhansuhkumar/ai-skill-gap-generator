@@ -32,12 +32,14 @@ const StepProgressIndicator = ({ currentStep, steps }) => {
     };
 
     return (
+        <>
         <div className="step-progress" style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             padding: '1.5rem 0',
             gap: 0,
+            overflowX: 'auto',
         }}>
             {stepsList.map((step, index) => {
                 const status = getStepStatus(step.id);
@@ -151,6 +153,18 @@ const StepProgressIndicator = ({ currentStep, steps }) => {
                 );
             })}
         </div>
+        <style>{`
+            @media (max-width: 480px) {
+                .step-circle {
+                    width: 36px !important;
+                    height: 36px !important;
+                }
+                .step-label {
+                    font-size: 0.6rem !important;
+                }
+            }
+        `}</style>
+        </>
     );
 };
 

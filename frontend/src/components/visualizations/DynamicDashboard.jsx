@@ -349,7 +349,6 @@ const DynamicDashboard = ({ results, userSkills, roleAnalysis, githubUsername })
         );
     }
 
-    // Calculate week info for progress bar
     const getWeekInfo = () => {
         if (!dashboardData?.learning_timeline?.length) return null;
         let totalSteps = 0;
@@ -362,7 +361,6 @@ const DynamicDashboard = ({ results, userSkills, roleAnalysis, githubUsername })
             completedSteps += skill.completed_steps || 0;
         });
 
-        // Estimate weeks from steps (roughly 5 steps per week)
         totalWeeks = Math.max(1, Math.ceil(totalSteps / 5));
         currentWeek = Math.max(1, Math.min(totalWeeks, Math.ceil((completedSteps / Math.max(1, totalSteps)) * totalWeeks)));
 
@@ -373,7 +371,7 @@ const DynamicDashboard = ({ results, userSkills, roleAnalysis, githubUsername })
     const weekPercentage = weekInfo ? Math.round((weekInfo.completedSteps / weekInfo.totalSteps) * 100) : 0;
 
     return (
-        <div>
+        <>
             {/* Sticky Progress Bar at top of results page */}
             {weekInfo && (
                 <motion.div
@@ -394,7 +392,7 @@ const DynamicDashboard = ({ results, userSkills, roleAnalysis, githubUsername })
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', maxWidth: '1200px', margin: '0 auto' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                             <CircularProgress percentage={weekPercentage} size={48} strokeWidth={4} showLabel={false} />
-                            <div>
+                            <div className="week-info-text">
                                 <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--color-text-main)' }}>
                                     Week {weekInfo.currentWeek} of {weekInfo.totalWeeks} — {weekPercentage}% Complete
                                 </div>
@@ -404,7 +402,7 @@ const DynamicDashboard = ({ results, userSkills, roleAnalysis, githubUsername })
                             </div>
                         </div>
                         {/* Week progress bar */}
-                        <div style={{ flex: 1, maxWidth: '300px', marginLeft: '2rem' }}>
+                        <div className="week-progress-bar" style={{ flex: 1, maxWidth: '300px', marginLeft: '2rem' }}>
                             <div style={{ height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden' }}>
                                 <motion.div
                                     initial={{ width: 0 }}
@@ -423,7 +421,7 @@ const DynamicDashboard = ({ results, userSkills, roleAnalysis, githubUsername })
             )}
 
             {/* Summary Stats with Circular Progress Ring */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+            <div className="stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
                 {/* Circular Progress Ring Widget */}
                 <div className="stat-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }}>
                     <CircularProgress percentage={weekPercentage} size={80} strokeWidth={6} />
@@ -445,7 +443,7 @@ const DynamicDashboard = ({ results, userSkills, roleAnalysis, githubUsername })
             </div>
 
             {/* Gamification Section */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
+            <div className="gamification-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
                 <XPProgressBar 
                     xp={gamification.xp}
                     xpInCurrentLevel={gamification.xpInCurrentLevel}
@@ -473,7 +471,7 @@ const DynamicDashboard = ({ results, userSkills, roleAnalysis, githubUsername })
             )}
 
             {/* Tab Navigation */}
-            <div style={{
+            <div className="tab-nav" style={{
                 display: 'flex',
                 gap: '0.375rem',
                 marginBottom: '2rem',
@@ -481,7 +479,8 @@ const DynamicDashboard = ({ results, userSkills, roleAnalysis, githubUsername })
                 border: '1px solid var(--color-border)',
                 borderRadius: 'var(--radius-lg)',
                 padding: '0.375rem',
-                width: 'fit-content'
+                overflowX: 'auto',
+                WebkitOverflowScrolling: 'touch',
             }}>
                 {tabs.map(tab => {
                     const Icon = tab.icon;
@@ -585,7 +584,7 @@ const DynamicDashboard = ({ results, userSkills, roleAnalysis, githubUsername })
                                 </h4>
                                 <div style={{ display: 'grid', gap: '0.6rem' }}>
                                     {githubData.languages.map((lang, idx) => (
-                                        <div key={idx} style={{
+                                        <div key={idx} className="lang-bar-item" style={{
                                             display: 'grid',
                                             gridTemplateColumns: '120px 1fr 60px',
                                             alignItems: 'center',
@@ -640,7 +639,22 @@ const DynamicDashboard = ({ results, userSkills, roleAnalysis, githubUsername })
             
             {/* Achievement Notification */}
             <AchievementNotification achievement={gamification.newAchievement} show={!!gamification.newAchievement} />
-        </div>
+        <style>{`
+            @media (max-width: 768px) {
+                .week-info-text { display: none; }
+                .week-progress-bar { max-width: none !important; margin-left: 1rem !important; }
+                .stats-grid { grid-template-columns: repeat(2, 1fr) !important; minmax(0, 1fr) !important; }
+                .gamification-grid { grid-template-columns: 1fr !important; }
+                .tab-nav { width: 100% !important; }
+                .lang-bar-item { grid-template-columns: 80px 1fr 40px !important; }
+            }
+            @media (max-width: 480px) {
+                .stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
+                .tab-nav button { padding: 0.4rem 0.75rem !important; font-size: 0.8rem !important; }
+                .lang-bar-item { grid-template-columns: 60px 1fr 35px !important; gap: 0.5rem !important; }
+            }
+        `}</style>
+        </>
     );
 };
 

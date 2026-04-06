@@ -10,13 +10,14 @@ const StepRole = ({ role, setRole, onConfirm, onBack, loading, error }) => {
     ];
 
     return (
+        <>
         <motion.div
             key="step2"
             initial={{ opacity: 0, x: 24 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -24 }}
             transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-            className="glass-panel"
+            className="glass-panel step-role-panel"
             style={{ maxWidth: '760px', margin: '0 auto', padding: '2.5rem 3rem' }}
         >
             {/* Step badge + back */}
@@ -29,8 +30,8 @@ const StepRole = ({ role, setRole, onConfirm, onBack, loading, error }) => {
 
             {/* Header */}
             <div style={{ marginBottom: '2rem' }}>
-                <h2 style={{ marginBottom: '0.5rem' }}>What's your target role?</h2>
-                <p style={{ fontSize: '0.9rem' }}>We'll find the exact skills this role demands in the current job market.</p>
+                <h2 style={{ marginBottom: '0.5rem' }}>{`What's your target role?`}</h2>
+                <p style={{ fontSize: '0.9rem' }}>{`We'll find the exact skills this role demands in the current job market.`}</p>
             </div>
 
             {/* Input */}
@@ -97,6 +98,13 @@ const StepRole = ({ role, setRole, onConfirm, onBack, loading, error }) => {
                 <div className="alert alert-error" style={{ marginTop: '1rem' }}>{error}</div>
             )}
         </motion.div>
+        <style>{`
+            @media (max-width: 768px) {
+                .step-role-panel { padding: 1.25rem !important; }
+                .step-role-panel input { font-size: 1rem !important; }
+            }
+        `}</style>
+        </>
     );
 };
 

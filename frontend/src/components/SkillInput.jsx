@@ -27,19 +27,19 @@ const SkillInput = ({ skills, onSkillsChange }) => {
     return (
         <div>
             {/* Input Row */}
-            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+            <div className="skill-input-row" style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
                 <input
                     type="text"
                     className="input-field"
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="Type a skill (e.g., Python, React)... or adding manual skills"
+                    placeholder="Type a skill (e.g., Python, React)..."
                     style={{ flex: 1 }}
                 />
                 <button
                     onClick={handleAddSkill}
-                    className="btn btn-secondary"
+                    className="btn btn-secondary skill-add-btn"
                     style={{ padding: '0.75rem' }}
                     disabled={!inputValue.trim()}
                     type="button"
@@ -92,6 +92,12 @@ const SkillInput = ({ skills, onSkillsChange }) => {
                     )}
                 </AnimatePresence>
             </div>
+        <style>{`
+            @media (max-width: 480px) {
+                .skill-input-row { flex-direction: column !important; }
+                .skill-add-btn { width: 100% !important; justify-content: center !important; }
+            }
+        `}</style>
         </div>
     );
 };

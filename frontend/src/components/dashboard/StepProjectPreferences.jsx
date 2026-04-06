@@ -66,7 +66,7 @@ const StepProjectPreferences = ({ onGenerate, onBack, loading }) => {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -24 }}
             transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-            className="glass-panel"
+            className="glass-panel step-panel"
             style={{ maxWidth: '760px', margin: '0 auto', padding: '2.5rem 3rem' }}
         >
             {/* Header row */}
@@ -77,7 +77,7 @@ const StepProjectPreferences = ({ onGenerate, onBack, loading }) => {
 
             <div style={{ marginBottom: '2rem' }}>
                 <h2 style={{ marginBottom: '0.5rem' }}>Project focus</h2>
-                <p style={{ fontSize: '0.9rem' }}>Choose how you'd like to apply your new skills through real projects.</p>
+                <p style={{ fontSize: '0.9rem' }}>{`Choose how you'd like to apply your new skills through real projects.`}</p>
             </div>
 
             {/* Project type cards */}

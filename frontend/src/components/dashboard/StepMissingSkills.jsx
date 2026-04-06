@@ -21,13 +21,14 @@ const StepMissingSkills = ({ missingSkills, matchData, onNext, onBack }) => {
     const matchColor = matchPct >= 70 ? 'var(--color-success)' : matchPct >= 40 ? '#F59E0B' : '#EF4444';
 
     return (
+        <>
         <motion.div
             key="step3"
             initial={{ opacity: 0, x: 24 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -24 }}
             transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-            className="glass-panel"
+            className="glass-panel step-panel"
             style={{ maxWidth: '760px', margin: '0 auto', padding: '2.5rem 3rem' }}
         >
             {/* Header row */}
@@ -43,7 +44,7 @@ const StepMissingSkills = ({ missingSkills, matchData, onNext, onBack }) => {
 
             {/* Match score card */}
             {matchData && (
-                <div style={{
+                <div className="match-stats-grid" style={{
                     display: 'grid',
                     gridTemplateColumns: '1fr 1fr 1fr',
                     gap: '0.875rem',
@@ -65,7 +66,7 @@ const StepMissingSkills = ({ missingSkills, matchData, onNext, onBack }) => {
             {missingSkills.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '3rem 2rem' }}>
                     <CheckCircle2 size={52} color="var(--color-success)" style={{ margin: '0 auto 1rem', display: 'block' }} />
-                    <h3 style={{ marginBottom: '0.75rem' }}>You're a perfect match!</h3>
+                    <h3 style={{ marginBottom: '0.75rem' }}>{`You're a perfect match!`}</h3>
                     <p style={{ marginBottom: '2rem' }}>You already have the core skills required for this role.</p>
                     <button onClick={() => onNext([])} className="btn btn-primary">
                         Continue to Projects <ArrowRight size={16} />
@@ -89,7 +90,7 @@ const StepMissingSkills = ({ missingSkills, matchData, onNext, onBack }) => {
                     </div>
 
                     {/* Skills grid */}
-                    <div style={{
+                    <div className="skills-select-grid" style={{
                         display: 'grid',
                         gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))',
                         gap: '0.75rem',
@@ -145,6 +146,16 @@ const StepMissingSkills = ({ missingSkills, matchData, onNext, onBack }) => {
                 </>
             )}
         </motion.div>
+        <style>{`
+            @media (max-width: 768px) {
+                .match-stats-grid { grid-template-columns: 1fr !important; }
+                .skills-select-grid { grid-template-columns: 1fr 1fr !important; }
+            }
+            @media (max-width: 480px) {
+                .skills-select-grid { grid-template-columns: 1fr !important; }
+            }
+        `}</style>
+        </>
     );
 };
 

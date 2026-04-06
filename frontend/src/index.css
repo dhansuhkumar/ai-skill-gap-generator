@@ -838,3 +838,105 @@ input:checked + .slider::before { transform: translateX(22px); }
     background: var(--color-border);
     margin: 1.5rem 0;
 }
+
+/* ============================================
+   MOBILE RESPONSIVE — 768px TABLET
+   ============================================ */
+@media (max-width: 768px) {
+    .container {
+        padding: 0 1rem;
+    }
+
+    h1 { font-size: clamp(1.75rem, 6vw, 2rem); }
+    h2 { font-size: clamp(1.375rem, 4vw, 1.75rem); }
+
+    .glass-panel {
+        border-radius: var(--radius-lg);
+        backdrop-filter: blur(12px);
+    }
+
+    .btn {
+        padding: 0.65rem 1.25rem;
+        font-size: 0.9rem;
+    }
+
+    .input-field {
+        padding: 0.75rem 1rem;
+        font-size: 0.9rem;
+    }
+
+    .navbar .container {
+        padding: 0 1rem;
+    }
+
+    .stat-card {
+        padding: 1rem 1.25rem;
+    }
+
+    .stat-value {
+        font-size: 1.5rem;
+    }
+
+    .step-panel,
+    .glass-panel[style*="760px"] {
+        padding: 1.25rem !important;
+    }
+}
+
+/* ============================================
+   MOBILE RESPONSIVE — 375px PHONE
+   ============================================ */
+@media (max-width: 480px) {
+    .container {
+        padding: 0 0.875rem;
+    }
+
+    .btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .btn-secondary {
+        width: auto;
+    }
+
+    .section-label {
+        font-size: 0.65rem;
+        padding: 0.2rem 0.6rem;
+    }
+}
+
+/* ============================================
+   TOUCH-FRIENDLY UTILITIES
+   ============================================ */
+@media (max-width: 768px) {
+    button,
+    a,
+    .nav-link,
+    .btn {
+        min-height: 44px;
+        min-width: 44px;
+    }
+
+    input,
+    select,
+    textarea {
+        font-size: 16px !important;
+    }
+
+    .dashboard-main-content {
+        margin-right: 0 !important;
+        padding: 1rem !important;
+        padding-bottom: 3rem !important;
+    }
+
+    .ai-chat-desktop-sidebar {
+        display: none !important;
+    }
+}
+
+@media (min-width: 769px) {
+    .dashboard-main-content {
+        margin-right: 400px;
+    }
+}

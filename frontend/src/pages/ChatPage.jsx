@@ -58,7 +58,7 @@ const ChatPage = () => {
                 <div style={{ marginBottom: '1rem', display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
                     <input
                         type="text"
-                        className="input-field"
+                        className="input-field chat-role-input"
                         placeholder="Enter Role (e.g. Interviewer, Senior Dev)"
                         value={role}
                         onChange={(e) => setRole(e.target.value)}
@@ -67,7 +67,7 @@ const ChatPage = () => {
                     <div style={{ flex: 1 }}>
                         {/* Compact Provider Selector or just a dropdown? reusing selector might be too big */}
                         <select
-                            className="input-field"
+                            className="input-field chat-provider-select"
                             value={provider}
                             onChange={(e) => setProvider(e.target.value)}
                             style={{ maxWidth: '150px' }}
@@ -132,7 +132,7 @@ const ChatPage = () => {
                     </div>
 
                     {/* Input Area */}
-                    <form onSubmit={handleSend} style={{ padding: '1.5rem', borderTop: '1px solid var(--color-border)', display: 'flex', gap: '1rem' }}>
+                    <form onSubmit={handleSend} className="chat-form" style={{ padding: '1.5rem', borderTop: '1px solid var(--color-border)', display: 'flex', gap: '1rem' }}>
                         <input
                             type="text"
                             className="input-field"
@@ -153,6 +153,14 @@ const ChatPage = () => {
                 </div>
 
             </div>
+        <style>{`
+            @media (max-width: 768px) {
+                .chat-role-input { max-width: 100% !important; }
+                .chat-provider-select { max-width: 100% !important; }
+                .chat-form { flex-direction: column !important; }
+                .chat-form .btn { width: 100% !important; justify-content: center !important; }
+            }
+        `}</style>
         </>
     );
 };

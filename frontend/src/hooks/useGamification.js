@@ -254,7 +254,6 @@ export const SKILL_DESCRIPTIONS = {
     'TypeScript': 'JavaScript with types. Write safer, more maintainable code.',
     'REST API': 'Design and consume APIs. Connect different systems and services.',
     'Machine Learning': 'The future of technology. Teach computers to learn from data.',
-    'Docker': 'Package your applications with their dependencies. Consistent environments everywhere.',
     'Kubernetes': 'Orchestrate containers at scale. Essential for modern cloud infrastructure.',
     'CI/CD': 'Automate your development pipeline. Ship code faster and with confidence.',
 };
