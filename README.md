@@ -123,7 +123,6 @@ npm run dev
 
 - **GitHub API Limits:** Unauthenticated requests or free tier tokens might hit rate limits during deep profile analysis.
 - **AI Processing Latency:** Generating comprehensive learning paths relies on third-party LLM APIs, which can occasionally take a few seconds to stream the full response.
-- **Mobile Experience:** The 6-step wizard and dashboard are best experienced on a desktop browser.
 
 ## 📄 License
 
