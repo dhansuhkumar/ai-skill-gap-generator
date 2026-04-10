@@ -217,10 +217,12 @@ Provide helpful, concise, encouraging responses. Focus on practical advice.
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             onClick={() => setMobileSheetOpen(true)}
+            className="ai-chat-fab"
+            aria-label="Open AI Assistant"
             style={{
-                display: 'none',
+                display: 'none', /* overridden to flex by CSS on mobile */
                 position: 'fixed',
-                bottom: '1.5rem',
+                bottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))',
                 right: '1.5rem',
                 width: '56px',
                 height: '56px',
@@ -260,7 +262,7 @@ Provide helpful, concise, encouraging responses. Focus on practical advice.
                                 bottom: 0,
                                 left: 0,
                                 right: 0,
-                                height: '75vh',
+                                height: '78vh',
                                 background: 'var(--color-bg-surface)',
                                 borderTop: '1px solid var(--color-border)',
                                 borderTopLeftRadius: '20px',
@@ -269,6 +271,7 @@ Provide helpful, concise, encouraging responses. Focus on practical advice.
                                 flexDirection: 'column',
                                 zIndex: 400,
                                 overflow: 'hidden',
+                                paddingBottom: 'env(safe-area-inset-bottom, 0px)',
                             }}
                         >
                             <div style={{ display: 'flex', justifyContent: 'center', padding: '0.75rem', borderBottom: '1px solid var(--color-border)' }}>
@@ -301,6 +304,7 @@ Provide helpful, concise, encouraging responses. Focus on practical advice.
             initial={{ x: 400 }}
             animate={{ x: 0 }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            className="ai-chat-desktop-sidebar"
             style={{
                 position: 'fixed',
                 right: 0, top: 'var(--header-height)',
@@ -338,8 +342,6 @@ Provide helpful, concise, encouraging responses. Focus on practical advice.
             <style>{`
                 @media (max-width: 768px) {
                     .chat-close-btn { display: flex !important; }
-                    .ai-chat-desktop-sidebar { display: none !important; }
-                    button[title="AI Assistant FAB"] { display: flex !important; }
                 }
             `}</style>
         </>

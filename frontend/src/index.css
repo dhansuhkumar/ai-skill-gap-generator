@@ -142,6 +142,9 @@ body {
     -moz-osx-font-smoothing: grayscale;
     line-height: 1.6;
     overflow-x: hidden;
+    /* iOS Safari safe areas */
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
 }
 
 /* ============================================
@@ -847,8 +850,9 @@ input:checked + .slider::before { transform: translateX(22px); }
         padding: 0 1rem;
     }
 
-    h1 { font-size: clamp(1.75rem, 6vw, 2rem); }
-    h2 { font-size: clamp(1.375rem, 4vw, 1.75rem); }
+    h1 { font-size: clamp(1.5rem, 5vw, 2rem); }
+    h2 { font-size: clamp(1.25rem, 4vw, 1.75rem); }
+    h3 { font-size: 1.125rem; }
 
     .glass-panel {
         border-radius: var(--radius-lg);
@@ -862,7 +866,6 @@ input:checked + .slider::before { transform: translateX(22px); }
 
     .input-field {
         padding: 0.75rem 1rem;
-        font-size: 0.9rem;
     }
 
     .navbar .container {
@@ -877,33 +880,56 @@ input:checked + .slider::before { transform: translateX(22px); }
         font-size: 1.5rem;
     }
 
-    .step-panel,
-    .glass-panel[style*="760px"] {
-        padding: 1.25rem !important;
+    /* Step panels - remove hardcoded desktop padding */
+    .step-panel {
+        padding: 1.5rem 1.25rem !important;
+        max-width: 100% !important;
+    }
+
+    /* Step progress - compact on mobile */
+    .step-progress {
+        padding: 1rem 0 !important;
+    }
+
+    /* Dashboard layout — no sidebar offset */
+    .dashboard-main-content {
+        margin-right: 0 !important;
+        padding: 1rem !important;
+        padding-bottom: 100px !important; /* room for FAB */
+    }
+
+    /* Hide the desktop AI sidebar entirely */
+    .ai-chat-desktop-sidebar {
+        display: none !important;
+    }
+
+    /* Show the mobile FAB button */
+    .ai-chat-fab {
+        display: flex !important;
     }
 }
 
 /* ============================================
-   MOBILE RESPONSIVE — 375px PHONE
+   MOBILE RESPONSIVE — 480px PHONE
    ============================================ */
 @media (max-width: 480px) {
     .container {
         padding: 0 0.875rem;
     }
 
-    .btn {
-        width: 100%;
-        justify-content: center;
-    }
+    h1 { font-size: clamp(1.375rem, 5.5vw, 1.75rem); }
+    h2 { font-size: clamp(1.125rem, 4.5vw, 1.5rem); }
 
-    .btn-secondary {
-        width: auto;
+    .step-panel {
+        padding: 1.25rem 1rem !important;
     }
 
     .section-label {
-        font-size: 0.65rem;
-        padding: 0.2rem 0.6rem;
+        font-size: 0.6rem;
+        padding: 0.2rem 0.5rem;
     }
+
+    .score-bar { height: 5px; }
 }
 
 /* ============================================
@@ -912,31 +938,45 @@ input:checked + .slider::before { transform: translateX(22px); }
 @media (max-width: 768px) {
     button,
     a,
-    .nav-link,
-    .btn {
+    .nav-link {
         min-height: 44px;
-        min-width: 44px;
     }
 
+    .btn {
+        min-height: 44px;
+    }
+
+    /* Prevent iOS zoom on input focus */
     input,
     select,
     textarea {
         font-size: 16px !important;
     }
 
-    .dashboard-main-content {
-        margin-right: 0 !important;
-        padding: 1rem !important;
-        padding-bottom: 3rem !important;
+    /* Improve tap area for small chips */
+    .chip, .skill-badge {
+        padding: 0.35rem 0.875rem;
     }
 
-    .ai-chat-desktop-sidebar {
-        display: none !important;
+    /* Step progress line shorter on mobile */
+    .step-line {
+        width: 28px !important;
+    }
+
+    /* Card hover — disable on touch devices (no hover) */
+    .card-hover:hover {
+        transform: none;
     }
 }
 
+/* Desktop — restore sidebar margin */
 @media (min-width: 769px) {
     .dashboard-main-content {
         margin-right: 400px;
+    }
+
+    /* On desktop, hide the FAB */
+    .ai-chat-fab {
+        display: none !important;
     }
 }
