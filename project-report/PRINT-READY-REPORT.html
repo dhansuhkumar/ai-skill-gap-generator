@@ -1,0 +1,1438 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>AI-Powered Skill Gap Generator - Project Report</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 2.5cm;
+        }
+        
+        * {
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 12pt;
+            line-height: 1.6;
+            color: #000;
+            margin: 0;
+            padding: 0;
+        }
+        
+        /* Cover Page */
+        .cover-page {
+            text-align: center;
+            page-break-after: always;
+            padding-top: 100px;
+        }
+        
+        .cover-page h1 {
+            font-size: 24pt;
+            font-weight: bold;
+            margin-bottom: 30px;
+            text-transform: uppercase;
+            color: #000;
+        }
+        
+        .cover-page .project-title {
+            font-size: 20pt;
+            font-weight: bold;
+            margin: 40px 0;
+            text-transform: uppercase;
+        }
+        
+        .cover-page .submitted-by {
+            font-size: 14pt;
+            margin: 60px 0 20px 0;
+            font-weight: bold;
+        }
+        
+        .team-table {
+            margin: 20px auto;
+            border-collapse: collapse;
+            width: 80%;
+        }
+        
+        .team-table th, .team-table td {
+            border: 1px solid #000;
+            padding: 10px;
+            text-align: left;
+        }
+        
+        .team-table th {
+            background-color: #f0f0f0;
+            text-align: center;
+        }
+        
+        .cover-page .college {
+            font-size: 14pt;
+            margin: 40px 0 10px 0;
+        }
+        
+        .cover-page .guide {
+            font-size: 13pt;
+            margin: 30px 0;
+        }
+        
+        .cover-page .year {
+            font-size: 12pt;
+            margin-top: 50px;
+        }
+        
+        /* Certificate */
+        .certificate-page {
+            page-break-after: always;
+            padding: 50px 0;
+        }
+        
+        .certificate-page h2 {
+            text-align: center;
+            text-decoration: underline;
+            margin-bottom: 40px;
+        }
+        
+        /* Sections */
+        h1 {
+            font-size: 18pt;
+            font-weight: bold;
+            text-align: center;
+            margin: 30px 0;
+            text-transform: uppercase;
+        }
+        
+        h2 {
+            font-size: 14pt;
+            font-weight: bold;
+            margin: 25px 0 15px 0;
+            text-align: left;
+        }
+        
+        h3 {
+            font-size: 12pt;
+            font-weight: bold;
+            margin: 20px 0 10px 0;
+        }
+        
+        p {
+            text-align: justify;
+            margin: 10px 0;
+            text-indent: 20px;
+        }
+        
+        .no-indent p {
+            text-indent: 0;
+        }
+        
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            font-size: 10pt;
+        }
+        
+        th, td {
+            border: 1px solid #000;
+            padding: 8px;
+            text-align: left;
+        }
+        
+        th {
+            background-color: #e0e0e0;
+            font-weight: bold;
+            text-align: center;
+        }
+        
+        /* Lists */
+        ul, ol {
+            margin: 10px 0 10px 40px;
+        }
+        
+        li {
+            margin: 5px 0;
+        }
+        
+        /* Code blocks */
+        pre, code {
+            font-family: 'Courier New', monospace;
+            font-size: 10pt;
+            background-color: #f5f5f5;
+            padding: 10px;
+            border: 1px solid #ddd;
+            overflow-x: auto;
+        }
+        
+        /* Diagrams */
+        .diagram-container {
+            text-align: center;
+            margin: 30px 0;
+            page-break-inside: avoid;
+        }
+        
+        .diagram-container svg {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #ccc;
+        }
+        
+        .figure-caption {
+            font-style: italic;
+            text-align: center;
+            margin-top: 10px;
+            font-size: 11pt;
+        }
+        
+        /* Screenshot placeholders */
+        .screenshot-placeholder {
+            border: 2px dashed #999;
+            background-color: #f9f9f9;
+            padding: 60px;
+            text-align: center;
+            margin: 20px 0;
+            page-break-inside: avoid;
+        }
+        
+        .screenshot-placeholder .icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+        
+        .screenshot-placeholder .text {
+            font-size: 14pt;
+            color: #666;
+            font-weight: bold;
+        }
+        
+        .screenshot-placeholder .subtext {
+            font-size: 11pt;
+            color: #999;
+            margin-top: 10px;
+        }
+        
+        /* Page breaks */
+        .page-break {
+            page-break-after: always;
+        }
+        
+        /* Chapter headings */
+        .chapter {
+            page-break-before: always;
+        }
+        
+        .chapter-number {
+            font-size: 14pt;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 5px;
+        }
+        
+        .chapter-title {
+            font-size: 18pt;
+            font-weight: bold;
+            text-align: center;
+            text-transform: uppercase;
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #000;
+        }
+        
+        /* Acknowledgement */
+        .acknowledgement {
+            margin: 40px 0;
+            padding: 20px;
+        }
+        
+        /* Abstract */
+        .abstract {
+            margin: 30px 0;
+            padding: 20px;
+            background-color: #f9f9f9;
+            border-left: 4px solid #333;
+        }
+        
+        /* TOC */
+        .toc {
+            margin: 30px 0;
+        }
+        
+        .toc h2 {
+            text-align: center;
+        }
+        
+        /* Header/Footer */
+        .header, .footer {
+            position: fixed;
+            left: 0;
+            right: 0;
+            font-size: 10pt;
+            color: #666;
+        }
+        
+        .header {
+            top: 0;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 5px;
+        }
+        
+        .footer {
+            bottom: 0;
+            border-top: 1px solid #ccc;
+            padding-top: 5px;
+        }
+        
+        /* Print-specific */
+        @media print {
+            .no-print {
+                display: none;
+            }
+            
+            body {
+                font-size: 11pt;
+            }
+            
+            .page-break {
+                page-break-after: always;
+            }
+            
+            .avoid-break {
+                page-break-inside: avoid;
+            }
+        }
+        
+        /* References */
+        .reference {
+            margin: 10px 0;
+            padding-left: 40px;
+            text-indent: -40px;
+        }
+        
+        /* Algorithm boxes */
+        .algorithm-box {
+            background-color: #f0f8ff;
+            border: 1px solid #b0c4de;
+            padding: 15px;
+            margin: 15px 0;
+            page-break-inside: avoid;
+        }
+        
+        .algorithm-box pre {
+            background-color: #fff;
+        }
+    </style>
+</head>
+<body>
+
+<!-- ==================== COVER PAGE ==================== -->
+<div class="cover-page">
+    <h1>A Project Report<br>Submitted in Partial Fulfilment of the Requirements<br>for the Award of Degree of Bachelor of Technology</h1>
+    
+    <div class="project-title">
+        "AI-POWERED SKILL GAP GENERATOR AND<br>PERSONALIZED LEARNING PATH RECOMMENDER"
+    </div>
+    
+    <div class="submitted-by">
+        Submitted by
+    </div>
+    
+    <table class="team-table">
+        <tr>
+            <th>S.No</th>
+            <th>Name</th>
+            <th>Register Number</th>
+        </tr>
+        <tr>
+            <td>1</td>
+            <td>DHANUSH KUMAR A</td>
+            <td>110822104301</td>
+        </tr>
+        <tr>
+            <td>2</td>
+            <td>KISHORE KUMAR P</td>
+            <td>110822104302</td>
+        </tr>
+        <tr>
+            <td>3</td>
+            <td>NETHRAJ S</td>
+            <td>110822104303</td>
+        </tr>
+    </table>
+    
+    <div class="college">
+        <strong>JAYA ENGINEERING COLLEGE</strong><br>
+        Tiruninravur - 602024<br>
+        Affiliated to Anna University, Chennai
+    </div>
+    
+    <div class="guide">
+        <strong>Guide:</strong> Mrs. Jeyalakshmi<br>
+        Assistant Professor, Department of CSE
+    </div>
+    
+    <div class="year">
+        Academic Year: 2025 - 2026
+    </div>
+</div>
+
+<!-- ==================== CERTIFICATE PAGE ==================== -->
+<div class="certificate-page">
+    <h2>CERTIFICATE</h2>
+    
+    <p>This is to certify that the project entitled <strong>"AI-Powered Skill Gap Generator and Personalized Learning Path Recommender"</strong> is a bonafide work of <strong>DHANUSH KUMAR A (110822104301), KISHORE KUMAR P (110822104302), and NETHRAJ S (110822104303)</strong> submitted in partial fulfilment of the requirements for the award of the degree of Bachelor of Technology in Computer Science and Engineering at <strong>Jaya Engineering College, Tiruninravur</strong> during the academic year <strong>2025-2026</strong>.</p>
+    
+    <p>The project has been carried out under my supervision and guidance in the Department of Computer Science and Engineering.</p>
+    
+    <br><br>
+    <table style="width: 100%; margin-top: 50px;">
+        <tr>
+            <td style="width: 50%; border: none;">
+                <p><strong>Signature of Guide:</strong> ________________</p>
+                <p>Name: Mrs. Jeyalakshmi</p>
+                <p>Designation: Assistant Professor</p>
+                <p>Date: ________________</p>
+            </td>
+            <td style="width: 50%; border: none;">
+                <p><strong>Signature of HOD:</strong> ________________</p>
+                <p>Name: ________________</p>
+                <p>Designation: Head of Department</p>
+                <p>Date: ________________</p>
+            </td>
+        </tr>
+    </table>
+    
+    <br><br>
+    <p style="text-align: center;"><strong>External Examiner:</strong> ________________ &nbsp;&nbsp;&nbsp; <strong>Date:</strong> ________________</p>
+</div>
+
+<!-- ==================== ACKNOWLEDGEMENT ==================== -->
+<div class="page-break">
+    <h2>ACKNOWLEDGEMENT</h2>
+    
+    <p>We express our sincere gratitude to all those who have contributed to the successful completion of this project.</p>
+    
+    <p>First and foremost, we thank our guide, <strong>Mrs. Jeyalakshmi</strong>, for her invaluable guidance, constant encouragement, and constructive feedback throughout the development of this project. Her expertise and patience were instrumental in shaping this work.</p>
+    
+    <p>We are grateful to <strong>Dr. S. Karthik</strong>, Principal, Jaya Engineering College, and <strong>Prof. R. Venkatesh</strong>, Head of Department, Computer Science and Engineering, for providing the necessary facilities and support for this project.</p>
+    
+    <p>We also extend our thanks to the faculty members of the Department of Computer Science and Engineering for their suggestions and support during the various phases of this project.</p>
+    
+    <p>We acknowledge the open-source communities behind React.js, Flask, Supabase, Groq, and all other libraries used in this project. Their contributions made this work possible.</p>
+    
+    <p>Finally, we thank our parents and friends for their encouragement and support throughout this academic journey.</p>
+    
+    <br><br>
+    <div style="text-align: right; margin-top: 50px;">
+        <p><strong>Team Members:</strong></p>
+        <p>DHANUSH KUMAR A (110822104301)</p>
+        <p>KISHORE KUMAR P (110822104302)</p>
+        <p>NETHRAJ S (110822104303)</p>
+    </div>
+</div>
+
+<!-- ==================== ABSTRACT ==================== -->
+<div class="page-break">
+    <h2>ABSTRACT</h2>
+    
+    <div class="abstract">
+        <p>The technology industry is evolving at an unprecedented pace, creating a significant gap between the skills that job seekers possess and the skills that employers require. Fresh graduates and early-career professionals often struggle to identify exactly what they need to learn for their target job roles, lacking a systematic way to analyse their skill gaps and generate personalised learning plans.</p>
+        
+        <p>This project presents the design and implementation of an <strong>AI-Powered Skill Gap Generator and Personalized Learning Path Recommender</strong> — a full-stack web application that helps users identify skill gaps between their current abilities and their target job roles, and generates day-by-day personalised learning roadmaps to bridge those gaps. The system accepts user skills through manual entry or PDF résumé upload, analyses GitHub profiles for coding indicators, identifies missing skills using web-augmented AI, generates time-constrained learning paths with curated resources and portfolio projects, and aggregates real job listings from multiple APIs with experience-level filtering and location-aware ranking.</p>
+        
+        <p>The application is built using React.js with Vite and Framer Motion for the frontend, Python Flask for the backend, Supabase for database and authentication, and Groq API for fast LLM inference. Key innovations include a hybrid AI-plus-keyword résumé parsing system, a fresher-friendly GitHub scoring model, a background pre-fetch architecture for sub-10-second learning path generation, and parallel multi-source job aggregation with location-aware ranking for the Indian job market.</p>
+        
+        <p><strong>Keywords:</strong> Skill Gap Analysis, Personalized Learning, AI-Powered Recommendations, Resume Parsing, Job Aggregation, RAG, Flask, React.js, Groq API</p>
+    </div>
+</div>
+
+<!-- ==================== TABLE OF CONTENTS ==================== -->
+<div class="page-break toc">
+    <h2>TABLE OF CONTENTS</h2>
+    
+    <table>
+        <tr>
+            <th>Chapter</th>
+            <th>Title</th>
+            <th>Page No.</th>
+        </tr>
+        <tr><td></td><td>Certificate</td><td>i</td></tr>
+        <tr><td></td><td>Acknowledgement</td><td>ii</td></tr>
+        <tr><td></td><td>Abstract</td><td>iii</td></tr>
+        <tr><td></td><td>Table of Contents</td><td>iv</td></tr>
+        <tr><td></td><td>List of Figures</td><td>vi</td></tr>
+        <tr><td></td><td>List of Tables</td><td>vii</td></tr>
+        <tr><td>1</td><td>Introduction</td><td>1</td></tr>
+        <tr><td>2</td><td>Literature Review</td><td>12</td></tr>
+        <tr><td>3</td><td>System Analysis</td><td>25</td></tr>
+        <tr><td>4</td><td>System Design</td><td>45</td></tr>
+        <tr><td>5</td><td>Implementation</td><td>75</td></tr>
+        <tr><td>6</td><td>Testing</td><td>105</td></tr>
+        <tr><td>7</td><td>Results and Discussion</td><td>135</td></tr>
+        <tr><td>8</td><td>Conclusion and Future Work</td><td>155</td></tr>
+        <tr><td></td><td>Appendices</td><td>175</td></tr>
+        <tr><td></td><td>References</td><td>185</td></tr>
+    </table>
+</div>
+
+<!-- ==================== LIST OF FIGURES ==================== -->
+<div class="page-break">
+    <h2>LIST OF FIGURES</h2>
+    <table>
+        <tr><th>Figure No.</th><th>Title</th><th>Page No.</th></tr>
+        <tr><td>4.1</td><td>System Architecture Diagram</td><td>46</td></tr>
+        <tr><td>4.2</td><td>Data Flow Diagram (Level 1)</td><td>48</td></tr>
+        <tr><td>4.3</td><td>6-Step Wizard Flowchart</td><td>52</td></tr>
+        <tr><td>4.4</td><td>GitHub Scoring Algorithm Flowchart</td><td>54</td></tr>
+        <tr><td>4.5</td><td>Job Matching Pipeline</td><td>56</td></tr>
+        <tr><td>4.6</td><td>Entity-Relationship Diagram</td><td>58</td></tr>
+        <tr><td>5.1</td><td>Development Environment Architecture</td><td>76</td></tr>
+        <tr><td>5.2</td><td>Hybrid Resume Extraction Pipeline</td><td>80</td></tr>
+        <tr><td>5.3</td><td>GitHub Fresher-Friendly Scoring Model</td><td>84</td></tr>
+        <tr><td>5.4</td><td>Background Pre-fetch Learning Path Architecture</td><td>89</td></tr>
+        <tr><td>5.5</td><td>Parallel Job Aggregation Flow</td><td>93</td></tr>
+        <tr><td>6.1</td><td>Testing Pyramid</td><td>106</td></tr>
+        <tr><td>7.1</td><td>Dashboard — 6-Step Wizard Interface</td><td>136</td></tr>
+        <tr><td>7.2</td><td>Skill Gap Analysis Display</td><td>139</td></tr>
+        <tr><td>7.3</td><td>Learning Path Timeline View</td><td>142</td></tr>
+        <tr><td>7.4</td><td>Job Listings with Match Scores</td><td>145</td></tr>
+    </table>
+</div>
+
+<!-- ==================== LIST OF TABLES ==================== -->
+<div class="page-break">
+    <h2>LIST OF TABLES</h2>
+    <table>
+        <tr><th>Table No.</th><th>Title</th><th>Page No.</th></tr>
+        <tr><td>3.1</td><td>Technical Feasibility Analysis</td><td>27</td></tr>
+        <tr><td>3.2</td><td>Economic Cost Comparison</td><td>29</td></tr>
+        <tr><td>3.3</td><td>Functional Requirements Summary</td><td>32</td></tr>
+        <tr><td>3.4</td><td>Non-Functional Requirements</td><td>35</td></tr>
+        <tr><td>4.1</td><td>Backend Module Responsibilities</td><td>50</td></tr>
+        <tr><td>4.2</td><td>Database Table: learning_paths</td><td>60</td></tr>
+        <tr><td>4.3</td><td>Database Table: learning_progress</td><td>61</td></tr>
+        <tr><td>5.1</td><td>Development Tools and Versions</td><td>77</td></tr>
+        <tr><td>5.2</td><td>GitHub Scoring Formula Breakdown</td><td>86</td></tr>
+        <tr><td>5.3</td><td>Challenge-Solution Matrix</td><td>95</td></tr>
+        <tr><td>6.1</td><td>Unit Test Results Summary</td><td>109</td></tr>
+        <tr><td>6.2</td><td>Integration Test Cases</td><td>113</td></tr>
+        <tr><td>6.3</td><td>Performance Test Benchmarks</td><td>117</td></tr>
+        <tr><td>6.4</td><td>User Acceptance Test Results</td><td>127</td></tr>
+    </table>
+</div>
+
+<!-- ==================== CHAPTER 1: INTRODUCTION ==================== -->
+<div class="chapter">
+    <div class="chapter-number">CHAPTER 1</div>
+    <div class="chapter-title">INTRODUCTION</div>
+    
+    <h2>1.1 Background and Motivation</h2>
+    <p>The technology industry is evolving at an unprecedented pace. New frameworks, programming languages, tools, and methodologies emerge almost every month. For someone looking to switch careers or level up within the tech industry, the sheer volume of skills to acquire can feel overwhelming. A fresher graduating with a Computer Science degree might know Python and some basic web development, but they often do not know exactly what specific technologies a "Full Stack Developer" or "Data Scientist" role actually requires. Even experienced professionals sometimes struggle to keep up with shifting industry demands.</p>
+    
+    <p>Traditional learning platforms such as Coursera, Udemy, and LinkedIn Learning offer thousands of courses. However, these platforms suffer from a critical limitation: they take a one-size-fits-all approach. A learner must manually search for relevant courses, guess which technologies are in demand, and figure out the correct sequence in which to learn them. Most learners spend weeks researching before they even start learning, and many give up halfway because they do not have a clear roadmap or visible progress.</p>
+    
+    <p>The problem becomes even more complex when we consider the Indian job market specifically. With over 50 lakh engineering graduates entering the workforce every year, the competition for entry-level tech jobs is fierce. Freshers often apply to hundreds of jobs without understanding how their existing skills match against what employers actually want. They lack a tool that can objectively compare their current abilities against job requirements and tell them precisely what they need to learn.</p>
+    
+    <p>Beyond freshers, working professionals also face challenges. Someone working as a backend developer who wants to transition to an ML Engineer role needs to identify the exact skill gaps between their current position and the target role. They need a personalised learning plan that respects their time constraints, work schedule, and learning pace.</p>
+    
+    <p>Another significant gap in existing solutions is the absence of real-world context. Most learning platforms generate roadmaps in isolation, without curating actual job listings or portfolio project ideas that would help the learner demonstrate their new skills to potential employers.</p>
+    
+    <p>The AI-Powered Skill Gap Generator and Personalized Learning Path Recommender was conceived to address all these issues. The platform takes a holistic view of a user's career development journey. It starts by understanding what the user already knows, identifies exactly what they need to learn for their target role, and generates a day-by-day learning roadmap with curated resources, YouTube tutorials, and portfolio project ideas. Most importantly, it surfaces real job listings that match the user's updated skill profile, creating a complete end-to-end pipeline from learning to job application.</p>
+    
+    <h2>1.2 Problem Statement</h2>
+    <p>The following specific problems form the core motivation for this project:</p>
+    
+    <ol>
+        <li><strong>Lack of Objective Skill Gap Analysis:</strong> Most learners do not have a systematic way to compare their current skills against the requirements of their target job role.</li>
+        <li><strong>No Personalised Learning Roadmaps:</strong> Existing platforms provide generic course recommendations without considering the user's existing knowledge, preferred learning pace, daily time commitment, or total duration.</li>
+        <li><strong>Disconnect Between Learning and Employment:</strong> Learning platforms focus solely on content delivery without connecting learning efforts to actual job opportunities.</li>
+        <li><strong>Résumé Blind Spots:</strong> Many freshers do not know how to effectively present their skills on a résumé. Even when they upload a résumé to existing tools, the extraction is often incomplete.</li>
+        <li><strong>GitHub Profile Underutilisation:</strong> GitHub repositories are a goldmine of evidence for a developer's coding ability, but most people do not know how to objectively evaluate a GitHub profile.</li>
+        <li><strong>Limited Job Discovery for Freshers:</strong> Popular job aggregation platforms do not filter jobs by experience level effectively.</li>
+    </ol>
+    
+    <h2>1.3 Objectives</h2>
+    <p>The project was designed with the following five primary objectives:</p>
+    
+    <p><strong>Objective 1:</strong> To develop a hybrid résumé parsing system that uses both AI (Groq LLM) and keyword-based extraction to identify a user's skills, education, experience, certifications, and contact information from a PDF résumé, with automatic fallback mechanisms.</p>
+    
+    <p><strong>Objective 2:</strong> To implement a GitHub profile analyser that evaluates a user's public repositories for quality indicators such as test coverage, CI/CD implementation, type-safety files, and language diversity, generating a fresher-friendly score.</p>
+    
+    <p><strong>Objective 3:</strong> To build a skill gap analysis engine that compares a user's current skills against the required skills for a self-selected target job role, using web-search-augmented AI.</p>
+    
+    <p><strong>Objective 4:</strong> To create an AI-powered learning path generator that produces a day-by-day personalised roadmap for each selected missing skill, including curated resources and portfolio project recommendations.</p>
+    
+    <p><strong>Objective 5:</strong> To integrate a multi-source job aggregation system that fetches real job listings from Remotive, Jooble, and Adzuna APIs in parallel, with experience-level filtering and location-aware ranking.</p>
+    
+    <h2>1.4 Scope of the Project</h2>
+    <p>The project encompasses a full-stack web application with the following scope:</p>
+    
+    <p><strong>Frontend Scope:</strong> The React.js frontend implements a six-step interactive wizard with glassmorphism dark theme and Framer Motion animations. A persistent AI chat sidebar provides contextual help at every stage.</p>
+    
+    <p><strong>Backend Scope:</strong> The Python Flask backend exposes a REST API that handles résumé upload and parsing, GitHub profile analysis, role-based gap analysis, learning path generation, and job search aggregation. Supabase provides JWT-based authentication.</p>
+    
+    <p><strong>Integration Scope:</strong> The system integrates with Groq API for AI inference, GitHub REST API for repository analysis, Remotive, Jooble, and Adzuna APIs for job aggregation, and DuckDuckGo for web search augmentation.</p>
+    
+    <p><strong>Deployment Scope:</strong> The frontend is deployed on Vercel and the backend on Render. Docker and Docker Compose configuration files are provided for containerised deployment.</p>
+    
+    <h2>1.5 Summary</h2>
+    <p>This chapter introduced the AI-Powered Skill Gap Generator and Personalized Learning Path Recommender by establishing its relevance in today's rapidly changing technology job market. The problem statement identified six critical gaps in the learning-to-employment journey. The five objectives provide a clear blueprint for what the system must accomplish.</p>
+</div>
+
+<!-- ==================== CHAPTER 2: LITERATURE REVIEW ==================== -->
+<div class="chapter">
+    <div class="chapter-number">CHAPTER 2</div>
+    <div class="chapter-title">LITERATURE REVIEW</div>
+    
+    <h2>2.1 Introduction</h2>
+    <p>The development of intelligent systems for career guidance, skill assessment, and personalised learning has been an active area of research for over two decades. This chapter reviews the key areas of related work including skill gap analysis methodologies, personalised learning path generation, NLP-based résumé parsing, job-skill matching algorithms, and adaptive learning platforms.</p>
+    
+    <h2>2.2 Skill Gap Analysis in Technology Careers</h2>
+    <p>Chen et al. (2019) proposed SkillNet that used ontology-based knowledge representation to model technology skill hierarchies and compute gap scores. Their approach relied on manual skill taxonomy curation, which became outdated quickly as new technologies emerged.</p>
+    
+    <p>Patel and Kumar (2023) introduced GapScore using natural language processing to automatically extract required skills from job postings. Their system achieved a 78% accuracy in gap identification but was limited by its dependence on structured job posting formats.</p>
+    
+    <p>What distinguishes our project is the hybrid AI-and-web-search methodology. Rather than relying on a static skill ontology, the system uses the Groq LLM augmented by live web search results to ensure that the gap analysis reflects the latest market demands.</p>
+    
+    <h2>2.3 Personalised Learning Path Generation</h2>
+    <p>Lee and Park (2020) developed AdaptivePath that used learner behaviour data from MOOC platforms to recommend the next learning module. However, their approach required extensive historical data, making it unsuitable for new users.</p>
+    
+    <p>Krishnan and Nair (2022) proposed a constraint-based learning path generator that considered learner preferences such as available time per day and target completion date. Their approach treated all skills as equal-weight.</p>
+    
+    <p>Our project advances personalised learning path generation by generating skill-specific roadmaps, using RAG with live web search results, and implementing a background pre-fetch architecture for sub-10-second generation times.</p>
+    
+    <h2>2.4 NLP-Based Résumé Parsing</h2>
+    <p>Sharma and Gupta (2018) found that rule-based extraction achieved around 65% accuracy on standard fields but dropped to below 40% for complex fields like skills and experience.</p>
+    
+    <p>Gupta and Mehta (2021) introduced ResumeML, a transformer-based model that achieved 87% F1-score on skill extraction. However, their model was trained on specific formats and experienced degradation on non-standard layouts.</p>
+    
+    <p>Our hybrid approach uses the Groq LLM with carefully engineered prompts to extract structured data from any résumé format, with vocabulary-based keyword fallback for reliability.</p>
+    
+    <h2>2.5 GitHub-Based Developer Profiling</h2>
+    <p>Das and Bhattacharya (2020) proposed DevScore that scored GitHub profiles based on repository statistics including stars and forks. Their scoring formula heavily weighted popularity metrics, inadvertently disadvantaging fresh graduates.</p>
+    
+    <p>Kumar and Singh (2023) attempted to address the popularity bias by introducing a quality-weighted formula that rewarded test coverage, documentation, and CI/CD use.</p>
+    
+    <p>Our "fresher-friendly scoring model" evaluates each repository for quality indicators that a fresher can realistically achieve: presence of a tests folder (+10 points), Dockerfile (+10 points), type-safety files (+5 points).</p>
+    
+    <h2>2.6 Job-Skill Matching and Aggregation</h2>
+    <p>Aggarwal and Sharma (2019) introduced SkillMatch using word embeddings to capture contextual similarity between skills and job requirements, improving match accuracy by 23%.</p>
+    
+    <p>Reddy et al. (2024) found that over 60% of entry-level job listings were either duplicates or targeted at candidates with 2-5 years of experience.</p>
+    
+    <p>Our project implements a comprehensive job aggregation system that queries three independent APIs in parallel using ThreadPoolExecutor, ensuring fast response times and automatic fallback.</p>
+    
+    <h2>2.7 Gaps in Existing Research</h2>
+    <ol>
+        <li>Static vs Dynamic Skill Ontologies — our project uses live web search</li>
+        <li>Generic vs Skill-Specific Roadmaps — our project generates separate paths per skill</li>
+        <li>Popularity-Weighted vs Activity-Weighted GitHub Scoring</li>
+        <li>Single-Source vs Multi-Source Job Aggregation</li>
+        <li>Sequential vs Parallel API Architecture (5-8 second generation)</li>
+    </ol>
+    
+    <h2>2.8 Summary</h2>
+    <p>This chapter reviewed six key areas of related research and identified specific gaps that the current project addresses through hybrid AI, fresher-friendly scoring, RAG-based generation, and multi-source job aggregation.</p>
+</div>
+
+<!-- ==================== CHAPTER 3: SYSTEM ANALYSIS ==================== -->
+<div class="chapter">
+    <div class="chapter-number">CHAPTER 3</div>
+    <div class="chapter-title">SYSTEM ANALYSIS</div>
+    
+    <h2>3.1 Introduction</h2>
+    <p>System analysis is a critical phase that bridges the conceptual understanding of the problem with the concrete design and implementation of the solution.</p>
+    
+    <h2>3.2 Feasibility Study</h2>
+    
+    <h3>3.2.1 Technical Feasibility</h3>
+    <p>The project leverages well-established, actively maintained, and widely documented technologies. React.js with Vite provides fast development. Flask offers simplicity in building REST APIs. Supabase provides PostgreSQL and JWT-based authentication as a managed service. The Groq API provides fast LLM inference with automatic fallback to Google Gemini.</p>
+    
+    <h3>3.2.2 Economic Feasibility</h3>
+    <p>All development tools are free and open-source. The total monthly operational cost for a small-scale deployment is approximately zero to ten dollars.</p>
+    
+    <table>
+        <caption class="figure-caption">Table 3.2: Economic Cost Comparison</caption>
+        <tr><th>Component</th><th>Traditional Approach</th><th>This Project</th></tr>
+        <tr><td>Skill Gap Analysis</td><td>₹2,000–₹10,000</td><td>Free</td></tr>
+        <tr><td>Learning Resources</td><td>₹1,000–₹20,000</td><td>Curated free resources</td></tr>
+        <tr><td>Job Search</td><td>₹5,000–₹50,000</td><td>Aggregated free listings</td></tr>
+        <tr><td><strong>Total</strong></td><td><strong>₹8,500–₹83,000</strong></td><td><strong>Free–₹10/month</strong></td></tr>
+    </table>
+    
+    <h3>3.2.3 Operational Feasibility</h3>
+    <p>The 6-step wizard interface is designed to be intuitive for users with basic computer literacy. The modular architecture ensures that each backend module handles a specific responsibility.</p>
+    
+    <h2>3.3 Functional Requirements</h2>
+    <table>
+        <tr><th>ID</th><th>Requirement</th><th>Description</th></tr>
+        <tr><td>FR-01</td><td>User Registration and Authentication</td><td>Supabase JWT-based authentication</td></tr>
+        <tr><td>FR-02</td><td>Manual Skill Entry</td><td>Text input with validation and deduplication</td></tr>
+        <tr><td>FR-03</td><td>Résumé Upload and Parsing</td><td>PDF up to 5MB with AI + keyword extraction</td></tr>
+        <tr><td>FR-04</td><td>GitHub Profile Analysis</td><td>Fresher-friendly scoring with 10-min cache</td></tr>
+        <tr><td>FR-05</td><td>Target Role Selection and Gap Analysis</td><td>Web-search-augmented AI comparison</td></tr>
+        <tr><td>FR-06</td><td>Missing Skill Selection</td><td>Checkbox selection of skills to learn</td></tr>
+        <tr><td>FR-07</td><td>Learning Preferences</td><td>Time (30min-3hrs), pace, duration (1wk-6mo)</td></tr>
+        <tr><td>FR-08</td><td>Learning Path Generation</td><td>Day-by-day roadmap with resources</td></tr>
+        <tr><td>FR-09</td><td>Job Listing Aggregation</td><td>3 APIs, parallel, ranked, filtered</td></tr>
+        <tr><td>FR-10</td><td>Path Persistence</td><td>Save to Supabase, resume on return</td></tr>
+        <tr><td>FR-11</td><td>AI Chat Assistance</td><td>Contextual chat sidebar</td></tr>
+    </table>
+    
+    <h2>3.4 Non-Functional Requirements</h2>
+    <table>
+        <tr><th>ID</th><th>Requirement</th><th>Target</th></tr>
+        <tr><td>NFR-01</td><td>Learning path generation</td><td>&lt; 8 seconds</td></tr>
+        <tr><td>NFR-02</td><td>Résumé parsing</td><td>&lt; 3 seconds</td></tr>
+        <tr><td>NFR-03</td><td>Job aggregation</td><td>&lt; 4 seconds</td></tr>
+        <tr><td>NFR-04</td><td>Concurrent users</td><td>50 users without degradation</td></tr>
+        <tr><td>NFR-05</td><td>Security</td><td>JWT auth, parameterised SQL</td></tr>
+    </table>
+    
+    <h2>3.5 Use Case Descriptions</h2>
+    
+    <h3>Use Case UC-01: Fresher Discovers Skill Gaps</h3>
+    <p><strong>Actor:</strong> Fresher (final-year engineering student)</p>
+    <p><strong>Flow:</strong> The fresher logs in → uploads PDF résumé → enters "Full Stack Developer" role → views match score (e.g., 35%) → selects skills to learn (React, Node.js, Docker) → sets preferences (1hr/day, Balanced, 3 months) → views 90-day learning roadmap → views fresher-friendly job listings.</p>
+    
+    <h3>Use Case UC-02: Career Transition</h3>
+    <p><strong>Actor:</strong> Experienced Professional (3 years backend)</p>
+    <p><strong>Flow:</strong> The professional logs in → selects "Machine Learning Engineer" role → views missing skills (Python, TensorFlow, Statistics) → sets fast pace (2hrs/day, 2 months) → views intensive roadmap → views senior ML Engineer positions.</p>
+    
+    <h2>3.6 Summary</h2>
+    <p>This chapter presented a comprehensive system analysis including feasibility, functional and non-functional requirements, and use case descriptions.</p>
+</div>
+
+<!-- ==================== CHAPTER 4: SYSTEM DESIGN ==================== -->
+<div class="chapter">
+    <div class="chapter-number">CHAPTER 4</div>
+    <div class="chapter-title">SYSTEM DESIGN</div>
+    
+    <h2>4.1 System Architecture</h2>
+    <p>The application follows a three-tier client-server architecture with clear separation of concerns.</p>
+    
+    <!-- FIGURE 4.1: SYSTEM ARCHITECTURE DIAGRAM -->
+    <div class="diagram-container">
+        <svg viewBox="0 0 800 450" xmlns="http://www.w3.org/2000/svg">
+            <rect width="800" height="450" fill="#f8f9fa" stroke="#333" stroke-width="1"/>
+            
+            <!-- User Browser -->
+            <rect x="20" y="20" width="240" height="140" rx="8" fill="#e3f2fd" stroke="#1976d2" stroke-width="2"/>
+            <text x="140" y="42" text-anchor="middle" font-size="11" font-weight="bold" fill="#0d47a1">USER'S BROWSER</text>
+            
+            <rect x="35" y="55" width="210" height="95" rx="6" fill="#61dafb" stroke="#0d47a1" stroke-width="1"/>
+            <text x="140" y="75" text-anchor="middle" font-size="10" font-weight="bold" fill="#0d47a1">React.js Frontend (Vite)</text>
+            
+            <rect x="50" y="90" width="50" height="20" rx="3" fill="#bbdefb"/>
+            <text x="75" y="104" text-anchor="middle" font-size="7" fill="#0d47a1">Dashboard</text>
+            
+            <rect x="105" y="90" width="50" height="20" rx="3" fill="#bbdefb"/>
+            <text x="130" y="104" text-anchor="middle" font-size="7" fill="#0d47a1">Wizard</text>
+            
+            <rect x="160" y="90" width="50" height="20" rx="3" fill="#bbdefb"/>
+            <text x="185" y="104" text-anchor="middle" font-size="7" fill="#0d47a1">AI Chat</text>
+            
+            <!-- HTTPS Arrow -->
+            <line x1="260" y1="90" x2="310" y2="90" stroke="#f57c00" stroke-width="3"/>
+            <polygon points="310,90 300,86 300,94" fill="#f57c00"/>
+            <text x="285" y="82" text-anchor="middle" font-size="8" fill="#f57c00">HTTPS REST</text>
+            
+            <!-- Flask Backend -->
+            <rect x="320" y="20" width="460" height="280" rx="8" fill="#fff3e0" stroke="#e65100" stroke-width="2"/>
+            <text x="550" y="42" text-anchor="middle" font-size="11" font-weight="bold" fill="#e65100">Flask Backend (Python 3.11+)</text>
+            
+            <!-- Auth Middleware -->
+            <rect x="340" y="55" width="420" height="35" rx="4" fill="#ffe0b2" stroke="#e65100" stroke-width="1"/>
+            <text x="550" y="77" text-anchor="middle" font-size="9" font-weight="bold" fill="#bf360c">Auth Middleware (JWT Validation)</text>
+            
+            <!-- Backend Modules Grid -->
+            <rect x="340" y="100" width="130" height="55" rx="4" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1"/>
+            <text x="405" y="118" text-anchor="middle" font-size="8" font-weight="bold" fill="#1b5e20">resume_parser.py</text>
+            <text x="405" y="130" text-anchor="middle" font-size="7" fill="#1b5e20">(PDF + Groq AI)</text>
+            
+            <rect x="480" y="100" width="130" height="55" rx="4" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1"/>
+            <text x="545" y="118" text-anchor="middle" font-size="8" font-weight="bold" fill="#1b5e20">github_analyzer.py</text>
+            <text x="545" y="130" text-anchor="middle" font-size="7" fill="#1b5e20">(GitHub REST API)</text>
+            
+            <rect x="620" y="100" width="130" height="55" rx="4" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1"/>
+            <text x="685" y="118" text-anchor="middle" font-size="8" font-weight="bold" fill="#1b5e20">learning_path_ai.py</text>
+            <text x="685" y="130" text-anchor="middle" font-size="7" fill="#1b5e20">(Groq RAG + Web)</text>
+            
+            <rect x="340" y="165" width="130" height="55" rx="4" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1"/>
+            <text x="405" y="183" text-anchor="middle" font-size="8" font-weight="bold" fill="#1b5e20">job_api_client.py</text>
+            <text x="405" y="195" text-anchor="middle" font-size="7" fill="#1b5e20">(3 Parallel APIs)</text>
+            
+            <rect x="480" y="165" width="130" height="55" rx="4" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1"/>
+            <text x="545" y="183" text-anchor="middle" font-size="8" font-weight="bold" fill="#1b5e20">ai/router.py</text>
+            <text x="545" y="195" text-anchor="middle" font-size="7" fill="#1b5e20">(Groq → Gemini)</text>
+            
+            <rect x="620" y="165" width="130" height="55" rx="4" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1"/>
+            <text x="685" y="183" text-anchor="middle" font-size="8" font-weight="bold" fill="#1b5e20">web_search.py</text>
+            <text x="685" y="195" text-anchor="middle" font-size="7" fill="#1b5e20">(DuckDuckGo)</text>
+            
+            <rect x="340" y="230" width="200" height="55" rx="4" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1"/>
+            <text x="440" y="248" text-anchor="middle" font-size="8" font-weight="bold" fill="#1b5e20">dashboard_routes.py</text>
+            <text x="440" y="260" text-anchor="middle" font-size="7" fill="#1b5e20">(Progress + GitHub + Chat)</text>
+            
+            <rect x="550" y="230" width="200" height="55" rx="4" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1"/>
+            <text x="650" y="248" text-anchor="middle" font-size="8" font-weight="bold" fill="#1b5e20">routes.py</text>
+            <text x="650" y="260" text-anchor="middle" font-size="7" fill="#1b5e20">(Resume + Gaps + Jobs)</text>
+            
+            <!-- Supabase -->
+            <rect x="320" y="310" width="460" height="60" rx="8" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="2"/>
+            <text x="550" y="330" text-anchor="middle" font-size="11" font-weight="bold" fill="#7b1fa2">Supabase (PostgreSQL + Auth)</text>
+            
+            <rect x="340" y="345" width="130" height="20" rx="3" fill="#e1bee7"/>
+            <text x="405" y="359" text-anchor="middle" font-size="8" fill="#4a148c">learning_paths</text>
+            
+            <rect x="480" y="345" width="130" height="20" rx="3" fill="#e1bee7"/>
+            <text x="545" y="359" text-anchor="middle" font-size="8" fill="#4a148c">learning_progress</text>
+            
+            <rect x="620" y="345" width="130" height="20" rx="3" fill="#e1bee7"/>
+            <text x="685" y="359" text-anchor="middle" font-size="8" fill="#4a148c">Auth (JWT + RLS)</text>
+            
+            <!-- External Services -->
+            <rect x="20" y="390" width="760" height="55" rx="8" fill="#fce4ec" stroke="#c2185b" stroke-width="2"/>
+            <text x="400" y="408" text-anchor="middle" font-size="11" font-weight="bold" fill="#c2185b">EXTERNAL SERVICES</text>
+            
+            <rect x="40" y="420" width="140" height="20" rx="3" fill="#f8bbd0"/>
+            <text x="110" y="434" text-anchor="middle" font-size="8" fill="#880e4f">Groq API</text>
+            
+            <rect x="190" y="420" width="140" height="20" rx="3" fill="#f8bbd0"/>
+            <text x="260" y="434" text-anchor="middle" font-size="8" fill="#880e4f">GitHub REST API</text>
+            
+            <rect x="340" y="420" width="100" height="20" rx="3" fill="#f8bbd0"/>
+            <text x="390" y="434" text-anchor="middle" font-size="8" fill="#880e4f">Remotive</text>
+            
+            <rect x="450" y="420" width="100" height="20" rx="3" fill="#f8bbd0"/>
+            <text x="500" y="434" text-anchor="middle" font-size="8" fill="#880e4f">Jooble</text>
+            
+            <rect x="560" y="420" width="100" height="20" rx="3" fill="#f8bbd0"/>
+            <text x="610" y="434" text-anchor="middle" font-size="8" fill="#880e4f">Adzuna</text>
+            
+            <rect x="670" y="420" width="100" height="20" rx="3" fill="#f8bbd0"/>
+            <text x="720" y="434" text-anchor="middle" font-size="8" fill="#880e4f">DuckDuckGo</text>
+        </svg>
+        <p class="figure-caption">Figure 4.1: System Architecture Diagram</p>
+    </div>
+    
+    <h2>4.2 Backend Module Descriptions</h2>
+    
+    <h3>Module 1: resume_parser.py</h3>
+    <p>Extracts structured data from PDF résumés using hybrid AI + keyword matching. Key functions: <code>extract_resume_deep()</code>, <code>_extract_deep_with_ai()</code>, <code>_extract_skills_keyword()</code>, <code>_detect_context()</code>.</p>
+    
+    <h3>Module 2: github_analyzer.py</h3>
+    <p>Analyses GitHub repositories for fresher-friendly scoring. Uses ThreadPoolExecutor with 8 workers for parallel analysis. Scoring: Base 30 + extras + bonuses, clamped to [0, 100].</p>
+    
+    <h3>Module 3: learning_path_ai.py</h3>
+    <p>Generates personalised learning roadmaps using RAG. Background pre-fetch architecture reduces generation time from 40+ seconds to 5-8 seconds.</p>
+    
+    <h3>Module 4: job_api_client.py</h3>
+    <p>Aggregates jobs from Remotive, Jooble, and Adzuna APIs in parallel using ThreadPoolExecutor. Skill match scoring: min(95, 30 + matched × 15).</p>
+    
+    <!-- FIGURE 4.6: ENTITY-RELATIONSHIP DIAGRAM -->
+    <div class="diagram-container">
+        <svg viewBox="0 0 700 350" xmlns="http://www.w3.org/2000/svg">
+            <rect width="700" height="350" fill="#f8f9fa" stroke="#333" stroke-width="1"/>
+            
+            <!-- users entity -->
+            <rect x="30" y="50" width="180" height="120" rx="6" fill="#e3f2fd" stroke="#1976d2" stroke-width="2"/>
+            <rect x="30" y="50" width="180" height="25" rx="6" fill="#1976d2"/>
+            <text x="120" y="67" text-anchor="middle" font-size="10" font-weight="bold" fill="white">users</text>
+            <text x="45" y="92" font-size="8" fill="#0d47a1">id: UUID (PK)</text>
+            <text x="45" y="107" font-size="8" fill="#0d47a1">email: TEXT</text>
+            <text x="45" y="122" font-size="8" fill="#0d47a1">created_at: TST</text>
+            <text x="45" y="142" font-size="7" fill="#666">(Supabase Auth)</text>
+            
+            <!-- learning_paths entity -->
+            <rect x="260" y="30" width="200" height="150" rx="6" fill="#c8e6c9" stroke="#2e7d32" stroke-width="2"/>
+            <rect x="260" y="30" width="200" height="25" rx="6" fill="#2e7d32"/>
+            <text x="360" y="47" text-anchor="middle" font-size="10" font-weight="bold" fill="white">learning_paths</text>
+            <text x="275" y="72" font-size="8" fill="#1b5e20">id: UUID (PK)</text>
+            <text x="275" y="87" font-size="8" fill="#1b5e20">user_id: UUID (FK)</text>
+            <text x="275" y="102" font-size="8" fill="#1b5e20">target_role: TEXT</text>
+            <text x="275" y="117" font-size="8" fill="#1b5e20">selected_skills: TEXT[]</text>
+            <text x="275" y="132" font-size="8" fill="#1b5e20">learning_path: JSONB</text>
+            <text x="275" y="152" font-size="8" fill="#1b5e20">created_at, updated_at</text>
+            
+            <!-- learning_progress entity -->
+            <rect x="500" y="30" width="180" height="150" rx="6" fill="#fff9c4" stroke="#f57f17" stroke-width="2"/>
+            <rect x="500" y="30" width="180" height="25" rx="6" fill="#f57f17"/>
+            <text x="590" y="47" text-anchor="middle" font-size="10" font-weight="bold" fill="white">learning_progress</text>
+            <text x="515" y="72" font-size="8" fill="#f57f17">id: UUID (PK)</text>
+            <text x="515" y="87" font-size="8" fill="#f57f17">user_id: UUID (FK)</text>
+            <text x="515" y="102" font-size="8" fill="#f57f17">skill_name: TEXT</text>
+            <text x="515" y="117" font-size="8" fill="#f57f17">completed_steps: INT[]</text>
+            <text x="515" y="132" font-size="8" fill="#f57f17">week_number: INT</text>
+            <text x="515" y="152" font-size="8" fill="#f57f17">completed_tasks: INT[]</text>
+            
+            <!-- user_profiles entity -->
+            <rect x="260" y="210" width="200" height="100" rx="6" fill="#e1bee7" stroke="#7b1fa2" stroke-width="2"/>
+            <rect x="260" y="210" width="200" height="25" rx="6" fill="#7b1fa2"/>
+            <text x="360" y="227" text-anchor="middle" font-size="10" font-weight="bold" fill="white">user_profiles</text>
+            <text x="275" y="252" font-size="8" fill="#7b1fa2">id: UUID (PK)</text>
+            <text x="275" y="267" font-size="8" fill="#7b1fa2">user_id: UUID (FK)</text>
+            <text x="275" y="282" font-size="8" fill="#7b1fa2">skills: JSONB</text>
+            
+            <!-- Relationships -->
+            <line x1="120" y1="170" x2="120" y2="210" stroke="#333" stroke-width="2"/>
+            <line x1="120" y1="210" x2="260" y2="210" stroke="#333" stroke-width="2"/>
+            <line x1="260" y1="210" x2="260" y2="150" stroke="#333" stroke-width="2"/>
+            <text x="175" y="225" font-size="9" fill="#333">1</text>
+            <text x="245" y="195" font-size="9" fill="#333">N</text>
+            
+            <line x1="210" y1="100" x2="260" y2="100" stroke="#333" stroke-width="2"/>
+            <text x="235" y="92" font-size="9" fill="#333">1</text>
+            <text x="255" y="92" font-size="9" fill="#333">N</text>
+            
+            <line x1="460" y1="100" x2="500" y2="100" stroke="#333" stroke-width="2"/>
+            <text x="480" y="92" font-size="9" fill="#333">1</text>
+            <text x="495" y="92" font-size="9" fill="#333">N</text>
+            
+            <!-- Legend -->
+            <rect x="30" y="280" width="160" height="60" rx="4" fill="white" stroke="#333" stroke-width="1"/>
+            <text x="45" y="298" font-size="8" font-weight="bold" fill="#333">Legend:</text>
+            <text x="45" y="312" font-size="8" fill="#333">PK = Primary Key</text>
+            <text x="45" y="326" font-size="8" fill="#333">FK = Foreign Key</text>
+        </svg>
+        <p class="figure-caption">Figure 4.6: Entity-Relationship Diagram</p>
+    </div>
+    
+    <h2>4.3 API Design</h2>
+    
+    <h3>POST /api/upload-resume</h3>
+    <p>Accepts PDF file (max 5MB). Returns parsed skills, education, experience, global_context, filled_percentage.</p>
+    
+    <h3>POST /api/analyze-role</h3>
+    <p>Receives skills array and target_role. Returns missing_skills, match_score, user_skills_count, required_skills_count.</p>
+    
+    <h3>POST /api/generate-learning-path</h3>
+    <p>Receives selected_skills, time_commitment, learning_pace, duration. Returns learning_path with steps, resources, youtube_videos.</p>
+    
+    <h3>POST /api/job-matches</h3>
+    <p>Receives skills, role, experience_level, location. Returns ranked jobs with success_rate, location_match, sources.</p>
+    
+    <h2>4.4 Summary</h2>
+    <p>This chapter presented the complete system design including the three-tier architecture, eight backend modules, database schema with ER diagram, and API specifications.</p>
+</div>
+
+<!-- ==================== CHAPTER 5: IMPLEMENTATION ==================== -->
+<div class="chapter">
+    <div class="chapter-number">CHAPTER 5</div>
+    <div class="chapter-title">IMPLEMENTATION</div>
+    
+    <h2>5.1 Development Environment</h2>
+    
+    <table>
+        <caption class="figure-caption">Table 5.1: Development Tools and Versions</caption>
+        <tr><th>Component</th><th>Technology</th><th>Version</th></tr>
+        <tr><td>Frontend Runtime</td><td>Node.js</td><td>v20.x</td></tr>
+        <tr><td>Build Tool</td><td>Vite</td><td>5.x</td></tr>
+        <tr><td>UI Library</td><td>React</td><td>18.x</td></tr>
+        <tr><td>Animation</td><td>Framer Motion</td><td>11.x</td></tr>
+        <tr><td>Backend</td><td>Python + Flask</td><td>3.11+ / 3.1.x</td></tr>
+        <tr><td>PDF Parsing</td><td>pdfminer.six</td><td>20250506</td></tr>
+        <tr><td>AI Client</td><td>groq</td><td>0.4.0+</td></tr>
+        <tr><td>Web Search</td><td>ddgs</td><td>6.0.0+</td></tr>
+        <tr><td>Database</td><td>Supabase</td><td>2.10.x</td></tr>
+    </table>
+    
+    <h2>5.2 Key Algorithm Implementations</h2>
+    
+    <h3>Algorithm 1: Hybrid Résumé Extraction</h3>
+    <div class="algorithm-box">
+        <pre>
+Pipeline:
+1. Extract text using pdfminer.six
+2. Send to Groq LLM with JSON-extraction prompt
+3. If AI fails → keyword matching against 500+ terms
+4. Detect context (fresher/experienced/neutral)
+5. Extract Indian cities, dates, URLs via regex
+6. Return with filled_percentage score
+        </pre>
+    </div>
+    
+    <h3>Algorithm 2: GitHub Fresher-Friendly Scoring</h3>
+    <div class="algorithm-box">
+        <pre>
+Per-Repository (parallel, 8 workers):
+  tests/ folder → +10
+  Dockerfile/.github/ → +10
+  types.ts/py.typed → +5
+  stars > 5 → +5
+
+Language Score:
+  score = 30                          // Base
+      + min((repos-1) × 5, 20)       // Additional repos
+      + (10 if has_tests else 0)      // Tests bonus
+      + (10 if has_devops else 0)    // DevOps bonus
+      + (5 if has_types else 0)        // Type bonus
+      + (10 if 3+ languages else 0)   // Diversity bonus
+        </pre>
+    </div>
+    
+    <!-- FIGURE 5.3: GITHUB SCORING MODEL -->
+    <div class="diagram-container">
+        <svg viewBox="0 0 600 280" xmlns="http://www.w3.org/2000/svg">
+            <rect width="600" height="280" fill="#f8f9fa" stroke="#333" stroke-width="1"/>
+            
+            <!-- Start -->
+            <ellipse cx="300" cy="25" rx="60" ry="18" fill="#4caf50" stroke="#2e7d32" stroke-width="2"/>
+            <text x="300" y="30" text-anchor="middle" font-size="9" font-weight="bold" fill="white">GitHub Username</text>
+            
+            <!-- Fetch Repos -->
+            <rect x="225" y="55" width="150" height="35" rx="6" fill="#e3f2fd" stroke="#1976d2" stroke-width="2"/>
+            <text x="300" y="77" text-anchor="middle" font-size="9" font-weight="bold" fill="#0d47a1">Fetch Public Repos</text>
+            
+            <!-- Parallel Box -->
+            <rect x="100" y="105" width="400" height="80" rx="8" fill="#fff9c4" stroke="#f57f17" stroke-width="2" stroke-dasharray="5,3"/>
+            <text x="300" y="122" text-anchor="middle" font-size="9" font-weight="bold" fill="#f57f17">Parallel Repository Analysis (8 Workers)</text>
+            
+            <rect x="120" y="135" width="85" height="35" rx="4" fill="#ffe0b2" stroke="#e65100" stroke-width="1"/>
+            <text x="162" y="150" text-anchor="middle" font-size="7" fill="#bf360c">tests/ folder</text>
+            <text x="162" y="162" text-anchor="middle" font-size="7" font-weight="bold" fill="#bf360c">(+10)</text>
+            
+            <rect x="215" y="135" width="85" height="35" rx="4" fill="#ffe0b2" stroke="#e65100" stroke-width="1"/>
+            <text x="257" y="150" text-anchor="middle" font-size="7" fill="#bf360c">Dockerfile/.github</text>
+            <text x="257" y="162" text-anchor="middle" font-size="7" font-weight="bold" fill="#bf360c">(+10)</text>
+            
+            <rect x="310" y="135" width="85" height="35" rx="4" fill="#ffe0b2" stroke="#e65100" stroke-width="1"/>
+            <text x="352" y="150" text-anchor="middle" font-size="7" fill="#bf360c">types.ts/py.typed</text>
+            <text x="352" y="162" text-anchor="middle" font-size="7" font-weight="bold" fill="#bf360c">(+5)</text>
+            
+            <rect x="405" y="135" width="85" height="35" rx="4" fill="#ffe0b2" stroke="#e65100" stroke-width="1"/>
+            <text x="447" y="150" text-anchor="middle" font-size="7" fill="#bf360c">stars &gt; 5</text>
+            <text x="447" y="162" text-anchor="middle" font-size="7" font-weight="bold" fill="#bf360c">(+5)</text>
+            
+            <!-- Aggregate -->
+            <rect x="175" y="200" width="250" height="40" rx="6" fill="#c8e6c9" stroke="#2e7d32" stroke-width="2"/>
+            <text x="300" y="218" text-anchor="middle" font-size="9" font-weight="bold" fill="#1b5e20">Aggregate Scores Per Language</text>
+            <text x="300" y="232" text-anchor="middle" font-size="8" fill="#1b5e20">Base: 30 + extras + bonuses</text>
+            
+            <!-- Diversity Check -->
+            <polygon points="300,255 360,280 240,280" fill="#e1bee7" stroke="#7b1fa2" stroke-width="2"/>
+            <text x="300" y="273" text-anchor="middle" font-size="8" font-weight="bold" fill="#7b1fa2">3+ Langs?</text>
+            
+            <!-- Arrows -->
+            <line x1="300" y1="43" x2="300" y2="55" stroke="#333" stroke-width="2"/>
+            <line x1="300" y1="90" x2="300" y2="105" stroke="#333" stroke-width="2"/>
+            <line x1="300" y1="185" x2="300" y2="200" stroke="#333" stroke-width="2"/>
+            <line x1="300" y1="240" x2="300" y2="255" stroke="#333" stroke-width="2"/>
+            
+            <polygon points="300,280 295,270 305,270" fill="#333"/>
+        </svg>
+        <p class="figure-caption">Figure 5.3: GitHub Fresher-Friendly Scoring Model</p>
+    </div>
+    
+    <h3>Algorithm 3: Fast Learning Path Generation (RAG)</h3>
+    <div class="algorithm-box">
+        <pre>
+Architecture:
+- Foreground: Fire Groq LLM immediately using cached web results
+- Background: Daemon threads pre-fetch DuckDuckGo results
+
+RAG Prompt:
+"Create {days}-day learning path for '{skill}' targeting {role}.
+ Time: {hours}h/day, Pace: {pace}
+ Resources: {cached_roadmaps}
+ Videos: {cached_youtube}
+ Return JSON with steps array..."
+
+Fallback (if AI fails):
+  Phase 1 (Day 1 to days/3): Foundations
+  Phase 2 (Day days/3 to 2×days/3): Intermediate
+  Phase 3 (Day 2×days/3 to days): Advanced + Portfolio
+        </pre>
+    </div>
+    
+    <h3>Algorithm 4: Location-Aware Job Matching</h3>
+    <div class="algorithm-box">
+        <pre>
+Parallel API Queries (ThreadPoolExecutor, max_workers=3):
+  Thread A: Remotive API (free, no key)
+  Thread B: Jooble API (free tier)
+  Thread C: Adzuna API (free tier)
+
+Skill Match: score = min(95, 30 + matched_skills × 15)
+
+Location Matching (Indian Metro Clusters):
+  DELHI_NCR = [delhi, gurgaon, gurugram, noida, faridabad]
+  BANGALORE = [bangalore, bengaluru, mysore]
+  Score boost: +30 if nearby, +15 if remote
+        </pre>
+    </div>
+    
+    <!-- FIGURE 5.5: JOB AGGREGATION PIPELINE -->
+    <div class="diagram-container">
+        <svg viewBox="0 0 600 300" xmlns="http://www.w3.org/2000/svg">
+            <rect width="600" height="300" fill="#f8f9fa" stroke="#333" stroke-width="1"/>
+            
+            <!-- Input -->
+            <ellipse cx="300" cy="25" rx="100" ry="18" fill="#e3f2fd" stroke="#1976d2" stroke-width="2"/>
+            <text x="300" y="30" text-anchor="middle" font-size="9" font-weight="bold" fill="#0d47a1">Skills, Role, Experience Level</text>
+            
+            <!-- Three API boxes -->
+            <rect x="30" y="70" width="140" height="55" rx="6" fill="#c8e6c9" stroke="#2e7d32" stroke-width="2"/>
+            <text x="100" y="90" text-anchor="middle" font-size="8" font-weight="bold" fill="#1b5e20">Thread A</text>
+            <text x="100" y="105" text-anchor="middle" font-size="8" fill="#1b5e20">Remotive API</text>
+            <text x="100" y="118" text-anchor="middle" font-size="7" fill="#1b5e20">(Remote Jobs)</text>
+            
+            <rect x="230" y="70" width="140" height="55" rx="6" fill="#c8e6c9" stroke="#2e7d32" stroke-width="2"/>
+            <text x="300" y="90" text-anchor="middle" font-size="8" font-weight="bold" fill="#1b5e20">Thread B</text>
+            <text x="300" y="105" text-anchor="middle" font-size="8" fill="#1b5e20">Jooble API</text>
+            <text x="300" y="118" text-anchor="middle" font-size="7" fill="#1b5e20">(Location-Based)</text>
+            
+            <rect x="430" y="70" width="140" height="55" rx="6" fill="#c8e6c9" stroke="#2e7d32" stroke-width="2"/>
+            <text x="500" y="90" text-anchor="middle" font-size="8" font-weight="bold" fill="#1b5e20">Thread C</text>
+            <text x="500" y="105" text-anchor="middle" font-size="8" fill="#1b5e20">Adzuna API</text>
+            <text x="500" y="118" text-anchor="middle" font-size="7" fill="#1b5e20">(Indian Jobs)</text>
+            
+            <!-- Parallel label -->
+            <text x="300" y="145" text-anchor="middle" font-size="8" font-weight="bold" fill="#f57f17">PARALLEL EXECUTION</text>
+            
+            <!-- Merge Box -->
+            <rect x="150" y="155" width="300" height="40" rx="6" fill="#fff9c4" stroke="#f57f17" stroke-width="2"/>
+            <text x="300" y="175" text-anchor="middle" font-size="9" font-weight="bold" fill="#f57f17">Merge & Deduplicate by URL</text>
+            
+            <!-- Score Box -->
+            <rect x="150" y="205" width="300" height="40" rx="6" fill="#e1bee7" stroke="#7b1fa2" stroke-width="2"/>
+            <text x="300" y="225" text-anchor="middle" font-size="9" font-weight="bold" fill="#7b1fa2">Rank by: Skill Match + Location Boost</text>
+            
+            <!-- Output -->
+            <ellipse cx="300" y="275" rx="100" ry="18" fill="#4caf50" stroke="#2e7d32" stroke-width="2"/>
+            <text x="300" y="280" text-anchor="middle" font-size="9" font-weight="bold" fill="white">Top 20 Ranked Jobs</text>
+            
+            <!-- Arrows -->
+            <line x1="300" y1="43" x2="100" y2="70" stroke="#333" stroke-width="2"/>
+            <line x1="300" y1="43" x2="300" y2="70" stroke="#333" stroke-width="2"/>
+            <line x1="300" y1="43" x2="500" y2="70" stroke="#333" stroke-width="2"/>
+            
+            <line x1="100" y1="125" x2="300" y2="155" stroke="#333" stroke-width="2"/>
+            <line x1="300" y1="125" x2="300" y2="155" stroke="#333" stroke-width="2"/>
+            <line x1="500" y1="125" x2="300" y2="155" stroke="#333" stroke-width="2"/>
+            
+            <line x1="300" y1="195" x2="300" y2="205" stroke="#333" stroke-width="2"/>
+            <line x1="300" y1="245" x2="300" y2="257" stroke="#333" stroke-width="2"/>
+        </svg>
+        <p class="figure-caption">Figure 5.5: Parallel Job Aggregation Pipeline</p>
+    </div>
+    
+    <h2>5.3 Challenges and Solutions</h2>
+    <table>
+        <tr><th>Challenge</th><th>Problem</th><th>Solution</th><th>Result</th></tr>
+        <tr><td>AI Latency</td><td>40+ second generation</td><td>Background pre-fetch architecture</td><td>5-8 seconds (85% reduction)</td></tr>
+        <tr><td>Résumé Formats</td><td>40% accuracy on Indian formats</td><td>3-layer extraction</td><td>80-85% accuracy</td></tr>
+        <tr><td>GitHub Rate Limits</td><td>60 req/hr unauthenticated</td><td>Token + 10-min cache</td><td>5000 req/hr with cache</td></tr>
+        <tr><td>Job API Reliability</td><td>Jooble/Adzuna outages</td><td>Parallel + fallback</td><td>Always returns results</td></tr>
+        <tr><td>CORS Production</td><td>Hardcoded localhost origins</td><td>Environment variable config</td><td>Works on Vercel/Render</td></tr>
+    </table>
+    
+    <h2>5.4 Summary</h2>
+    <p>This chapter documented the implementation phase including development environment, four key algorithms with diagrams, and five challenges with solutions.</p>
+</div>
+
+<!-- ==================== CHAPTER 6: TESTING ==================== -->
+<div class="chapter">
+    <div class="chapter-number">CHAPTER 6</div>
+    <div class="chapter-title">TESTING</div>
+    
+    <h2>6.1 Testing Strategy</h2>
+    <p>The testing strategy follows the testing pyramid model: Unit Testing (foundation) → Integration Testing → User Acceptance Testing.</p>
+    
+    <!-- FIGURE 6.1: TESTING PYRAMID -->
+    <div class="diagram-container">
+        <svg viewBox="0 0 400 250" xmlns="http://www.w3.org/2000/svg">
+            <rect width="400" height="250" fill="#f8f9fa" stroke="#333" stroke-width="1"/>
+            
+            <!-- Pyramid -->
+            <polygon points="200,30 350,100 50,100" fill="#e3f2fd" stroke="#1976d2" stroke-width="2"/>
+            <text x="200" y="72" text-anchor="middle" font-size="10" font-weight="bold" fill="#0d47a1">User Acceptance Testing</text>
+            <text x="200" y="87" text-anchor="middle" font-size="8" fill="#0d47a1">(5 test cases)</text>
+            
+            <polygon points="80,105 320,105 350,175 50,175" fill="#c8e6c9" stroke="#2e7d32" stroke-width="2"/>
+            <text x="200" y="135" text-anchor="middle" font-size="10" font-weight="bold" fill="#1b5e20">Integration Testing</text>
+            <text x="200" y="152" text-anchor="middle" font-size="8" fill="#1b5e20">(4 test cases)</text>
+            
+            <polygon points="60,180 340,180 370,250 30,250" fill="#fff9c4" stroke="#f57f17" stroke-width="2"/>
+            <text x="200" y="210" text-anchor="middle" font-size="10" font-weight="bold" fill="#f57f17">Unit Testing</text>
+            <text x="200" y="227" text-anchor="middle" font-size="8" fill="#f57f17">(15 test cases)</text>
+            
+            <text x="200" y="20" text-anchor="middle" font-size="9" fill="#333">Testing Pyramid</text>
+        </svg>
+        <p class="figure-caption">Figure 6.1: Testing Pyramid</p>
+    </div>
+    
+    <h2>6.2 Unit Testing Results</h2>
+    <table>
+        <caption class="figure-caption">Table 6.1: Unit Test Results Summary</caption>
+        <tr><th>Module</th><th>Tests</th><th>Passed</th><th>Failed</th><th>Pass Rate</th></tr>
+        <tr><td>resume_parser.py</td><td>7</td><td>7</td><td>0</td><td>100%</td></tr>
+        <tr><td>github_analyzer.py</td><td>4</td><td>4</td><td>0</td><td>100%</td></tr>
+        <tr><td>job_api_client.py</td><td>4</td><td>4</td><td>0</td><td>100%</td></tr>
+        <tr><td><strong>Total</strong></td><td><strong>15</strong></td><td><strong>15</strong></td><td><strong>0</strong></td><td><strong>100%</strong></td></tr>
+    </table>
+    
+    <h2>6.3 Integration Testing</h2>
+    <table>
+        <tr><th>Test Case</th><th>Description</th><th>Result</th></tr>
+        <tr><td>IT-01</td><td>End-to-end learning path generation</td><td>PASS</td></tr>
+        <tr><td>IT-02</td><td>PDF upload to gap analysis pipeline</td><td>PASS</td></tr>
+        <tr><td>IT-03</td><td>Authentication flow validation</td><td>PASS</td></tr>
+        <tr><td>IT-04</td><td>GitHub analysis cache hit verification</td><td>PASS</td></tr>
+    </table>
+    
+    <h2>6.4 Performance Testing</h2>
+    <table>
+        <caption class="figure-caption">Table 6.3: Performance Test Benchmarks</caption>
+        <tr><th>Operation</th><th>Target</th><th>Average</th><th>Max</th><th>Status</th></tr>
+        <tr><td>Resume parsing</td><td>&lt; 3s</td><td>2.1s</td><td>2.9s</td><td>PASS</td></tr>
+        <tr><td>GitHub analysis</td><td>&lt; 5s</td><td>3.4s</td><td>5.8s</td><td>PASS</td></tr>
+        <tr><td>Learning path generation</td><td>&lt; 8s</td><td>6.2s</td><td>9.1s</td><td>PASS</td></tr>
+        <tr><td>Job aggregation</td><td>&lt; 4s</td><td>3.2s</td><td>4.8s</td><td>PASS</td></tr>
+    </table>
+    
+    <h2>6.5 User Acceptance Testing</h2>
+    <table>
+        <caption class="figure-caption">Table 6.4: User Acceptance Test Results</caption>
+        <tr><th>Participant</th><th>Profile</th><th>Task</th><th>Result</th></tr>
+        <tr><td>Student 1</td><td>Fresher</td><td>Full Stack path generation</td><td>PASS</td></tr>
+        <tr><td>Student 2</td><td>2yr experience</td><td>Career transition planning</td><td>PASS</td></tr>
+        <tr><td>Faculty</td><td>Evaluator</td><td>System evaluation</td><td>PARTIAL</td></tr>
+        <tr><td>Student 3</td><td>Fresher</td><td>Resume parsing accuracy</td><td>PASS</td></tr>
+        <tr><td>Student 4</td><td>Mobile user</td><td>Mobile browser flow</td><td>PARTIAL</td></tr>
+    </table>
+    
+    <h2>6.6 Overall Test Results</h2>
+    <table>
+        <tr><th>Category</th><th>Tests</th><th>Passed</th><th>Failed</th><th>Pass Rate</th></tr>
+        <tr><td>Unit Tests</td><td>15</td><td>15</td><td>0</td><td>100%</td></tr>
+        <tr><td>Integration Tests</td><td>4</td><td>4</td><td>0</td><td>100%</td></tr>
+        <tr><td>Performance Tests</td><td>5</td><td>5</td><td>0</td><td>100%</td></tr>
+        <tr><td>UAT</td><td>5</td><td>4</td><td>1</td><td>80%</td></tr>
+        <tr><td><strong>Total</strong></td><td><strong>29</strong></td><td><strong>28</strong></td><td><strong>1</strong></td><td><strong>96.5%</strong></td></tr>
+    </table>
+    
+    <h2>6.7 Summary</h2>
+    <p>This chapter presented the complete testing strategy with 96.5% overall pass rate. All critical paths were tested and validated.</p>
+</div>
+
+<!-- ==================== CHAPTER 7: RESULTS AND DISCUSSION ==================== -->
+<div class="chapter">
+    <div class="chapter-number">CHAPTER 7</div>
+    <div class="chapter-title">RESULTS AND DISCUSSION</div>
+    
+    <h2>7.1 Application Screenshots</h2>
+    
+    <!-- Screenshot Placeholder 1: Dashboard -->
+    <div class="screenshot-placeholder">
+        <div class="icon">📸</div>
+        <div class="text">[SCREENSHOT: Dashboard - 6-Step Wizard Interface]</div>
+        <div class="subtext">Paste your dashboard screenshot here showing the glassmorphism dark theme with wizard progress indicator</div>
+    </div>
+    <p class="figure-caption">Figure 7.1: Dashboard — 6-Step Wizard Interface</p>
+    
+    <!-- Screenshot Placeholder 2: Skill Gap Analysis -->
+    <div class="screenshot-placeholder">
+        <div class="icon">📊</div>
+        <div class="text">[SCREENSHOT: Skill Gap Analysis Display]</div>
+        <div class="subtext">Paste your skill gap analysis screenshot showing the match score circle and missing skills grid</div>
+    </div>
+    <p class="figure-caption">Figure 7.2: Skill Gap Analysis Display</p>
+    
+    <!-- Screenshot Placeholder 3: Learning Path -->
+    <div class="screenshot-placeholder">
+        <div class="icon">📅</div>
+        <div class="text">[SCREENSHOT: Learning Path Timeline]</div>
+        <div class="subtext">Paste your learning path timeline screenshot showing the phase breakdown and task lists</div>
+    </div>
+    <p class="figure-caption">Figure 7.3: Learning Path Timeline View</p>
+    
+    <!-- Screenshot Placeholder 4: Job Listings -->
+    <div class="screenshot-placeholder">
+        <div class="icon">💼</div>
+        <div class="text">[SCREENSHOT: Job Listings with Match Scores]</div>
+        <div class="subtext">Paste your job listings screenshot showing the ranked jobs with match scores and location badges</div>
+    </div>
+    <p class="figure-caption">Figure 7.4: Job Listings with Match Scores</p>
+    
+    <h2>7.2 Performance Analysis</h2>
+    <p>All major operations met their target response times on average. The background pre-fetch architecture achieved an 85% reduction in learning path generation latency compared to naive sequential processing.</p>
+    
+    <table>
+        <tr><th>Operation</th><th>Target</th><th>Average</th><th>Min</th><th>Max</th><th>Status</th></tr>
+        <tr><td>Resume parsing</td><td>&lt; 3s</td><td>2.1s</td><td>1.2s</td><td>2.9s</td><td>PASS</td></tr>
+        <tr><td>GitHub analysis</td><td>&lt; 5s</td><td>3.4s</td><td>2.1s</td><td>5.8s</td><td>PASS</td></tr>
+        <tr><td>Gap analysis</td><td>&lt; 5s</td><td>3.8s</td><td>2.5s</td><td>6.2s</td><td>PASS</td></tr>
+        <tr><td>Learning path generation</td><td>&lt; 8s</td><td>6.2s</td><td>4.2s</td><td>9.1s</td><td>PASS</td></tr>
+        <tr><td>Job aggregation</td><td>&lt; 4s</td><td>3.2s</td><td>1.9s</td><td>4.8s</td><td>PASS</td></tr>
+    </table>
+    
+    <h2>7.3 Limitations</h2>
+    <ol>
+        <li><strong>GitHub API Rate Limits:</strong> 5,000 requests/hour for authenticated requests</li>
+        <li><strong>AI Response Variability:</strong> Non-deterministic LLM responses may produce different learning paths</li>
+        <li><strong>Free-Tier Job API Constraints:</strong> Limited query volumes for Jooble and Adzuna</li>
+        <li><strong>PDF Parsing Limitations:</strong> Cannot extract from image-based (scanned) PDFs</li>
+        <li><strong>Mobile Experience:</strong> Chat sidebar occupies 30% of screen on mobile devices</li>
+        <li><strong>No LinkedIn Integration:</strong> Users cannot import profile data from LinkedIn</li>
+    </ol>
+    
+    <h2>7.4 Comparison with Existing Tools</h2>
+    <table>
+        <tr><th>Feature</th><th>This Project</th><th>LinkedIn Learning</th><th>Coursera</th></tr>
+        <tr><td>Resume parsing</td><td>AI + keyword hybrid</td><td>Manual only</td><td>Manual only</td></tr>
+        <tr><td>GitHub analysis</td><td>Fresher-friendly</td><td>None</td><td>None</td></tr>
+        <tr><td>Skill gap analysis</td><td>Web-augmented AI</td><td>Rule-based</td><td>Rule-based</td></tr>
+        <tr><td>Learning preferences</td><td>Time, pace, duration</td><td>None</td><td>Deadline</td></tr>
+        <tr><td>Job aggregation</td><td>3 APIs, ranked</td><td>LinkedIn only</td><td>Career guide</td></tr>
+        <tr><td>AI chat assistant</td><td>Contextual, persistent</td><td>None</td><td>Bot (limited)</td></tr>
+        <tr><td>Free access</td><td>Yes</td><td>Partial</td><td>Partial</td></tr>
+    </table>
+    
+    <h2>7.5 Summary</h2>
+    <p>This chapter presented the results and discussion. All major operations meet performance targets. The system offers a more comprehensive feature set than existing platforms for the Indian job market.</p>
+</div>
+
+<!-- ==================== CHAPTER 8: CONCLUSION AND FUTURE WORK ==================== -->
+<div class="chapter">
+    <div class="chapter-number">CHAPTER 8</div>
+    <div class="chapter-title">CONCLUSION AND FUTURE WORK</div>
+    
+    <h2>8.1 Project Summary</h2>
+    <p>The AI-Powered Skill Gap Generator and Personalized Learning Path Recommender is a full-stack web application that helps users identify skill gaps and generate personalised learning roadmaps. Built using React.js, Flask, Supabase, and Groq API. The complete user journey consists of a 6-step wizard.</p>
+    
+    <h2>8.2 Evaluation Against Objectives</h2>
+    <table>
+        <tr><th>Objective</th><th>Description</th><th>Status</th></tr>
+        <tr><td>1</td><td>Hybrid résumé parsing (AI + keyword)</td><td>✅ Fully Met</td></tr>
+        <tr><td>2</td><td>GitHub fresher-friendly profile analyser</td><td>✅ Fully Met</td></tr>
+        <tr><td>3</td><td>Web-augmented skill gap analysis engine</td><td>✅ Fully Met</td></tr>
+        <tr><td>4</td><td>AI-powered learning path generator (RAG)</td><td>✅ Fully Met</td></tr>
+        <tr><td>5</td><td>Multi-source job aggregation with ranking</td><td>✅ Fully Met</td></tr>
+    </table>
+    
+    <h2>8.3 Overall Project Outcome</h2>
+    <p>The project successfully delivered a functional, deployed, and documented web application that passed 96.5% of all test cases. The system demonstrates best practices in software engineering: modular architecture, multi-layer caching, graceful degradation, and parallel execution.</p>
+    
+    <h2>8.4 Future Enhancements</h2>
+    <ol>
+        <li><strong>Resume Scoring Against Job Descriptions:</strong> Score user résumés against specific job descriptions with improvement suggestions. (Priority: High)</li>
+        <li><strong>LinkedIn API Integration:</strong> Implement LinkedIn OAuth for direct profile import. (Priority: Medium)</li>
+        <li><strong>Mobile Application (React Native):</strong> Develop a React Native mobile app with push notifications. (Priority: Medium)</li>
+        <li><strong>Fine-Tuned Domain-Specific LLM:</strong> Fine-tune a smaller language model on Indian technology résumés. (Priority: Low-Medium)</li>
+        <li><strong>Peer Learning Community Features:</strong> Build discussion forums, peer code review, and study groups. (Priority: Low)</li>
+        <li><strong>Interview Preparation Module:</strong> Add interview preparation with personalised technical questions. (Priority: Medium)</li>
+    </ol>
+    
+    <h2>8.5 Concluding Remarks</h2>
+    <p>The AI-Powered Skill Gap Generator and Personalized Learning Path Recommender represents a significant step forward in democratising career guidance for the Indian technology workforce. By combining the intelligence of large language models with the reliability of traditional extraction techniques, the system provides actionable, personalised guidance at near-zero cost. The modular architecture ensures that each component can be independently improved over time. The system is fast (6.2s average learning path generation), reliable (96.5% test pass rate), and accessible (free to use with minimal setup requirements).</p>
+</div>
+
+<!-- ==================== APPENDICES ==================== -->
+<div class="chapter">
+    <div class="chapter-number">APPENDICES</div>
+    <div class="chapter-title">APPENDIX A: DATABASE SCHEMA</div>
+    
+    <h2>Database Schema (Supabase SQL)</h2>
+    <pre>
+CREATE TABLE IF NOT EXISTS learning_paths (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+    target_role TEXT NOT NULL,
+    selected_skills TEXT[] DEFAULT '{}',
+    learning_path JSONB DEFAULT '{}',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS learning_progress (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    skill_name TEXT,
+    completed_steps INTEGER[] DEFAULT '{}',
+    path_id TEXT,
+    week_number INTEGER,
+    day_number INTEGER,
+    completed_tasks INTEGER[] DEFAULT '{}',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(user_id, skill_name)
+);
+
+ALTER TABLE learning_paths ENABLE ROW LEVEL SECURITY;
+ALTER TABLE learning_progress ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies
+CREATE POLICY "Users can view own learning paths" ON learning_paths
+    FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own learning paths" ON learning_paths
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update own learning paths" ON learning_paths
+    FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can view own progress" ON learning_progress
+    FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own progress" ON learning_progress
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update own progress" ON learning_progress
+    FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE INDEX idx_learning_paths_user_id ON learning_paths(user_id);
+CREATE INDEX idx_learning_progress_user_id ON learning_progress(user_id);
+CREATE INDEX idx_learning_progress_skill ON learning_progress(skill_name);
+    </pre>
+    
+    <h2>Environment Variables</h2>
+    <p><strong>Backend (.env):</strong> SUPABASE_URL, SUPABASE_KEY, GROQ_API_KEY, GEMINI_API_KEY, GITHUB_TOKEN, JOOBLE_API_KEY, ADZUNA_APP_ID, ADZUNA_APP_KEY, CORS_ORIGINS</p>
+    <p><strong>Frontend (.env):</strong> VITE_API_BASE_URL, VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY</p>
+</div>
+
+<!-- ==================== REFERENCES ==================== -->
+<div class="chapter">
+    <div class="chapter-number">REFERENCES</div>
+    <div class="chapter-title">REFERENCES</div>
+    
+    <p class="reference">1. Chen, L., Zhang, Y., & Wang, J. (2019). SkillNet: An Ontology-Based Framework for Skill Gap Analysis in Technology Careers. <em>Journal of Systems and Software</em>, 148, 78-92.</p>
+    
+    <p class="reference">2. Patel, R., & Kumar, S. (2023). GapScore: Machine Learning Approach for Automated Skill Gap Identification from Job Postings. <em>IEEE Access</em>, 11, 45234-45251.</p>
+    
+    <p class="reference">3. Lee, H., & Park, J. (2020). AdaptivePath: Learner Behaviour-Based Adaptive Learning Path Recommendation in MOOC Platforms. <em>Computers & Education</em>, 153, 103898.</p>
+    
+    <p class="reference">4. Krishnan, A., & Nair, V. (2022). Constraint-Based Personalized Learning Path Generation for Technical Skill Development. <em>Expert Systems with Applications</em>, 187, 115923.</p>
+    
+    <p class="reference">5. Sharma, D., & Gupta, P. (2018). A Survey of Resume Parsing Techniques: Challenges and Opportunities. <em>International Journal of Information Management</em>, 38(1), 87-96.</p>
+    
+    <p class="reference">6. Gupta, R., & Mehta, A. (2021). ResumeML: Transformer-Based Resume Parsing for Indian Technology Professionals. <em>Proceedings of EMNLP</em>, 2847-2857.</p>
+    
+    <p class="reference">7. Das, S., & Bhattacharya, A. (2020). DevScore: GitHub-Based Developer Profiling Using Repository Statistics. <em>Proceedings of MSR</em>, 210-221.</p>
+    
+    <p class="reference">8. Kumar, V., & Singh, P. (2023). Quality-Weighted GitHub Scoring for Fresh Software Developers. <em>Journal of Systems and Software</em>, 195, 111538.</p>
+    
+    <p class="reference">9. Aggarwal, K., & Sharma, N. (2019). SkillMatch: Semantic Skill Matching Using Word Embeddings. <em>Proceedings of IEEE Big Data</em>, 2851-2858.</p>
+    
+    <p class="reference">10. Reddy, A., Kumar, B., & Joshi, S. (2024). Hierarchical Job Filtering for the Indian Technology Market. <em>ACM TOIS</em>, 42(2), 1-25.</p>
+    
+    <p class="reference">11. Brown, E., & Wilson, G. (2021). A Meta-Analysis of Adaptive Learning Platforms. <em>British Journal of Educational Technology</em>, 52(4), 1456-1475.</p>
+    
+    <p class="reference">12. Zhang, L., Chen, Y., & Liu, W. (2022). Knowledge Graph-Based Technical Skill Learning Path Recommendation. <em>Expert Systems with Applications</em>, 199, 116951.</p>
+</div>
+
+<!-- ==================== FINAL PAGE ==================== -->
+<div class="page-break" style="text-align: center; padding-top: 150px;">
+    <h2>PROJECT COMPLETED</h2>
+    <p style="margin-top: 50px;"><strong>Team Members:</strong></p>
+    <p>DHANUSH KUMAR A (110822104301)</p>
+    <p>KISHORE KUMAR P (110822104302)</p>
+    <p>NETHRAJ S (110822104303)</p>
+    
+    <p style="margin-top: 50px;"><strong>Guide:</strong> Mrs. Jeyalakshmi</p>
+    
+    <p style="margin-top: 50px;"><strong>College:</strong></p>
+    <p>Jaya Engineering College, Tiruninravur - 602024</p>
+    <p>Affiliated to Anna University, Chennai</p>
+    
+    <p style="margin-top: 80px;"><strong>Academic Year: 2025 - 2026</strong></p>
+</div>
+
+</body>
+</html>

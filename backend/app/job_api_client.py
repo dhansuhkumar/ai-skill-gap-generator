@@ -2,7 +2,7 @@
 Job API Client - Real job posting URLs from multiple sources.
 
 Sources:
-1. Remotive (primary) - Free, no API key needed, remote jobs globally
+1. JSearch (primary) - RapidAPI, 200 req/month free, pulls from LinkedIn/Indeed/Glassdoor
 2. Jooble (secondary) - Free tier 500/day, needs API key in .env
 3. Adzuna (tertiary) - Free tier 100/day, needs API key in .env
 
@@ -22,11 +22,19 @@ logger = logging.getLogger(__name__)
 _JOB_CACHE: Dict[str, Tuple[List[Dict], float]] = {}
 _CACHE_TTL = 3600  # 1 hour cache
 
-REMOTIVE_BASE = "https://remotive.com/api/remote-jobs"
+JSEARCH_BASE = "https://jsearch.p.rapidapi.com/search"
 JOOBLE_BASE = "https://jooble.org/api/"
 ADZUNA_BASE = "https://api.adzuna.com/v1/api/jobs"
 
 TECH_SKILLS = get_tech_skills_vocab()
+
+
+# ---------------------------------------------------------------------------
+# Key helpers
+# ---------------------------------------------------------------------------
+
+def _get_jsearch_key() -> Optional[str]:
+    return os.getenv("JSEARCH_API_KEY", "").strip() or None
 
 
 def _get_jooble_key() -> Optional[str]:
@@ -38,6 +46,10 @@ def _get_adzuna_keys() -> Tuple[Optional[str], Optional[str]]:
     app_key = os.getenv("ADZUNA_APP_KEY", "").strip() or None
     return app_id, app_key
 
+
+# ---------------------------------------------------------------------------
+# Skill helpers
+# ---------------------------------------------------------------------------
 
 def _extract_skills_from_text(text: str) -> List[str]:
     """Extract skills from job description."""
@@ -121,81 +133,145 @@ def _filter_experience_level(
     return filtered
 
 
-def _search_remotive(
+# ---------------------------------------------------------------------------
+# JSearch (PRIMARY — replaces Remotive)
+# ---------------------------------------------------------------------------
+
+def _search_jsearch(
     skills: List[str], role: str, experience_level: str, max_results: int = 15
 ) -> List[Dict]:
     """
-    Search Remotive API for remote jobs.
-    NO API KEY NEEDED - completely free.
+    Search JSearch API (RapidAPI) for jobs aggregated from LinkedIn, Indeed,
+    Glassdoor, ZipRecruiter, and more.
 
-    Returns real application URLs like:
-    https://remotive.com/remote-jobs/view/12345
+    Requires JSEARCH_API_KEY in env (free tier: 200 req/month).
+    Sign up: https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch
     """
+    api_key = _get_jsearch_key()
+    if not api_key:
+        logger.info("JSearch API key not configured — skipping JSearch")
+        return []
+
     import requests
 
-    jobs = []
-    search_queries = []
+    headers = {
+        "X-RapidAPI-Key": api_key,
+        "X-RapidAPI-Host": "jsearch.p.rapidapi.com",
+    }
 
+    # Build queries based on experience level
     if experience_level == "fresher":
-        for skill in skills[:2]:
-            search_queries.append(skill)
-        search_queries.append("junior")
-        search_queries.append("entry")
+        base_skills = " ".join(skills[:2]) if skills else role
+        queries = [
+            f"junior {base_skills} developer",
+            f"entry level {role}",
+            f"fresher {base_skills}",
+        ]
     else:
-        for skill in skills[:2]:
-            search_queries.append(skill)
-        search_queries.append(role)
+        base_skills = " ".join(skills[:2]) if skills else role
+        queries = [
+            f"{base_skills} {role}",
+            f"{role} developer",
+            f"{base_skills} engineer",
+        ]
 
+    jobs = []
     seen = set()
 
-    for query in search_queries:
+    for query in queries:
         if len(jobs) >= max_results:
             break
 
         try:
-            params = {"search": query, "limit": max_results}
+            params = {
+                "query": query,
+                "page": "1",
+                "num_pages": "1",
+                "date_posted": "month",       # jobs posted this month
+                "employment_types": "FULLTIME,CONTRACTOR,PARTTIME",
+            }
 
-            response = requests.get(REMOTIVE_BASE, params=params, timeout=10)
+            response = requests.get(
+                JSEARCH_BASE, headers=headers, params=params, timeout=12
+            )
 
             if response.status_code == 200:
                 data = response.json()
-                job_list = data.get("jobs", [])
+                job_list = data.get("data", [])
+
+                logger.info(
+                    f"JSearch query '{query}': {len(job_list)} raw results"
+                )
 
                 for j in job_list:
-                    job_url = j.get("url", "")
-                    if not job_url or job_url in seen:
+                    apply_link = j.get("job_apply_link", "")
+                    if not apply_link or apply_link in seen:
                         continue
-                    seen.add(job_url)
+                    seen.add(apply_link)
 
-                    desc = j.get("description", "")[:2000]
+                    desc = j.get("job_description", "")[:2000]
                     match_score = _calculate_match_score(desc, skills)
+
+                    # Build a clean location string
+                    city = j.get("job_city", "")
+                    state = j.get("job_state", "")
+                    country = j.get("job_country", "")
+                    location_parts = [p for p in [city, state, country] if p]
+                    location_str = ", ".join(location_parts) if location_parts else "Remote"
+
+                    if j.get("job_is_remote"):
+                        location_str = "Remote"
+
+                    # Salary range
+                    sal_min = j.get("job_min_salary")
+                    sal_max = j.get("job_max_salary")
+                    salary_str = ""
+                    if sal_min and sal_max:
+                        salary_str = f"{sal_min}–{sal_max} {j.get('job_salary_currency', '')}".strip()
+                    elif sal_min:
+                        salary_str = f"{sal_min}+ {j.get('job_salary_currency', '')}".strip()
+
+                    # Publisher / source site (e.g., "linkedin.com", "indeed.com")
+                    publisher = j.get("job_publisher", "")
 
                     jobs.append(
                         {
-                            "job_link": job_url,
-                            "job_title": j.get("title", ""),
-                            "company": j.get("company_name", ""),
-                            "job_location": j.get(
-                                "candidate_required_location", "Remote"
-                            ),
+                            "job_link": apply_link,
+                            "job_title": j.get("job_title", ""),
+                            "company": j.get("employer_name", ""),
+                            "company_logo": j.get("employer_logo", ""),
+                            "job_location": location_str,
                             "description": desc,
-                            "salary": j.get("salary", ""),
-                            "job_type": j.get("job_type", ""),
-                            "published_date": j.get("publication_date", ""),
-                            "source": "remotive",
+                            "salary": salary_str,
+                            "job_type": j.get("job_employment_type", ""),
+                            "published_date": j.get("job_posted_at_datetime_utc", ""),
+                            "source": "jsearch",
+                            "publisher": publisher,
                             "success_rate": match_score,
                             "required_skills": _extract_skills_from_text(desc),
                         }
                     )
 
+            elif response.status_code == 429:
+                logger.warning("JSearch rate limit hit — stopping JSearch queries")
+                break
+            else:
+                logger.warning(
+                    f"JSearch returned HTTP {response.status_code} for '{query}'"
+                )
+
         except Exception as e:
-            logger.warning(f"Remotive search failed for '{query}': {e}")
+            logger.warning(f"JSearch search failed for '{query}': {e}")
             continue
 
     jobs = _filter_experience_level(jobs, experience_level, skills)
     jobs.sort(key=lambda x: x.get("success_rate", 0), reverse=True)
     return jobs[:max_results]
 
+
+# ---------------------------------------------------------------------------
+# Jooble (secondary fallback)
+# ---------------------------------------------------------------------------
 
 def _search_jooble(
     skills: List[str],
@@ -269,6 +345,10 @@ def _search_jooble(
     jobs.sort(key=lambda x: x.get("success_rate", 0), reverse=True)
     return jobs[:max_results]
 
+
+# ---------------------------------------------------------------------------
+# Adzuna (tertiary fallback)
+# ---------------------------------------------------------------------------
 
 def _search_adzuna(
     skills: List[str],
@@ -383,6 +463,10 @@ def _search_adzuna(
     return jobs[:max_results]
 
 
+# ---------------------------------------------------------------------------
+# Location helpers
+# ---------------------------------------------------------------------------
+
 def _is_job_nearby(job_location: str, user_location: Dict) -> bool:
     """Check if job location is near user's location."""
     if not job_location or not user_location:
@@ -436,6 +520,10 @@ def _is_job_nearby(job_location: str, user_location: Dict) -> bool:
     return False
 
 
+# ---------------------------------------------------------------------------
+# Main orchestrator
+# ---------------------------------------------------------------------------
+
 def search_jobs(
     skills: List[str],
     role: str,
@@ -445,7 +533,12 @@ def search_jobs(
     user_location: Dict = None,
 ) -> Dict:
     """
-    Search all job APIs and return combined, deduplicated results.
+    Search all configured job APIs and return combined, deduplicated results.
+
+    Priority order:
+      1. JSearch  (LinkedIn/Indeed/Glassdoor via RapidAPI) — needs JSEARCH_API_KEY
+      2. Jooble   (global aggregator)                      — needs JOOBLE_API_KEY
+      3. Adzuna   (India-focused aggregator)               — needs ADZUNA_APP_ID/KEY
 
     Args:
         skills: User's skills for matching
@@ -465,7 +558,10 @@ def search_jobs(
         user_location = {}
 
     user_city = user_location.get("city", "").lower()
-    cache_key = f"{','.join(sorted(skills[:5]))}|{role}|{experience_level}|{location}|{max_results}|{user_city}"
+    cache_key = (
+        f"{','.join(sorted(skills[:5]))}|{role}|{experience_level}"
+        f"|{location}|{max_results}|{user_city}"
+    )
 
     if cache_key in _JOB_CACHE:
         cached_jobs, cached_time = _JOB_CACHE[cache_key]
@@ -479,7 +575,8 @@ def search_jobs(
             }
 
     logger.info(
-        f"Searching jobs: role={role}, exp={experience_level}, city={user_city}, skills={len(skills)}"
+        f"Searching jobs: role={role}, exp={experience_level}, "
+        f"city={user_city}, skills={len(skills)}"
     )
 
     all_jobs = []
@@ -488,12 +585,20 @@ def search_jobs(
     with ThreadPoolExecutor(max_workers=3) as executor:
         futures = {}
 
-        futures[
-            executor.submit(
-                _search_remotive, skills, role, experience_level, max_results
+        # JSearch — primary
+        if _get_jsearch_key():
+            futures[
+                executor.submit(
+                    _search_jsearch, skills, role, experience_level, max_results
+                )
+            ] = "jsearch"
+        else:
+            logger.info(
+                "JSearch key not set — skipping. "
+                "Get a free key at https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch"
             )
-        ] = "remotive"
 
+        # Jooble — secondary fallback
         if _get_jooble_key():
             futures[
                 executor.submit(
@@ -506,6 +611,7 @@ def search_jobs(
                 )
             ] = "jooble"
 
+        # Adzuna — tertiary fallback
         if _get_adzuna_keys()[0]:
             futures[
                 executor.submit(
@@ -524,6 +630,7 @@ def search_jobs(
             except Exception as e:
                 logger.warning(f"{source} search failed: {e}")
 
+    # Deduplicate by URL
     seen_urls = set()
     unique_jobs = []
     for job in all_jobs:
@@ -558,7 +665,8 @@ def search_jobs(
 
     nearby_count = sum(1 for j in unique_jobs if j.get("location_match", False))
     logger.info(
-        f"Total unique jobs: {len(unique_jobs)}, nearby: {nearby_count}, sources: {sources_used}"
+        f"Total unique jobs: {len(unique_jobs)}, nearby: {nearby_count}, "
+        f"sources: {sources_used}"
     )
 
     _JOB_CACHE[cache_key] = (unique_jobs, time.time())
@@ -567,10 +675,14 @@ def search_jobs(
         "jobs": unique_jobs[:max_results],
         "total_found": len(unique_jobs),
         "nearby_count": nearby_count,
-        "sources": sources_used or ["remotive"],
+        "sources": sources_used or [],
         "cached": False,
     }
 
+
+# ---------------------------------------------------------------------------
+# Utility
+# ---------------------------------------------------------------------------
 
 def get_job_match_stats(jobs: List[Dict], user_skills: List[str]) -> Dict:
     """Calculate match statistics for job results."""
